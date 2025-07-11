@@ -214,7 +214,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">
-                  Master's in Sports Science with expertise in biomechanics. Focuses on stroke efficiency and
+                  Master&apos;s in Sports Science with expertise in biomechanics. Focuses on stroke efficiency and
                   performance optimization.
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
