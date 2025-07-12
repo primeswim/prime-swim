@@ -184,6 +184,25 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
+              <CardHeader className="text-center">
+                <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <Users className="w-12 h-12 text-slate-600" />
+                </div>
+                <CardTitle className="text-xl font-bold text-slate-800">Coach Lara</CardTitle>
+                <CardDescription className="text-slate-600">Director & Head Coach</CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Passionate about swimming and teaching. Focuses on stroke efficiency and performance optimization.
+                </p>
+                <div className="mt-4 text-xs text-slate-500">
+                  <p>• USA Swimming Certified</p>
+                </div>
+              </CardContent>
+            </Card>
+            
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardHeader className="text-center">
                 <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -196,24 +215,6 @@ export default function Home() {
                 <p className="text-slate-600 text-sm leading-relaxed">
                   Former Olympic swimmer with 12+ years coaching experience. Specializes in competitive stroke technique
                   and mental preparation.
-                </p>
-                <div className="mt-4 text-xs text-slate-500">
-                  <p>• USA Swimming Certified</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Users className="w-12 h-12 text-slate-600" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Lara</CardTitle>
-                <CardDescription className="text-slate-600">Director & Head Coach</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Passionate about swimming and teaching. Focuses on stroke efficiency and performance optimization.
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
