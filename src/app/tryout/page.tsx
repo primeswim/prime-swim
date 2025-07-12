@@ -154,7 +154,7 @@ export default function TryoutPage() {
             </CardHeader>
             <CardContent className="text-center">
               <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Based on your assessment, we'll recommend the ideal program level and provide a personalized training
+                Based on your assessment, we&apos;ll recommend the ideal program level and provide a personalized training
                 plan.
               </CardDescription>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
@@ -174,7 +174,7 @@ export default function TryoutPage() {
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-slate-800 mb-4">Schedule Your Tryout</h2>
               <p className="text-lg text-slate-600">
-                Fill out the form below and we'll contact you to confirm your tryout appointment
+                Fill out the form below and we&apos;ll contact you to confirm your tryout appointment
               </p>
             </div>
 
