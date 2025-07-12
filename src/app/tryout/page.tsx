@@ -31,11 +31,40 @@ export default function TryoutPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log("Form submitted:", formData)
+    try {
+      const res = await fetch("/api/tryout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+  
+      if (res.ok) {
+        alert("✅ Your tryout request was submitted successfully!")
+        // 清空表单
+        setFormData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          age: "",
+          program: "",
+          experience: "",
+          preferredDate: "",
+          preferredTime: "",
+          notes: "",
+        })
+      } else {
+        alert("❌ There was an error. Please try again.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("❌ There was an error submitting the form.")
+    }
   }
+  
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
