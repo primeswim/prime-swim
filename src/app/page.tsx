@@ -209,7 +209,7 @@ export default function Home() {
                   <Users className="w-12 h-12 text-slate-600" />
                 </div>
                 <CardTitle className="text-xl font-bold text-slate-800">Coach Lara</CardTitle>
-                <CardDescription className="text-slate-600">Technical Coach & Director</CardDescription>
+                <CardDescription className="text-slate-600">Director & Head Coach</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">
@@ -226,7 +226,7 @@ export default function Home() {
                 <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Users className="w-12 h-12 text-slate-600" />
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Emma Rodriguez</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-800">Coach Emma</CardTitle>
                 <CardDescription className="text-slate-600">Youth Development Coach</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
