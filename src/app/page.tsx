@@ -189,17 +189,16 @@ export default function Home() {
                 <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Users className="w-12 h-12 text-slate-600" />
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Sarah Mitchell</CardTitle>
-                <CardDescription className="text-slate-600">Head Coach & Director</CardDescription>
+                <CardTitle className="text-xl font-bold text-slate-800">Coach Moe</CardTitle>
+                <CardDescription className="text-slate-600">Head Coach</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">
-                  Former Olympic swimmer with 15+ years coaching experience. Specializes in competitive stroke technique
+                  Former Olympic swimmer with 12+ years coaching experience. Specializes in competitive stroke technique
                   and mental preparation.
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
-                  <p>• Olympic Training Center Alumni</p>
                 </div>
               </CardContent>
             </Card>
@@ -209,17 +208,15 @@ export default function Home() {
                 <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Users className="w-12 h-12 text-slate-600" />
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Marcus Chen</CardTitle>
-                <CardDescription className="text-slate-600">Technical Coach</CardDescription>
+                <CardTitle className="text-xl font-bold text-slate-800">Coacg Lara</CardTitle>
+                <CardDescription className="text-slate-600">Technical Coach & Director</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">
-                  Master&apos;s in Sports Science with expertise in biomechanics. Focuses on stroke efficiency and
-                  performance optimization.
+                  Passionate about swimming and teaching. Focuses on stroke efficiency and performance optimization.
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
-                  <p>• Level 4 Swimming Coach</p>
-                  <p>• Sports Science Specialist</p>
+                  <p>• USA Swimming Certified</p>
                 </div>
               </CardContent>
             </Card>
