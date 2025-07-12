@@ -208,7 +208,7 @@ export default function Home() {
                 <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Users className="w-12 h-12 text-slate-600" />
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coacg Lara</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-800">Coach Lara</CardTitle>
                 <CardDescription className="text-slate-600">Technical Coach & Director</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
