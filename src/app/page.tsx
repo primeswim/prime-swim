@@ -199,6 +199,7 @@ export default function Home() {
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
+                  <p>• Head Coach Certified</p>
                 </div>
               </CardContent>
             </Card>
@@ -218,6 +219,7 @@ export default function Home() {
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
+                  <p>• Head Coach Certified</p>
                 </div>
               </CardContent>
             </Card>
