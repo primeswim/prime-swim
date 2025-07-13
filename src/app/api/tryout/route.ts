@@ -1,24 +1,28 @@
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
+import path from "path";
+import { readFileSync } from "fs";
 
 export async function POST(request: Request) {
   const data = await request.json();
 
+  // ⬇️ 这里直接读取本地JSON文件
+  const keyFilePath = path.join(process.cwd(), "service-account.json");
+  const credentials = JSON.parse(readFileSync(keyFilePath, "utf-8"));
+
   const auth = new google.auth.GoogleAuth({
-    credentials: {
-      type: "service_account",
-      project_id: process.env.GOOGLE_PROJECT_ID,
-      private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      client_id: process.env.GOOGLE_CLIENT_ID,
-    },
+    credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 
   const sheets = google.sheets({ version: "v4", auth });
 
+  // Spreadsheet ID 还是用环境变量
   const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  if (!spreadsheetId) {
+    console.error("Missing GOOGLE_SHEET_ID");
+    return NextResponse.json({ error: "Spreadsheet ID missing" }, { status: 500 });
+  }
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
