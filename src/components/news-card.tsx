@@ -40,10 +40,10 @@ export function NewsCard({ news, variant = "default" }: NewsCardProps) {
       )}`}
     >
       <Link href={`/news/${news.id}`} className="block">
-        {news.imageUrl && (
+        {news.image && (
           <div className={`relative overflow-hidden rounded-t-lg ${isCompact ? "h-32" : "h-48"}`}>
             <Image
-              src={news.imageUrl || "/placeholder.svg"}
+              src={news.image || "/placeholder.svg"}
               alt={news.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
