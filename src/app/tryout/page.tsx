@@ -54,6 +54,7 @@ export default function TryoutPage() {
           experience: "",
           preferredDate: "",
           preferredTime: "",
+          healthIssues: "",
           notes: "",
         })
       } else {
