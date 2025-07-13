@@ -195,7 +195,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">
-                  Passionate about swimming and teaching. Focuses on stroke efficiency and performance optimization.
+                Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards and China, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
