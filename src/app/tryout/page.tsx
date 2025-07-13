@@ -56,11 +56,11 @@ export default function TryoutPage() {
           notes: "",
         })
       } else {
-        alert("❌ There was an error. Please try again.")
+        alert("❌  There was an error. Please try again.")
       }
     } catch (err) {
       console.error(err)
-      alert("❌ There was an error submitting the form.")
+      alert("❌  There was an error submitting the form.")
     }
   }
   
