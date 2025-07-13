@@ -1,46 +1,30 @@
-import { google } from "googleapis";
+import { Resend } from "resend";
 import { NextResponse } from "next/server";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   const data = await request.json();
 
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      type: "service_account",
-      project_id: process.env.GOOGLE_PROJECT_ID,
-      private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      client_id: process.env.GOOGLE_CLIENT_ID,
-    },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+  const emailHtml = `
+    <h2>New Tryout Submission</h2>
+    <p><strong>First Name:</strong> ${data.firstName}</p>
+    <p><strong>Last Name:</strong> ${data.lastName}</p>
+    <p><strong>Email:</strong> ${data.email}</p>
+    <p><strong>Phone:</strong> ${data.phone}</p>
+    <p><strong>Age:</strong> ${data.age}</p>
+    <p><strong>Program:</strong> ${data.program}</p>
+    <p><strong>Experience:</strong> ${data.experience}</p>
+    <p><strong>Preferred Date:</strong> ${data.preferredDate}</p>
+    <p><strong>Preferred Time:</strong> ${data.preferredTime}</p>
+    <p><strong>Notes:</strong> ${data.notes}</p>
+  `;
 
-  const sheets = google.sheets({ version: "v4", auth });
-
-  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: "Sheet1",
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [
-        [
-          new Date().toISOString(),
-          data.firstName || "",
-          data.lastName || "",
-          data.email || "",
-          data.phone || "",
-          data.age || "",
-          data.program || "",
-          data.experience || "",
-          data.preferredDate || "",
-          data.preferredTime || "",
-          data.notes || "",
-        ],
-      ],
-    },
+  await resend.emails.send({
+    from: "onboarding@resend.dev",
+    to: "prime.swim.us@gmail.com",
+    subject: "*** New Tryout Submission ***",
+    html: emailHtml,
   });
 
   return NextResponse.json({ success: true });
