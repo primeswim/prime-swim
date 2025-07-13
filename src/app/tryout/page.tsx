@@ -24,6 +24,7 @@ export default function TryoutPage() {
     experience: "",
     preferredDate: "",
     preferredTime: "",
+    healthIssues: "",
     notes: "",
   })
 
@@ -279,7 +280,7 @@ export default function TryoutPage() {
                       <Input
                         id="age"
                         type="number"
-                        min="6"
+                        min="4"
                         max="99"
                         value={formData.age}
                         onChange={(e) => handleInputChange("age", e.target.value)}
@@ -356,6 +357,18 @@ export default function TryoutPage() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="healthIssues" className="text-slate-700 font-medium">
+                        Any Health Issues or Special Considerations
+                    </Label>
+                    <Textarea
+                        id="healthIssues"
+                        value={formData.healthIssues}
+                        onChange={(e) => handleInputChange("healthIssues", e.target.value)}
+                        placeholder="Please share any medical conditions, allergies, or special needs we should be aware of..."
+                        className="border-slate-300 focus:border-slate-500 min-h-[80px]"
+                    />
+                    </div>
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="text-slate-700 font-medium">
                       Additional Notes

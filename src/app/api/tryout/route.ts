@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     <p><strong>Experience:</strong> ${data.experience}</p>
     <p><strong>Preferred Date:</strong> ${data.preferredDate}</p>
     <p><strong>Preferred Time:</strong> ${data.preferredTime}</p>
+    <p><strong>Health Issues:</strong> ${data.healthIssues}</p>
     <p><strong>Notes:</strong> ${data.notes}</p>
   `;
 
