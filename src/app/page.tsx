@@ -188,7 +188,7 @@ export default function Home() {
               <CardHeader className="text-center">
                 <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border">
                   <Image
-                    src="/images/coach-lara.jpg"
+                    src="/images/coach-lara.jpeg"
                     alt="Coach Lara"
                     width={96}
                     height={96}
