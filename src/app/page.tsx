@@ -250,7 +250,7 @@ export default function Home() {
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• Youth Swimming Specialist</p>
-                  <p>• Water Safety Instructor</p>
+                  <p>• Water Safety Instructor</p>x
                 </div>
               </CardContent>
             </Card>
