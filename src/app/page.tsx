@@ -267,11 +267,11 @@ export default function Home() {
             <CardContent className="space-y-3">
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
-                <span className="text-sm">Mon & Wed</span>
+                <span className="text-sm">Sat & Sun</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
-                <p>4:00-4:45 PM (Ages 6-8)</p>
-                <p>5:00-5:45 PM (Ages 9-12)</p>
+                <p>4:00-5:00 PM (Saturday)</p>
+                <p>5:00-6:00 PM (Sunday)</p>
               </div>
               <div className="pt-3 border-t">
                 <p className="text-xs text-slate-500">Weekend make-up sessions</p>
@@ -289,14 +289,14 @@ export default function Home() {
             <CardContent className="space-y-3">
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
-                <span className="text-sm">Mon, Wed, Fri</span>
+                <span className="text-sm">Sat & Sun</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
-                <p>6:00-7:00 PM (Ages 10-13)</p>
-                <p>7:15-8:15 PM (Ages 14-16)</p>
+                <p>5:00-6:00 PM (Saturday)</p>
+                <p>4:00-5:00 PM (Sunday)</p>
               </div>
               <div className="pt-3 border-t">
-                <p className="text-xs text-slate-500">Saturday sessions available</p>
+                <p className="text-xs text-slate-500">Weekday sessions available</p>
               </div>
             </CardContent>
           </Card>
