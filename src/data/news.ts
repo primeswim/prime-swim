@@ -24,14 +24,14 @@ export interface NewsItem {
     },
     {
       id: 2,
-      title: "Coach Moe Awarded Best Swim Coach 2025",
+      title: "Coach Moe Recognized for Outstanding Coaching",
       date: "2025-06-10",
-      summary: "Congratulations to Coach Moe for being recognized as Best Swim Coach!",
-      image: "/images/news2.jpg",
+      summary: "Coach Moe was honored this season for dedication and positive impact on our swim team.",
+      image: "/images/news2.jpg",    
       content: "Full article text here...",
       author: "Coach Lara",
       publishDate: "2025-06-10",
-      category: "Coach of the Year"
+      category: "Coach Recognition"
     },
     {
       id: 3,
