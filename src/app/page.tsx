@@ -86,10 +86,21 @@ export default function Home() {
               <CardTitle className="text-xl font-bold text-slate-800">Bronze</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Perfect for beginners and developing swimmers. Focus on fundamental techniques, water safety, and
-                building confidence in the pool.
+              <CardDescription className="text-slate-600 text-sm leading-relaxed mb-4">
+                Learning the basics such as floating, breathing, water safety and basic strokes.
               </CardDescription>
+              <div className="flex flex-col items-center mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-semibold text-xs uppercase tracking-wide shadow-sm">
+                    <svg xmlns='http://www.w3.org/2000/svg' className='w-4 h-4 mr-1 text-amber-600' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-7-7 7-7-9 2-2 9z' /></svg>
+                    Goals
+                  </span>
+                </div>
+                <ul className="text-amber-800 text-sm font-medium space-y-1">
+                  <li>Comfort in water</li>
+                  <li>Swim 25 yards independently</li>
+                </ul>
+              </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
                 <p>• 2 sessions per week</p>
                 <p>• 45-minute sessions</p>
@@ -106,10 +117,20 @@ export default function Home() {
               <CardTitle className="text-xl font-bold text-slate-800">Silver</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Intermediate training for competitive swimmers. Advanced stroke refinement, endurance building, and race
-                preparation.
+              <CardDescription className="text-slate-600 text-sm leading-relaxed mb-4">
+                Focusing on stroke development, learning proper technique and lane etiquette.
               </CardDescription>
+              <div className="flex flex-col items-center mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-700 rounded-full font-semibold text-xs uppercase tracking-wide shadow-sm">
+                    <svg xmlns='http://www.w3.org/2000/svg' className='w-4 h-4 mr-1 text-slate-600' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-7-7 7-7-9 2-2 9z' /></svg>
+                    Goals
+                  </span>
+                </div>
+                <ul className="text-slate-800 text-sm font-medium space-y-1">
+                  <li>Swim 50 yards with legal technique in all the strokes</li>
+                </ul>
+              </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
                 <p>• 3 sessions per week</p>
                 <p>• 60-minute sessions</p>
@@ -126,10 +147,22 @@ export default function Home() {
               <CardTitle className="text-xl font-bold text-slate-800">Gold</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Elite training for serious competitive swimmers. High-performance coaching, advanced techniques, and
-                championship preparation.
+              <CardDescription className="text-slate-600 text-sm leading-relaxed mb-4">
+                Focusing on technique refinement, endurance, building, race skills and introduction to swim meet. Swimmers begin attending local competitions.
               </CardDescription>
+              <div className="flex flex-col items-center mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-semibold text-xs uppercase tracking-wide shadow-sm">
+                    <svg xmlns='http://www.w3.org/2000/svg' className='w-4 h-4 mr-1 text-yellow-600' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-7-7 7-7-9 2-2 9z' /></svg>
+                    Goals
+                  </span>
+                </div>
+                <ul className="text-yellow-800 text-sm font-medium space-y-1">
+                  <li>Legal strokes</li>
+                  <li>Flip turn</li>
+                  <li>Starts and consistent training habits</li>
+                </ul>
+              </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
                 <p>• 5 sessions per week</p>
                 <p>• 90-minute sessions</p>
@@ -146,10 +179,21 @@ export default function Home() {
               <CardTitle className="text-xl font-bold text-slate-800">Platinum</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Pre-elite training for national-level competitors. Advanced race strategy, mental conditioning, and
-                championship-level preparation.
+              <CardDescription className="text-slate-600 text-sm leading-relaxed mb-4">
+                Focusing on more advanced stroke technique, interval training and goal setting. Regular meet participation and USA swimming times.
               </CardDescription>
+              <div className="flex flex-col items-center mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold text-xs uppercase tracking-wide shadow-sm">
+                    <svg xmlns='http://www.w3.org/2000/svg' className='w-4 h-4 mr-1 text-purple-600' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-7-7 7-7-9 2-2 9z' /></svg>
+                    Goals
+                  </span>
+                </div>
+                <ul className="text-purple-800 text-sm font-medium space-y-1">
+                  <li>Qualify for large meets such as PNS champs</li>
+                  <li>Age Group Champs</li>
+                </ul>
+              </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
                 <p>• 6 sessions per week</p>
                 <p>• 2-hour sessions</p>
@@ -166,10 +210,21 @@ export default function Home() {
               <CardTitle className="text-xl font-bold text-slate-800">Olympic</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                Elite Olympic-level training for world-class athletes. Professional coaching, sports science support,
-                and international competition preparation.
+              <CardDescription className="text-slate-600 text-sm leading-relaxed mb-4">
+                Focusing on race strategies, mental toughness, strength and conditioning, peak performance training and college prep. Highest commitment level and individualized training plans.
               </CardDescription>
+              <div className="flex flex-col items-center mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-full font-semibold text-xs uppercase tracking-wide shadow-sm">
+                    <svg xmlns='http://www.w3.org/2000/svg' className='w-4 h-4 mr-1 text-red-600' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-7-7 7-7-9 2-2 9z' /></svg>
+                    Goals
+                  </span>
+                </div>
+                <ul className="text-red-800 text-sm font-medium space-y-1">
+                  <li>National level success</li>
+                  <li>Achieve state and national Qualifying times</li>
+                </ul>
+              </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
                 <p>• 8+ sessions per week</p>
                 <p>• 2.5-hour sessions</p>
