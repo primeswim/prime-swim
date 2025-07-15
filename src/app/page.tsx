@@ -103,7 +103,7 @@ export default function Home() {
               </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
                 <p>• 2 sessions per week</p>
-                <p>• 45-minute sessions</p>
+                <p>• 60-minute sessions</p>
                 <p>• Small group instruction</p>
               </div>
             </CardContent>
@@ -417,10 +417,6 @@ export default function Home() {
                 <Clock className="w-4 h-4 mr-2" />
                 <span className="text-sm">Mon-Fri</span>
               </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <p>5:30-7:00 AM</p>
-                <p>7:30-9:00 PM</p>
-              </div>
               <div className="pt-3 border-t">
                 <p className="text-xs text-slate-500">Weekend competition prep</p>
               </div>
@@ -439,10 +435,6 @@ export default function Home() {
                 <Clock className="w-4 h-4 mr-2" />
                 <span className="text-sm">Mon-Sat</span>
               </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <p>5:00-7:00 AM</p>
-                <p>6:00-8:00 PM</p>
-              </div>
               <div className="pt-3 border-t">
                 <p className="text-xs text-slate-500">National meet preparation</p>
               </div>
@@ -460,10 +452,6 @@ export default function Home() {
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
                 <span className="text-sm">Daily</span>
-              </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <p>4:30-7:00 AM</p>
-                <p>5:30-8:00 PM</p>
               </div>
               <div className="pt-3 border-t">
                 <p className="text-xs text-slate-500">Olympic trials focus</p>
