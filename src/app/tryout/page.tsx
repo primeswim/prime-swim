@@ -24,6 +24,7 @@ export default function TryoutPage() {
     experience: "",
     preferredDate: "",
     preferredTime: "",
+    location: "",
     healthIssues: "",
     notes: "",
   })
@@ -54,6 +55,7 @@ export default function TryoutPage() {
           experience: "",
           preferredDate: "",
           preferredTime: "",
+          location: "",
           healthIssues: "",
           notes: "",
         })
@@ -357,6 +359,23 @@ export default function TryoutPage() {
                       </Select>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="location" className="text-slate-700 font-medium">
+                        Preferred Location *
+                    </Label>
+                    <Select onValueChange={(value) => handleInputChange("location", value)}>
+                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
+                        <SelectValue placeholder="Select preferred location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        <SelectItem value="Redmond">Redmond</SelectItem>
+                        <SelectItem value="Mercer Island">Mercer Island</SelectItem>
+                        <SelectItem value="Issaquah">Issaquah</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+
 
                   <div className="space-y-2">
                     <Label htmlFor="healthIssues" className="text-slate-700 font-medium">
