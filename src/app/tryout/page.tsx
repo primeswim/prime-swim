@@ -292,7 +292,7 @@ export default function TryoutPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="program" className="text-slate-700 font-medium">
-                        Interested Program
+                        Interested Program  *
                       </Label>
                       <Select onValueChange={(value) => handleInputChange("program", value)}>
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
