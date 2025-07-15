@@ -310,23 +310,39 @@ export default function TryoutPage() {
                       </Select>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="experience" className="text-slate-700 font-medium">
-                      Swimming Experience
-                    </Label>
-                    <Select onValueChange={(value) => handleInputChange("experience", value)}>
-                      <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                        <SelectValue placeholder="Select your experience level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">Beginner (Learning to swim)</SelectItem>
-                        <SelectItem value="recreational">Recreational swimmer</SelectItem>
-                        <SelectItem value="competitive">Some competitive experience</SelectItem>
-                        <SelectItem value="advanced">Advanced competitive swimmer</SelectItem>
-                        <SelectItem value="elite">Elite/National level</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="experience" className="text-slate-700 font-medium">
+                        Swimming Experience
+                        </Label>
+                        <Select onValueChange={(value) => handleInputChange("experience", value)}>
+                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
+                            <SelectValue placeholder="Select your experience level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="beginner">Beginner (Learning to swim)</SelectItem>
+                            <SelectItem value="recreational">Recreational swimmer</SelectItem>
+                            <SelectItem value="competitive">Some competitive experience</SelectItem>
+                            <SelectItem value="advanced">Advanced competitive swimmer</SelectItem>
+                            <SelectItem value="elite">Elite/National level</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="location" className="text-slate-700 font-medium">
+                            Preferred Location *
+                        </Label>
+                        <Select onValueChange={(value) => handleInputChange("location", value)}>
+                            <SelectTrigger className="border-slate-300 focus:border-slate-500">
+                            <SelectValue placeholder="Select preferred location" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="Redmond">Redmond</SelectItem>
+                            <SelectItem value="Mercer Island">Mercer Island</SelectItem>
+                            <SelectItem value="Issaquah">Issaquah</SelectItem>
+                            </SelectContent>
+                        </Select>
+                  </div>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-6">
@@ -359,23 +375,6 @@ export default function TryoutPage() {
                       </Select>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="text-slate-700 font-medium">
-                        Preferred Location *
-                    </Label>
-                    <Select onValueChange={(value) => handleInputChange("location", value)}>
-                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                        <SelectValue placeholder="Select preferred location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="Redmond">Redmond</SelectItem>
-                        <SelectItem value="Mercer Island">Mercer Island</SelectItem>
-                        <SelectItem value="Issaquah">Issaquah</SelectItem>
-                        </SelectContent>
-                    </Select>
-                  </div>
-
 
                   <div className="space-y-2">
                     <Label htmlFor="healthIssues" className="text-slate-700 font-medium">
