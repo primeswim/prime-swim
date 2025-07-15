@@ -151,8 +151,7 @@ export default function TryoutPage() {
                 determine the best program fit.
               </CardDescription>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
-                <p>• 15-minute evaluation</p>
-                <p>• All four strokes assessed</p>
+                <p>• 30-minute evaluation</p>
                 <p>• Technique analysis</p>
               </div>
             </CardContent>
