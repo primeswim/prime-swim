@@ -6,12 +6,6 @@ import { Calendar, Clock, Mail, MapPin, Phone, Trophy, Users, Waves } from "luci
 import { Newspaper, ArrowRight } from "lucide-react"
 import { getLatestNews } from "@/data/news"
 import { NewsCard } from "@/components/news-card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import Header from "@/components/header";
 
 export default function Home() {
