@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import Header from "@/components/header";
 
 export default function Home() {
   const latestNews = getLatestNews(3)
@@ -19,47 +20,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={60}
-              height={60}
-              className="rounded-full"
-            />
-            <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
-          </div>
-          <div className="items-center space-x-8">
-            <DropdownMenu>
-                <DropdownMenuTrigger className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer">
-                    About Us
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                <DropdownMenuItem asChild>
-                    <Link href="/mission">Mission & Vision</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                    <Link href="/coaches">Our Coaches</Link>
-                </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-            <Link href="#programs" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Programs
-            </Link>
-            <Link href="#coaches" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Coaches
-            </Link>
-            <Link href="#schedule" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Schedule
-            </Link>
-            <Link href="#contact" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Contact
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">

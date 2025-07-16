@@ -3,45 +3,13 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Target, Eye, Heart, Users, Trophy, Waves, Star, Award, Mail, MapPin, Phone } from "lucide-react"
+import Header from "@/components/header";
 
 export default function MissionPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={60}
-              height={60}
-              className="rounded-full"
-            />
-            <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
-          </Link>
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/#programs" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Programs
-            </Link>
-            <Link href="/#coaches" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Coaches
-            </Link>
-            <Link href="/#schedule" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Schedule
-            </Link>
-            <Link href="/news" className="text-slate-600 hover:text-slate-800 transition-colors">
-              News
-            </Link>
-            <Link href="/mission" className="text-slate-800 font-semibold">
-              Mission
-            </Link>
-            <Link href="/#contact" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Contact
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <Header />
 
       {/* Breadcrumb */}
       <div className="container mx-auto px-4 py-4">
