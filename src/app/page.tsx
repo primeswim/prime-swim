@@ -6,7 +6,12 @@ import { Calendar, Clock, Mail, MapPin, Phone, Trophy, Users, Waves } from "luci
 import { Newspaper, ArrowRight } from "lucide-react"
 import { getLatestNews } from "@/data/news"
 import { NewsCard } from "@/components/news-card"
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function Home() {
   const latestNews = getLatestNews(3)
@@ -27,6 +32,19 @@ export default function Home() {
             <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
           </div>
           <div className="hidden md:flex items-center space-x-8">
+            <DropdownMenu>
+                <DropdownMenuTrigger className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer">
+                    About Us
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                <DropdownMenuItem asChild>
+                    <Link href="/mission">Mission & Vision</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link href="/coaches">Our Coaches</Link>
+                </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
             <Link href="#programs" className="text-slate-600 hover:text-slate-800 transition-colors">
               Programs
             </Link>

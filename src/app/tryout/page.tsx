@@ -12,6 +12,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mail, MapPin, Phone, Trophy, Users, Waves, CheckCircle, AlertCircle, Droplets } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
 
 export default function TryoutPage() {
   const [formData, setFormData] = useState({
@@ -89,6 +95,19 @@ export default function TryoutPage() {
             <Link href="/" className="text-slate-600 hover:text-slate-800 transition-colors">
               Home
             </Link>
+            <DropdownMenu>
+                <DropdownMenuTrigger className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer">
+                    About Us
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                <DropdownMenuItem asChild>
+                    <Link href="/mission">Mission & Vision</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link href="/coaches">Our Coaches</Link>
+                </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
             <Link href="/#programs" className="text-slate-600 hover:text-slate-800 transition-colors">
               Programs
             </Link>
