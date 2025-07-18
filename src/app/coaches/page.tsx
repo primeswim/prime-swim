@@ -146,6 +146,14 @@ export default function CoachesPage() {
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-3 text-purple-600" />
+                    <span className="text-sm text-slate-600">USA Swimming Certified Coach</span>
+                  </div>
+                  <div className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-3 text-purple-600" />
+                    <span className="text-sm text-slate-600">Head Coach Certification</span>
+                  </div>
+                  <div className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-3 text-purple-600" />
                     <span className="text-sm text-slate-600">Expert in Youth & Competitive Training</span>
                   </div>
                   <div className="flex items-center">
