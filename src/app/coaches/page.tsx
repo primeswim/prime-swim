@@ -161,10 +161,10 @@ export default function CoachesPage() {
                   <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
                     Elite Training
                   </span>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
                     Building Training Plans
                   </span>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
                     Season Development
                   </span>
                   <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
