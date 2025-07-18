@@ -141,16 +141,12 @@ export default function CoachesPage() {
                 <h4 className="font-semibold text-slate-800 mb-3">Achievements & Experience</h4>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center">
-                    <Trophy className="w-4 h-4 mr-3 text-purple-600" />
-                    <span className="text-sm text-slate-600">Best Swim Coach 2025</span>
-                  </div>
-                  <div className="flex items-center">
                     <Medal className="w-4 h-4 mr-3 text-purple-600" />
                     <span className="text-sm text-slate-600">Former Olympic Swimmer</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-3 text-purple-600" />
-                    <span className="text-sm text-slate-600">USA Swimming Level 4 Coach</span>
+                    <span className="text-sm text-slate-600">Expert in Youth & Competitive Training</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-3 text-purple-600" />
