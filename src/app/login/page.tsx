@@ -68,7 +68,7 @@ export default function LoginPage() {
         setSuccess("Login successful! Redirecting...")
     
         router.push("/dashboard")
-      } catch (_err: unknown) {
+      } catch {
         setError("Invalid email or password.")
       } finally {
         setIsLoading(false)
