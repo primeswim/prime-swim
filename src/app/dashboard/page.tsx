@@ -226,10 +226,10 @@ export default function DashboardPage() {
                         </div>
                         <div>
                         <CardTitle className="text-xl font-bold text-slate-800">
-                            {swimmer.childFirstName} {swimmer.childLastName}
+                            {swimmer.firstName} {swimmer.lastName}
                         </CardTitle>
                         <CardDescription className="text-slate-600">
-                            Age {calculateAge(swimmer.childDateOfBirth)}
+                            Age {calculateAge(swimmer.dateOfBirth)}
                         </CardDescription>
                         <p className="text-sm text-slate-500 mt-1">
                             Registered on: {new Date(swimmer.createdAt?.seconds * 1000).toLocaleDateString()}

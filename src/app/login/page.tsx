@@ -14,7 +14,6 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { User, Lock, Mail, Eye, EyeOff, Phone, MapPin, AlertCircle, CheckCircle, ArrowRight } from "lucide-react"
 import Header from "@/components/header";
-import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
 
@@ -69,7 +68,7 @@ export default function LoginPage() {
         setSuccess("Login successful! Redirecting...")
     
         router.push("/dashboard")
-      } catch (err: unknown) {
+      } catch (_err: unknown) {
         setError("Invalid email or password.")
       } finally {
         setIsLoading(false)
