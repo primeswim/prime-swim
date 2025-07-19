@@ -166,7 +166,7 @@ export default function RegisterPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Child Information</CardTitle>
               <CardDescription className="text-slate-600">
-                Please provide your child's basic information
+                Please provide your child&rsquo;s basic information
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -557,7 +557,7 @@ export default function RegisterPage() {
                   id="allergies"
                   value={formData.allergies}
                   onChange={(e) => handleInputChange("allergies", e.target.value)}
-                  placeholder="List any food, medication, or environmental allergies. Write 'None' if no allergies."
+                  placeholder="List any food, medication, or environmental allergies. Write &rsquo;None&rsquo; if no allergies."
                   rows={3}
                 />
               </div>
@@ -568,7 +568,7 @@ export default function RegisterPage() {
                   id="healthHistory"
                   value={formData.healthHistory}
                   onChange={(e) => handleInputChange("healthHistory", e.target.value)}
-                  placeholder="Include any past medical conditions, surgeries, asthma, heart conditions, seizures, etc. Write 'None' if no history."
+                  placeholder="Include any past medical conditions, surgeries, asthma, heart conditions, seizures, etc. Write &rsquo;None&rsquo; if no history."
                   rows={4}
                 />
               </div>
@@ -579,7 +579,7 @@ export default function RegisterPage() {
                   id="medications"
                   value={formData.medications}
                   onChange={(e) => handleInputChange("medications", e.target.value)}
-                  placeholder="List all current medications, dosages, and frequency. Write 'None' if no medications."
+                  placeholder="List all current medications, dosages, and frequency. Write &rsquo;None&rsquo; if no medications."
                   rows={3}
                 />
               </div>
@@ -590,7 +590,7 @@ export default function RegisterPage() {
                   id="specialNeeds"
                   value={formData.specialNeeds}
                   onChange={(e) => handleInputChange("specialNeeds", e.target.value)}
-                  placeholder="Any special needs, learning disabilities, physical limitations, or accommodations required. Write 'None' if no special needs."
+                  placeholder="Any special needs, learning disabilities, physical limitations, or accommodations required. Write &rsquo;None&rsquo; if no special needs."
                   rows={3}
                 />
               </div>

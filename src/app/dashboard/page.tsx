@@ -1,14 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { onAuthStateChanged } from "firebase/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
@@ -34,11 +30,9 @@ import {
 
 
 export default function DashboardPage() {
-  const [selectedSwimmer, setSelectedSwimmer] = useState<number | null>(null)
-  const [parent, setParent] = useState<any>(null)
+  const [parent] = useState<any>(null)
   const [swimmers, setSwimmers] = useState<any[]>([])
   const [loading, setLoading] = useState(true) 
-  const router = useRouter()
 
   const handleLogout = () => {
     // Handle logout logic
@@ -77,41 +71,6 @@ export default function DashboardPage() {
       age--
     }
     return age
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  }
-
-  const getProgramColor = (program: string) => {
-    if (!program) return "bg-gray-100 text-gray-500"
-    switch (program.toLowerCase()) {
-      case "bronze":
-        return "bg-amber-100 text-amber-800"
-      case "silver":
-        return "bg-slate-100 text-slate-800"
-      case "gold":
-        return "bg-yellow-100 text-yellow-800"
-      case "platinum":
-        return "bg-purple-100 text-purple-800"
-      case "olympic":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-slate-100 text-slate-800"
-    }
   }
 
   if (loading) {
