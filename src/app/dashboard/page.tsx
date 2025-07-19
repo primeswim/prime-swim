@@ -13,19 +13,12 @@ import {
   Users,
   Plus,
   LogOut,
-  Calendar,
-  Trophy,
   Phone,
   Mail,
   MapPin,
   Settings,
-  Bell,
   CreditCard,
-  FileText,
-  Star,
   Waves,
-  CheckCircle,
-  AlertCircle,
 } from "lucide-react"
 
 

@@ -58,10 +58,10 @@ export default function Header() {
             Contact
           </Link>
           <Link
-            href="/register"
+            href="/login"
             className="text-slate-600 hover:text-slate-800 transition-colors"
           >
-            Register
+            Login
           </Link>
         </div>
       </nav>

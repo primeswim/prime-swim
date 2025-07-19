@@ -71,12 +71,11 @@ export default function LoginPage() {
           loginData.email,
           loginData.password
         )
-    
-        const user = userCredential.user
+
         setSuccess("Login successful! Redirecting...")
     
         router.push("/dashboard")
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError("Invalid email or password.")
       } finally {
         setIsLoading(false)
@@ -117,8 +116,13 @@ export default function LoginPage() {
         setIsLogin(true)
         setSuccess("")
       }, 2000)
-    } catch (err: any) {
-      setError("Account creation failed. Email may already be in use.")
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            console.error(err.message)
+            setError("Account creation failed. Email may already be in use.")
+          } else {
+            setError("An unexpected error occurred.")
+          }
     } finally {
       setIsLoading(false)
     }
@@ -185,7 +189,7 @@ export default function LoginPage() {
                 </div>
                 <CardTitle className="text-2xl font-bold text-slate-800">Welcome Back</CardTitle>
                 <CardDescription className="text-slate-600">
-                  Sign in to the parent account to manage your swimmer's information
+                  Sign in to the parent account to manage your swimmer&lsquo;s information
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -286,7 +290,7 @@ export default function LoginPage() {
 
                 <div className="text-center">
                   <p className="text-sm text-slate-600">
-                    Don't have an account?{" "}
+                    Don&lsquo;t have an account?{" "}
                     <button
                       onClick={() => setIsLogin(false)}
                       className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
@@ -326,7 +330,7 @@ export default function LoginPage() {
                 </div>
                 <CardTitle className="text-2xl font-bold text-slate-800">Create Account</CardTitle>
                 <CardDescription className="text-slate-600">
-                  Create the parent account - you'll use this account to register and manage your swimmer(s)
+                  Create the parent account - you&lsquo;ll use this account to register and manage your swimmer(s)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
