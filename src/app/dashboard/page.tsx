@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { onAuthStateChanged } from "firebase/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
+import { Swimmer } from "@/types"
+import { Parent } from "@/types"
 import {
   User,
   Users,
@@ -24,8 +26,8 @@ import {
 
 export default function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [parent] = useState<any>(null)
-  const [swimmers, setSwimmers] = useState<any[]>([])
+  const [parent] = useState<Parent | null>(null)
+  const [swimmers, setSwimmers] = useState<Swimmer[]>([])
   const [loading, setLoading] = useState(true) 
 
   const handleLogout = () => {
@@ -46,10 +48,18 @@ export default function DashboardPage() {
       // 获取 swimmer 数据
       const swimmerQuery = query(collection(db, "swimmers"), where("parentUID", "==", user.uid))
       const swimmerSnapshot = await getDocs(swimmerQuery)
-      const swimmerData = swimmerSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      setSwimmers(swimmerData)
-  
-      setLoading(false)
+      const swimmerData: Swimmer[] = swimmerSnapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        dateOfBirth: data.dateOfBirth,
+        createdAt: data.createdAt,
+        }
+      })
+    setSwimmers(swimmerData)
+    setLoading(false)
     })
   
     return () => unsubscribe()
