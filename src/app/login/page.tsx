@@ -66,12 +66,6 @@ export default function LoginPage() {
     setError("")
 
     try {
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          loginData.email,
-          loginData.password
-        )
-
         setSuccess("Login successful! Redirecting...")
     
         router.push("/dashboard")

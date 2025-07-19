@@ -23,6 +23,7 @@ import {
 
 
 export default function DashboardPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parent] = useState<any>(null)
   const [swimmers, setSwimmers] = useState<any[]>([])
   const [loading, setLoading] = useState(true) 
