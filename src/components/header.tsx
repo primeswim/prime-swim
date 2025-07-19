@@ -57,6 +57,12 @@ export default function Header() {
           >
             Contact
           </Link>
+          <Link
+            href="/register"
+            className="text-slate-600 hover:text-slate-800 transition-colors"
+          >
+            Register
+          </Link>
         </div>
       </nav>
     </header>
