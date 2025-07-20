@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAuth, onAuthStateChanged } from "firebase/auth"
+import { onAuthStateChanged } from "firebase/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
 import { Swimmer } from "@/types"
@@ -22,7 +22,6 @@ import {
   CreditCard,
   Waves,
 } from "lucide-react"
-import { useRouter } from "next/router"
 
 
 export default function DashboardPage() {
