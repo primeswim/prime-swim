@@ -22,7 +22,14 @@ import {
   CreditCard,
   Waves,
 } from "lucide-react"
-
+import { MoreHorizontal, Trash2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import { doc, deleteDoc } from "firebase/firestore"
 
 export default function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,6 +42,17 @@ export default function DashboardPage() {
     if (confirm("Are you sure you want to log out?")) {
       // Clear session/tokens
       window.location.href = "/login"
+    }
+  }
+
+  const handleDeleteSwimmer = async (swimmerId: string) => {
+    if (!confirm("Are you sure you want to delete this swimmer?")) return
+    try {
+      await deleteDoc(doc(db, "swimmers", swimmerId))
+      setSwimmers((prev) => prev.filter((s) => s.id !== swimmerId))
+    } catch (error) {
+      console.error("Failed to delete swimmer:", error)
+      alert("Failed to delete swimmer. Please try again.")
     }
   }
 
@@ -137,7 +155,7 @@ export default function DashboardPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back, {parent?.firstName || "Parent"}!</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back!</h1>
           <p className="text-slate-600">Manage your swimmers and stay updated with their progress.</p>
         </div>
 
@@ -220,22 +238,39 @@ export default function DashboardPage() {
                 >
                 <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
-                        <Waves className="w-8 h-8 text-blue-600" />
+                        <div className="flex items-center space-x-4">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
+                            <Waves className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <div>
+                            <CardTitle className="text-xl font-bold text-slate-800">
+                                {swimmer.childFirstName} {swimmer.childLastName}
+                            </CardTitle>
+                            <CardDescription className="text-slate-600">
+                                Age {calculateAge(swimmer.childDateOfBirth)}
+                            </CardDescription>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Registered on: {new Date(swimmer.createdAt?.seconds * 1000).toLocaleDateString()}
+                            </p>
+                            </div>
                         </div>
-                        <div>
-                        <CardTitle className="text-xl font-bold text-slate-800">
-                            {swimmer.childFirstName} {swimmer.childLastName}
-                        </CardTitle>
-                        <CardDescription className="text-slate-600">
-                            Age {calculateAge(swimmer.childDateOfBirth)}
-                        </CardDescription>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Registered on: {new Date(swimmer.createdAt?.seconds * 1000).toLocaleDateString()}
-                        </p>
-                        </div>
-                    </div>
+                        {/* 右上角三个点菜单 */}
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="hover:bg-slate-100">
+                            <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                            className="text-red-600 focus:bg-red-50"
+                            onClick={() => handleDeleteSwimmer(swimmer.id)}
+                            >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </CardHeader>
 
