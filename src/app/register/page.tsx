@@ -32,14 +32,12 @@ import {
   Shield,
   Camera,
   BookOpen,
-  DollarSign,
   Mail,
   MapPin,
-  CheckCircle,
 } from "lucide-react"
 
 export default function RegisterPage() {
-  const [showZelleStep, setShowZelleStep] = useState(false)
+  const [, setShowZelleStep] = useState(false)
   const [swimmerId, setSwimmerId] = useState<string | null>(null)
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const router = useRouter()

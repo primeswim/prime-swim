@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 
 export default function ZellePaymentStep({
-  formData,
+//   formData,
   swimmerId,
   user,
 }: {
@@ -252,7 +252,7 @@ export default function ZellePaymentStep({
                     </div>
                     <div className="flex items-center">
                       <FileText className="w-4 h-4 mr-2 text-blue-600" />
-                      <span>Memo: Include your child's full name</span>
+                      <span>Memo: Include your child&apos;s full name</span>
                     </div>
                   </div>
                 </div>
@@ -327,7 +327,7 @@ export default function ZellePaymentStep({
                   ) : (
                     <div className="flex items-center justify-center">
                       <CheckCircle className="w-5 h-5 mr-2" />
-                      I've Completed the Payment
+                      I&apos;ve Completed the Payment
                     </div>
                   )}
                 </Button>
@@ -342,7 +342,7 @@ export default function ZellePaymentStep({
             </CardHeader>
             <CardContent>
               <p className="text-slate-600 text-sm mb-4">
-                If you encounter any issues with the payment process or have questions about registration, please don't
+                If you encounter any issues with the payment process or have questions about registration, please don&apos;t
                 hesitate to contact us.
               </p>
               <div className="space-y-2 text-sm">

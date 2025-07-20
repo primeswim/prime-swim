@@ -19,7 +19,6 @@ import {
   Mail,
   MapPin,
   Settings,
-  CreditCard,
   Waves,
 } from "lucide-react"
 import { MoreHorizontal, Trash2 } from "lucide-react"
