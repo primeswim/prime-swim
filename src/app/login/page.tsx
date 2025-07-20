@@ -1,5 +1,6 @@
 "use client"
 
+import { signInWithEmailAndPassword } from "firebase/auth"
 import type React from "react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -65,11 +66,16 @@ export default function LoginPage() {
     setError("")
 
     try {
+        await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
         setSuccess("Login successful! Redirecting...")
     
-        router.push("/dashboard")
+        // 小延迟可选
+        setTimeout(() => {
+            router.push("/dashboard")
+        }, 500)
       } catch {
         setError("Invalid email or password.")
+        console.error("Login error:", error)
       } finally {
         setIsLoading(false)
       }
