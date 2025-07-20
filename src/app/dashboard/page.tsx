@@ -73,7 +73,8 @@ export default function DashboardPage() {
             childFirstName: data.childFirstName,
             childLastName: data.childLastName,
             childDateOfBirth: data.childDateOfBirth,
-            createdAt: data.createdAt
+            createdAt: data.createdAt,
+            paymentStatus: data.paymentStatus
         }
       })
     setSwimmers(swimmerData)
@@ -276,14 +277,13 @@ export default function DashboardPage() {
 
                 <CardContent>
                     <div className="flex justify-end pt-2">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-slate-300 text-slate-700 hover:bg-slate-50 bg-transparent"
-                    >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Payments
-                    </Button>
+                    <div className="text-sm font-medium">
+                        {swimmer.paymentStatus === "paid" ? (
+                            <span className="text-green-600">✅ Paid</span>
+                        ) : (
+                            <span className="text-yellow-600">⏳ Pending</span>
+                        )}
+                        </div>
                     </div>
                 </CardContent>
                 </Card>

@@ -1,7 +1,9 @@
 "use client"
 
+import ZellePaymentStep from "@/components/ZellePaymentStep"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
+import { serverTimestamp } from "firebase/firestore"
 import type { User as FirebaseUser } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -37,6 +39,8 @@ import {
 } from "lucide-react"
 
 export default function RegisterPage() {
+  const [showZelleStep, setShowZelleStep] = useState(false)
+  const [swimmerId, setSwimmerId] = useState<string | null>(null)
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const router = useRouter()
   useEffect(() => {
@@ -137,17 +141,18 @@ export default function RegisterPage() {
         return
       }
   
-      const docRef = await addDoc(collection(db, "swimmers"), {
+      const swimmerDoc = await addDoc(collection(db, "swimmers"), {
         ...formData,
         parentUID: user.uid,
         isAdult: false,
-        createdAt: new Date()
+        createdAt: serverTimestamp()
       })
-  
-      console.log("Swimmer registered with ID:", docRef.id)
-      alert("Registration submitted successfully!")
-  
-      router.push("/dashboard")
+      setSwimmerId(swimmerDoc.id)
+      setShowZelleStep(true)
+      console.log("Swimmer registered with ID:", swimmerDoc.id)
+      alert("Registration submitted. Please complete payment!")
+      console.log(`register - swimmer id=${swimmerDoc.id}`)
+      router.push(`/zelle-payment?id=${swimmerDoc.id}`)
     } catch (e) {
       console.error("Error adding swimmer: ", e)
       alert("Something went wrong. Please try again.")
@@ -598,181 +603,170 @@ export default function RegisterPage() {
           </Card>
         )
 
-      case 7:
-        return (
-          <Card className="border-0 shadow-xl bg-white">
-            <CardHeader className="text-center pb-6">
-              <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-white" />
-              </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Liability Forms & Agreements</CardTitle>
-              <CardDescription className="text-slate-600">
-                Please read and agree to the following terms and conditions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Liability Waiver */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Shield className="w-6 h-6 text-indigo-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Liability Waiver</h3>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
-                  <p className="mb-2">
-                  I acknowledge that swimming and related activities involve inherent risks. I voluntarily accept these risks on behalf of my child and agree not to hold Prime Swim Academy, its staff, or affiliates liable for any injury arising from ordinary participation in the program. This waiver does not apply in cases of intentional misconduct.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="liabilityWaiver"
-                    checked={formData.liabilityWaiver}
-                    onCheckedChange={(checked) => handleInputChange("liabilityWaiver", checked as boolean)}
-                  />
-                  <Label htmlFor="liabilityWaiver" className="text-sm">
-                    I have read and agree to the Liability Waiver *
-                  </Label>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Medical Treatment Authorization */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Heart className="w-6 h-6 text-red-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Medical Treatment Authorization</h3>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
-                  <p className="mb-2">
-                    I authorize Prime Swim Academy staff to seek emergency medical treatment for my child if I cannot be
-                    reached immediately. I understand that every effort will be made to contact me or the emergency
-                    contact before seeking treatment. I authorize the administration of first aid and emergency medical
-                    care by qualified personnel.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="medicalAuthorization"
-                    checked={formData.medicalAuthorization}
-                    onCheckedChange={(checked) => handleInputChange("medicalAuthorization", checked as boolean)}
-                  />
-                  <Label htmlFor="medicalAuthorization" className="text-sm">
-                    I authorize emergency medical treatment *
-                  </Label>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Photo & Media Release */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Camera className="w-6 h-6 text-green-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Photo & Media Release</h3>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
-                  <p className="mb-2">
-                    I grant Prime Swim Academy permission to use photographs, videos, or other media of my child for
-                    promotional purposes including but not limited to websites, social media, brochures, and
-                    advertisements. I understand that no compensation will be provided for such use.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="photoRelease"
-                    checked={formData.photoRelease}
-                    onCheckedChange={(checked) => handleInputChange("photoRelease", checked as boolean)}
-                  />
-                  <Label htmlFor="photoRelease" className="text-sm">
-                    I grant permission for photo and media use (optional)
-                  </Label>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Code of Conduct */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <BookOpen className="w-6 h-6 text-purple-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Code of Conduct</h3>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
-                  <p className="mb-2">
-                    I agree that my child and I will conduct ourselves in a respectful manner at all times. This
-                    includes showing respect to coaches, staff, other swimmers, and parents. Inappropriate behavior,
-                    including but not limited to bullying, harassment, or disruptive conduct, may result in suspension
-                    or termination from the program without refund.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="codeOfConduct"
-                    checked={formData.codeOfConduct}
-                    onCheckedChange={(checked) => handleInputChange("codeOfConduct", checked as boolean)}
-                  />
-                  <Label htmlFor="codeOfConduct" className="text-sm">
-                    I agree to follow the Code of Conduct *
-                  </Label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 8:
-        return (
-          <Card className="border-0 shadow-xl bg-white">
-            <CardHeader className="text-center pb-6">
-              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <DollarSign className="w-8 h-8 text-white" />
-              </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Registration Fee</CardTitle>
-              <CardDescription className="text-slate-600">Complete your registration with payment</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg">
-                <h3 className="text-xl font-bold text-slate-800 mb-4">Registration Package - $75</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <CheckCircle className="w-5 h-5 mr-3 text-blue-600" />
-                    <span className="text-slate-700">USA Swimming membership</span>
+        case 7:
+            return (
+              <Card className="border-0 shadow-xl bg-white">
+                <CardHeader className="text-center pb-6">
+                  <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-white" />
                   </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="w-5 h-5 mr-3 text-blue-600" />
-                    <span className="text-slate-700">Team swim cap</span>
+                  <CardTitle className="text-2xl font-bold text-slate-800">Liability Forms & Agreements</CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Please read and agree to the following terms and conditions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  {/* Liability Waiver */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Shield className="w-6 h-6 text-indigo-600" />
+                      <h3 className="text-lg font-semibold text-slate-800">Liability Waiver</h3>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
+                      <p className="mb-2">
+                        I acknowledge that swimming and related activities involve inherent risks. I voluntarily accept these
+                        risks on behalf of my child and agree not to hold Prime Swim Academy, its staff, or affiliates liable for
+                        any injury arising from ordinary participation in the program. This waiver does not apply in cases of
+                        intentional misconduct.
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="liabilityWaiver"
+                        checked={formData.liabilityWaiver}
+                        onCheckedChange={(checked) => handleInputChange("liabilityWaiver", checked as boolean)}
+                      />
+                      <Label htmlFor="liabilityWaiver" className="text-sm">
+                        I have read and agree to the Liability Waiver *
+                      </Label>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="w-5 h-5 mr-3 text-blue-600" />
-                    <span className="text-slate-700">Prime Swim Academy T-shirt</span>
+          
+                  <Separator />
+          
+                  {/* Medical Treatment Authorization */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Heart className="w-6 h-6 text-red-600" />
+                      <h3 className="text-lg font-semibold text-slate-800">Medical Treatment Authorization</h3>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
+                      <p className="mb-2">
+                        I authorize Prime Swim Academy staff to seek emergency medical treatment for my child if I cannot be
+                        reached immediately. I understand that every effort will be made to contact me or the emergency contact
+                        before seeking treatment. I authorize the administration of first aid and emergency medical care by
+                        qualified personnel.
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="medicalAuthorization"
+                        checked={formData.medicalAuthorization}
+                        onCheckedChange={(checked) => handleInputChange("medicalAuthorization", checked as boolean)}
+                      />
+                      <Label htmlFor="medicalAuthorization" className="text-sm">
+                        I authorize emergency medical treatment *
+                      </Label>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="w-5 h-5 mr-3 text-blue-600" />
-                    <span className="text-slate-700">Administrative setup and processing</span>
+          
+                  <Separator />
+          
+                  {/* Photo & Media Release */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Camera className="w-6 h-6 text-green-600" />
+                      <h3 className="text-lg font-semibold text-slate-800">Photo & Media Release</h3>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
+                      <p className="mb-2">
+                        I grant Prime Swim Academy permission to use photographs, videos, or other media of my child for
+                        promotional purposes including but not limited to websites, social media, brochures, and advertisements. I
+                        understand that no compensation will be provided for such use.
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="photoRelease"
+                        checked={formData.photoRelease}
+                        onCheckedChange={(checked) => handleInputChange("photoRelease", checked as boolean)}
+                      />
+                      <Label htmlFor="photoRelease" className="text-sm">
+                        I grant permission for photo and media use (optional)
+                      </Label>
+                    </div>
                   </div>
-                </div>
-              </div>
+          
+                  <Separator />
+          
+                  {/* Code of Conduct */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <BookOpen className="w-6 h-6 text-purple-600" />
+                      <h3 className="text-lg font-semibold text-slate-800">Code of Conduct</h3>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
+                      <p className="mb-2">
+                        I agree that my child and I will conduct ourselves in a respectful manner at all times. This includes
+                        showing respect to coaches, staff, other swimmers, and parents. Inappropriate behavior, including but not
+                        limited to bullying, harassment, or disruptive conduct, may result in suspension or termination from the
+                        program without refund.
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="codeOfConduct"
+                        checked={formData.codeOfConduct}
+                        onCheckedChange={(checked) => handleInputChange("codeOfConduct", checked as boolean)}
+                      />
+                      <Label htmlFor="codeOfConduct" className="text-sm">
+                        I agree to follow the Code of Conduct *
+                      </Label>
+                    </div>
+                  </div>
+          
+                  {/* Final submission button */}
+                  <Button
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-full text-lg mt-8"
+                    onClick={async () => {
+                      if (!user) return
+                      try {
+                        const docRef = await addDoc(collection(db, "swimmers"), {
+                          ...formData,
+                          parentUID: user.uid,
+                          createdAt: serverTimestamp()
+                        })
+                        setSwimmerId(docRef.id)
+                        setCurrentStep(8)
+                      } catch (err) {
+                        console.error("Error creating swimmer document:", err)
+                        alert("There was an error submitting the registration. Please try again.")
+                      }
+                    }}
+                  >
+                    Agree & Continue
+                  </Button>
+                </CardContent>
+              </Card>
+            )
+          
+        case 8:
+            console.log("case 8... ")
+            console.log(swimmerId)
+            console.log(user?.uid)
+            case 8:
+                if (!swimmerId) {
+                    return <p className="text-center text-red-600">Missing swimmer ID. Please retry registration.</p>
+                }
 
-              <div className="bg-slate-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-slate-800 mb-2">Payment Information</h4>
-                <p className="text-sm text-slate-600 mb-4">
-                  After submitting this registration form, you will receive an email with payment instructions and a
-                  secure payment link.
-                </p>
-                <div className="text-sm text-slate-600">
-                  <p>• Registration is not complete until payment is received</p>
-                  <p>• Payment must be received within 7 days of registration</p>
-                  <p>• Accepted payment methods: Credit card, bank transfer</p>
-                </div>
-              </div>
+                if (!user) {
+                    console.log("Waiting for user to load...")
+                    return <p className="text-center text-gray-600">Loading user info...</p>
+                }
 
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-800 mb-2">Total: $75.00</div>
-                <p className="text-slate-600">Annual registration fee</p>
-              </div>
-            </CardContent>
-          </Card>
-        )
+                return (
+                    <ZellePaymentStep formData={formData} swimmerId={swimmerId} user={user} />
+                )
 
       default:
         return null
