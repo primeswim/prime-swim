@@ -49,13 +49,13 @@ export default function DashboardPage() {
       const swimmerQuery = query(collection(db, "swimmers"), where("parentUID", "==", user.uid))
       const swimmerSnapshot = await getDocs(swimmerQuery)
       const swimmerData: Swimmer[] = swimmerSnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        dateOfBirth: data.dateOfBirth,
-        createdAt: data.createdAt,
+        const data = doc.data()
+        return {
+            id: doc.id,
+            childFirstName: data.childFirstName,
+            childLastName: data.childLastName,
+            childDateOfBirth: data.childDateOfBirth,
+            createdAt: data.createdAt
         }
       })
     setSwimmers(swimmerData)
@@ -226,10 +226,10 @@ export default function DashboardPage() {
                         </div>
                         <div>
                         <CardTitle className="text-xl font-bold text-slate-800">
-                            {swimmer.firstName} {swimmer.lastName}
+                            {swimmer.childFirstName} {swimmer.childLastName}
                         </CardTitle>
                         <CardDescription className="text-slate-600">
-                            Age {calculateAge(swimmer.dateOfBirth)}
+                            Age {calculateAge(swimmer.childDateOfBirth)}
                         </CardDescription>
                         <p className="text-sm text-slate-500 mt-1">
                             Registered on: {new Date(swimmer.createdAt?.seconds * 1000).toLocaleDateString()}

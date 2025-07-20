@@ -2,9 +2,9 @@ import { Timestamp } from "firebase/firestore"
 
 export interface Swimmer {
   id: string
-  firstName: string
-  lastName: string
-  dateOfBirth: string
+  childFirstName: string
+  childLastName: string
+  childDateOfBirth: string
   createdAt: Timestamp
 }
 
