@@ -226,7 +226,7 @@ export default function ZellePaymentStep({
                   <div className="flex justify-center mb-4">
                     <div className="bg-white p-4 rounded-lg shadow-lg">
                       <Image
-                        src="/images/zelle-qr.jpeg"
+                        src="/images/zelle_qr.jpeg"
                         alt="Zelle QR Code for Prime Swim Academy"
                         width={200}
                         height={200}
