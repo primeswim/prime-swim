@@ -1,58 +1,51 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
-import { getAllNews } from "@/data/news";
+import { useEffect, useState } from "react";
 import { NewsCard } from "@/components/news-card";
+import { getFirestore, collection, getDocs, query, orderBy, where } from "firebase/firestore";
+import { app } from "@/lib/firebase"; // 你创建 firebase app 的地方
+import Header from "@/components/header";
+import { NewsItem } from "@/types/news";
 
 export default function NewsPage() {
-  const allNews = getAllNews();
+  const [allNews, setAllNews] = useState<NewsItem[]>([]);
+  const db = getFirestore(app);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      const q = query(
+        collection(db, "news"),
+        where("isPublished", "==", true),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      const newsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as NewsItem[];
+
+      setAllNews(newsList);
+    };
+
+    fetchNews();
+  }, [db]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={60}
-              height={60}
-              className="rounded-full"
-            />
-            <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
-          </div>
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Home
-            </Link>
-            <Link href="/#programs" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Programs
-            </Link>
-            <Link href="/#coaches" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Coaches
-            </Link>
-            <Link href="/#schedule" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Schedule
-            </Link>
-            <Link href="/#contact" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Contact
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={100}
-              height={100}
-              className="mx-auto mb-6 rounded-full shadow-lg"
-            />
-          </div>
+          <Image
+            src="/images/psa-logo.png"
+            alt="Prime Swim Academy Logo"
+            width={100}
+            height={100}
+            className="mx-auto mb-6 rounded-full shadow-lg"
+          />
           <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">
             Latest News & Updates
           </h1>

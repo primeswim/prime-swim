@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { userIsAdminFromDB } from "../hooks/userIsAdminFromDB";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -8,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
+  const isAdmin = userIsAdminFromDB();
   return (
     <header className="container mx-auto px-4 py-6">
       <nav className="flex items-center justify-between">
@@ -63,6 +67,14 @@ export default function Header() {
           >
             Login
           </Link>
+          {isAdmin && (
+            <Link
+              href="/news/add"
+              className="text-slate-600 hover:text-slate-800 transition-colors"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </nav>
     </header>

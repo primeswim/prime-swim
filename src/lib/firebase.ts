@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth"
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 // 读取 .env.local 中的环境变量
 const firebaseConfig = {
@@ -18,5 +19,6 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 // 初始化 Firestore 数据库
 const db = getFirestore(app);
 const auth = getAuth(app)
+const storage = getStorage(app);
 
-export { db, auth }
+export { app, db, auth, storage }

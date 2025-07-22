@@ -3,14 +3,11 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Clock, Mail, MapPin, Phone, Trophy, Users, Waves } from "lucide-react"
-import { Newspaper, ArrowRight } from "lucide-react"
-import { getLatestNews } from "@/data/news"
-import { NewsCard } from "@/components/news-card"
 import Header from "@/components/header";
+import dynamic from "next/dynamic"
+import LatestNewsSection from "@/components/latest-news-section"
 
 export default function Home() {
-  const latestNews = getLatestNews(3)
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
@@ -208,36 +205,7 @@ export default function Home() {
         </div>
       </section>
 
-{/* Latest News Section */}
-<section className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Latest News & Updates</h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Stay informed with the latest swimming techniques, training tips, and academy updates
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-12">
-          {latestNews.map((news) => (
-            <NewsCard key={news.id} news={news} variant="compact" />
-          ))}
-        </div>
-
-        <div className="text-center">
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="border-0 shadow-xl bg-white hover:bg-slate-50 text-slate-800 px-8 py-6 text-lg rounded-full transition-all duration-300"
-          >
-            <Link href="/news">
-              <Newspaper className="w-5 h-5 mr-2" />
-              View All News
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Link>
-          </Button>
-        </div>
-      </section>
+      <LatestNewsSection />
       
       {/* Coaches Section */}
       <section id="coaches" className="bg-slate-50 py-20">
