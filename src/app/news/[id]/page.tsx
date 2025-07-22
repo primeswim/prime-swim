@@ -8,7 +8,7 @@ import { doc, getDoc, collection, getDocs } from "firebase/firestore"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Header from "@/components/header"
-import { ArrowLeft, Calendar, User, Share2, Clock, Mail, MapPin, Phone } from "lucide-react"
+import { ArrowLeft, Calendar, User, Share2, Clock } from "lucide-react"
 
 interface NewsItem {
   id: string
