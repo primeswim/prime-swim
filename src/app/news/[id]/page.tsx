@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Header from "@/components/header"
 import { ArrowLeft, Calendar, User, Share2, Clock } from "lucide-react"
+import { Metadata } from "next"
 
 export const dynamic = "force-dynamic" // 每次都从 Firestore 拉数据
 
@@ -23,8 +24,12 @@ interface NewsItem {
   publishDate?: string
 }
 
-export default async function NewsDetailPage(props: any) {
-  const { id } = (props.params ?? {}) as { id: string }
+export default async function NewsDetailPage({
+    params,
+  }: {
+    params: { id: string }
+  }) {
+    const { id } = params
 
   // 获取单篇新闻
   const docRef = doc(db, "news", id)
