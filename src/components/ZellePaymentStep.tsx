@@ -198,11 +198,11 @@ export default function ZellePaymentStep({
                 <div className="mt-4 space-y-2 text-sm text-slate-600">
                   <div className="flex items-center justify-center">
                     <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                    <span>USA Swimming membership</span>
+                    <span>Team swim cap</span>
                   </div>
                   <div className="flex items-center justify-center">
                     <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                    <span>Team swim cap & T-shirt</span>
+                    <span>Team T-shirt</span>
                   </div>
                   <div className="flex items-center justify-center">
                     <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
