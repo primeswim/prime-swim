@@ -23,13 +23,8 @@ interface NewsItem {
   publishDate?: string
 }
 
-// ✅ 正确的 page 函数签名
-export default async function NewsDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
-  const { id } = params
+export default async function NewsDetailPage(props: any) {
+  const { id } = (props.params ?? {}) as { id: string }
 
   // 获取单篇新闻
   const docRef = doc(db, "news", id)
