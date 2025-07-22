@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Header from "@/components/header"
 import { ArrowLeft, Calendar, User, Share2, Clock } from "lucide-react"
-import { Metadata } from "next"
 
 export const dynamic = "force-dynamic" // 每次都从 Firestore 拉数据
 
