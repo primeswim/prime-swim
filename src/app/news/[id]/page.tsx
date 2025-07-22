@@ -23,12 +23,9 @@ interface NewsItem {
   publishDate?: string
 }
 
-export default async function NewsDetailPage({
-    params,
-  }: {
-    params: { id: string }
-  }) {
-    const { id } = params
+export default async function NewsDetailPage(props: unknown) {
+  const { id } = (props as { params: { id: string } }).params
+  
 
   // 获取单篇新闻
   const docRef = doc(db, "news", id)
