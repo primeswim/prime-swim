@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, User, Clock } from "lucide-react";
-import type { NewsItem } from "@/data/news";
+import type { NewsItem } from "@/types/news";
 
 interface NewsCardProps {
   news: NewsItem;
