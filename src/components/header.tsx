@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useIsAdminFromDB } from "../hooks/useIsAdminFromDB";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -11,7 +10,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const isAdmin = useIsAdminFromDB();
   return (
     <header className="container mx-auto px-4 py-6">
       <nav className="flex items-center justify-between">
@@ -62,19 +60,17 @@ export default function Header() {
             Contact
           </Link>
           <Link
+            href="/news"
+            className="text-slate-600 hover:text-slate-800 transition-colors"
+          >
+            News
+          </Link>
+          <Link
             href="/login"
             className="text-slate-600 hover:text-slate-800 transition-colors"
           >
             Login
           </Link>
-          {isAdmin && (
-            <Link
-              href="/news/add"
-              className="text-slate-600 hover:text-slate-800 transition-colors"
-            >
-              Login
-            </Link>
-          )}
         </div>
       </nav>
     </header>

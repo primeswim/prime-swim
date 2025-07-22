@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { app } from "@/lib/firebase";
 import { useIsAdminFromDB } from "../../../hooks/useIsAdminFromDB";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useEffect } from "react";
 
 export default function AddNewsPage() {
   const [title, setTitle] = useState("");
@@ -18,6 +20,16 @@ export default function AddNewsPage() {
 
   const db = getFirestore(app);
   const router = useRouter();
+  const auth = getAuth(app);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log(user?.email);
+      if (!user) {
+        router.push("/login"); // 或显示无权限提示页面
+      }
+    });
+    return () => unsubscribe();
+  }, [auth, router]);
 
   const isAdmin = useIsAdminFromDB();
 
