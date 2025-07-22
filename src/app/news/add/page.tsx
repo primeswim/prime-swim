@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { app } from "@/lib/firebase";
-import { useIsAdminFromDB } from "../../../hooks/userIsAdminFromDB";
+import { useIsAdminFromDB } from "../../../hooks/useIsAdminFromDB";
 
 export default function AddNewsPage() {
   const [title, setTitle] = useState("");
