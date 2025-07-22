@@ -5,7 +5,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { app } from "@/lib/firebase"; // 你的 firebase 初始化模块
 
-export function userIsAdminFromDB(): boolean | null {
+export function useIsAdminFromDB(): boolean | null {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const db = getFirestore(app);
 

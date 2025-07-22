@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { app } from "@/lib/firebase";
-import { userIsAdminFromDB } from "../../../hooks/userIsAdminFromDB";
+import { useIsAdminFromDB } from "../../../hooks/userIsAdminFromDB";
 
 export default function AddNewsPage() {
   const [title, setTitle] = useState("");
@@ -19,7 +19,7 @@ export default function AddNewsPage() {
   const db = getFirestore(app);
   const router = useRouter();
 
-  const isAdmin = userIsAdminFromDB();
+  const isAdmin = useIsAdminFromDB();
 
   if (isAdmin === null) {
     return <p className="text-center mt-10 text-slate-500">Checking access...</p>;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { userIsAdminFromDB } from "../hooks/userIsAdminFromDB";
+import { useIsAdminFromDB } from "../hooks/useIsAdminFromDB";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const isAdmin = userIsAdminFromDB();
+  const isAdmin = useIsAdminFromDB();
   return (
     <header className="container mx-auto px-4 py-6">
       <nav className="flex items-center justify-between">
