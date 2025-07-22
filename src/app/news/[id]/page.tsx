@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import Header from "@/components/header"
 import { ArrowLeft, Calendar, User, Share2, Clock } from "lucide-react"
 
+export const dynamic = "force-dynamic" // 每次都从 Firestore 拉数据
+
 interface NewsItem {
   id: string
   title: string
@@ -21,14 +23,15 @@ interface NewsItem {
   publishDate?: string
 }
 
-interface NewsDetailPageProps {
+// ✅ 正确的 page 函数签名
+export default async function NewsDetailPage({
+  params,
+}: {
   params: { id: string }
-}
-
-export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
+}) {
   const { id } = params
 
-  // Get single news
+  // 获取单篇新闻
   const docRef = doc(db, "news", id)
   const docSnap = await getDoc(docRef)
 
@@ -38,7 +41,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
 
   const news = { id: docSnap.id, ...docSnap.data() } as NewsItem
 
-  // Get all news for related list
+  // 获取其他相关新闻（除当前这篇）
   const snapshot = await getDocs(collection(db, "news"))
   const relatedNews = snapshot.docs
     .filter((d) => d.id !== id)
@@ -158,4 +161,10 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       </div>
     </div>
   )
+}
+
+// ✅ 告诉 Next.js 支持的动态路径（推荐）
+export async function generateStaticParams() {
+  const snapshot = await getDocs(collection(db, "news"))
+  return snapshot.docs.map((doc) => ({ id: doc.id }))
 }
