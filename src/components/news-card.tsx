@@ -1,4 +1,3 @@
-// components/news-card.tsx
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,32 +12,8 @@ interface NewsCardProps {
 export function NewsCard({ news, variant = "default" }: NewsCardProps) {
   const isCompact = variant === "compact";
 
-  const getCategoryGradient = (category: string | undefined) => {
-    if (!category) return "from-stone-50 to-white";
-    switch (category.toLowerCase()) {
-      case "technology":
-        return "from-amber-50 to-amber-100";
-      case "framework":
-        return "from-slate-50 to-slate-100";
-      case "css":
-        return "from-yellow-50 to-yellow-100";
-      case "language":
-        return "from-purple-50 to-purple-100";
-      case "architecture":
-        return "from-red-50 to-red-100";
-      case "performance":
-        return "from-blue-50 to-blue-100";
-      default:
-        return "from-stone-50 to-white";
-    }
-  };
-
   return (
-    <Card
-      className={`border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br ${getCategoryGradient(
-        news.category
-      )}`}
-    >
+    <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-white">
       <Link href={`/news/${news.id}`} className="block">
         {news.image && (
           <div className={`relative overflow-hidden rounded-t-lg ${isCompact ? "h-32" : "h-48"}`}>
@@ -53,7 +28,6 @@ export function NewsCard({ news, variant = "default" }: NewsCardProps) {
 
         <CardHeader className={isCompact ? "pb-2" : "pb-4"}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{news.category}</span>
             <div className="flex items-center text-xs text-slate-500">
               <Clock className="w-3 h-3 mr-1" />
               <span>5 min read</span>
