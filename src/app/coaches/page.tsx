@@ -134,7 +134,7 @@ export default function CoachesPage() {
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
                 Former Olympic swimmer with 12+ years coaching experience. Specializes in competitive stroke technique,
-                mental preparation, and high-performance training. Winner of Best Swim Coach 2025 award.
+                mental preparation, and high-performance training.s
               </p>
 
               <div className="space-y-4 mb-6">
