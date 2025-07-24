@@ -208,12 +208,14 @@ export default function DashboardPage() {
               <CardDescription className="text-slate-600">Update your profile and preferences</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <Button
-                variant="outline"
-                className="border-purple-600 text-purple-600 hover:bg-purple-50 rounded-full px-6 bg-transparent"
-              >
-                Manage Account
-              </Button>
+              <Link href="/account">
+                <Button
+                    variant="outline"
+                    className="border-purple-600 text-purple-600 hover:bg-purple-50 rounded-full px-6 bg-transparent"
+                >
+                    Manage Account
+                </Button>
+                </Link>
             </CardContent>
           </Card>
         </div>
