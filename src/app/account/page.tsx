@@ -11,6 +11,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
+  updateEmail,
 } from "firebase/auth"
 import {
   collection,
@@ -53,6 +54,7 @@ export default function ManageAccountPage() {
     parentFirstName: "",
     parentLastName: "",
     parentPhone: "",
+    parentEmail: "",
   })
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -88,6 +90,7 @@ export default function ManageAccountPage() {
           parentFirstName: first.parentFirstName || "",
           parentLastName: first.parentLastName || "",
           parentPhone: first.parentPhone || "",
+          parentEmail: user.email || "",
         })
       }
     })
@@ -119,10 +122,16 @@ export default function ManageAccountPage() {
           parentFirstName: profileData.parentFirstName,
           parentLastName: profileData.parentLastName,
           parentPhone: profileData.parentPhone,
+          parentEmail: profileData.parentEmail,
         })
       )
 
       await Promise.all(updates)
+
+      const user = auth.currentUser
+      if (user && user.email !== profileData.parentEmail) {
+        await updateEmail(user, profileData.parentEmail)
+      }
 
       setSuccess("Profile updated for all swimmers!")
       setTimeout(() => setSuccess(""), 3000)
@@ -222,6 +231,14 @@ export default function ManageAccountPage() {
                       onChange={(e) => handleProfileChange("parentLastName", e.target.value)}
                     />
                   </div>
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={profileData.parentEmail}
+                    onChange={(e) => handleProfileChange("parentEmail", e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>Phone Number</Label>
