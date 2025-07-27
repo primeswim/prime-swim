@@ -105,8 +105,9 @@ export default function PrivateLessonCalendar() {
     });
   }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
+  // eslint-disable-next-line prefer-const
   const eventStyleGetter = (event: SlotEvent) => {
-    let backgroundColor = "#FDF6F0" //#e879f9"; pastel pink for VIP, sky blue otherwise
+    const backgroundColor = "#FDF6F0" //#e879f9"; pastel pink for VIP, sky blue otherwise
     return {
       style: {
         backgroundColor,
