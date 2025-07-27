@@ -1,6 +1,6 @@
 // File: app/admin/slots/page.tsx
 "use client"
-
+import { getAuth } from "firebase/auth"
 import { useState } from "react"
 import { Timestamp, collection, addDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -53,6 +53,8 @@ export default function AddSlotPage() {
     const end = new Date(`${date}T${endTime}`)
 
     try {
+        const auth = getAuth()
+console.log(auth.currentUser?.email, auth.currentUser?.uid)
       setLoading(true)
       await addDoc(collection(db, "availableSlots"), {
         startTime: Timestamp.fromDate(start),
