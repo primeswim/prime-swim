@@ -118,8 +118,8 @@ export default function PrivateLessonCalendar() {
     });
   }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
-  const eventStyleGetter = (event: SlotEvent) => {
-    let backgroundColor = "#FDF6F0";
+  const eventStyleGetter = () => {
+    const backgroundColor = "#FDF6F0"; // use const instead of let
     return {
       style: {
         backgroundColor,
@@ -130,6 +130,7 @@ export default function PrivateLessonCalendar() {
       },
     };
   };
+  
 
   const EventComponent = ({ event }: { event: SlotEvent }) => {
     const coach = coaches.find((c) => c.id === event.coachId);
