@@ -106,7 +106,7 @@ export default function PrivateLessonCalendar() {
   }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
   const eventStyleGetter = (event: SlotEvent) => {
-    let backgroundColor = event.priorityOnly ? "#FDF6F0" : "#FDF6F0"; //#e879f9"; pastel pink for VIP, sky blue otherwise
+    let backgroundColor = "#FDF6F0" //#e879f9"; pastel pink for VIP, sky blue otherwise
     return {
       style: {
         backgroundColor,
