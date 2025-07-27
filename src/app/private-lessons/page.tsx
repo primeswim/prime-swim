@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
 import { CalendarIcon, Filter } from "lucide-react";
 import Header from "@/components/header";
 import {
@@ -106,7 +106,7 @@ export default function PrivateLessonCalendar() {
   }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
   // eslint-disable-next-line prefer-const
-  const eventStyleGetter = (event: SlotEvent) => {
+  const eventStyleGetter = (_event: SlotEvent) => {
     const backgroundColor = "#FDF6F0" //#e879f9"; pastel pink for VIP, sky blue otherwise
     return {
       style: {
