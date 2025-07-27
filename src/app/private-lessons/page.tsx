@@ -1,114 +1,111 @@
-// File: app/private-lessons/page.tsx
-"use client"
+"use client";
 
-import { useEffect, useMemo, useState } from "react"
-import { Calendar, momentLocalizer, type View } from "react-big-calendar"
-import moment from "moment"
-import { db } from "@/lib/firebase"
-import { collection, getDocs, doc, getDoc } from "firebase/firestore"
-import { getAuth } from "firebase/auth"
-import { CalendarIcon, Filter } from "lucide-react"
+import { useEffect, useMemo, useState } from "react";
+import { Calendar, momentLocalizer, type View } from "react-big-calendar";
+import moment from "moment";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { CalendarIcon, Filter } from "lucide-react";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-  CardDescription,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import "react-big-calendar/lib/css/react-big-calendar.css"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 
 type SlotEvent = {
-    id: string;
-    title: string;
-    start: Date;
-    end: Date;
-    coachId: number;
-    locationId: number;
-    status: string;
-    priorityOnly: boolean;
-  }
-const localizer = momentLocalizer(moment)
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  coachId: number;
+  locationId: number;
+  status: string;
+  priorityOnly: boolean;
+};
+
+const localizer = momentLocalizer(moment);
 
 const coaches = [
   { id: 1, name: "Coach Lara" },
   { id: 2, name: "Coach Moe" },
   { id: 3, name: "Coach Emma" },
-]
+];
 
 const locations = [
   { id: 1, name: "Bellevue Aquatic Center" },
   { id: 2, name: "Redmond Pool" },
   { id: 3, name: "Mary Wayte Swimming Pool" },
-]
+];
 
 export default function PrivateLessonCalendar() {
-  const [slots, setSlots] = useState<SlotEvent[]>([])
-  const [view, setView] = useState<View>("week")
-  const [date, setDate] = useState(new Date())
-  const [selectedCoach, setSelectedCoach] = useState<string>("all")
-  const [selectedLocation, setSelectedLocation] = useState<string>("all")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [slots, setSlots] = useState<SlotEvent[]>([]);
+  const [view, setView] = useState<View>("week");
+  const [date, setDate] = useState(new Date());
+  const [selectedCoach, setSelectedCoach] = useState<string>("all");
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      const auth = getAuth()
-      const user = auth.currentUser
-      if (user) {
-        const userRef = doc(db, "users", user.uid)
-        const userSnap = await getDoc(userRef)
-        if (userSnap.exists() && userSnap.data().role === "admin") {
-          setIsAdmin(true)
-        }
-      }
-    }
-
     const fetchSlots = async () => {
-      const querySnapshot = await getDocs(collection(db, "availableSlots"))
+      const querySnapshot = await getDocs(collection(db, "availableSlots"));
       const data = querySnapshot.docs.map((doc) => {
-        const slot = doc.data()
+        const slot = doc.data();
         return {
           id: doc.id,
-          title: `Available - ${coaches.find((c) => c.id === slot.coachId)?.name ?? "Coach"}`,
+          title: `Available - ${
+            coaches.find((c) => c.id === slot.coachId)?.name ?? "Coach"
+          }`,
           start: slot.startTime.toDate(),
           end: slot.endTime.toDate(),
           coachId: slot.coachId,
           locationId: slot.locationId,
           status: slot.status,
           priorityOnly: slot.priorityOnly || false,
-        }
-      })
-      setSlots(data)
-    }
+        };
+      });
+      setSlots(data);
+    };
 
-    checkAdmin()
-    fetchSlots()
-  }, [])
+    fetchSlots();
+  }, []);
 
   const filteredEvents = useMemo(() => {
     return slots.filter((slot) => {
-      if (slot.status !== "available") return false
-      if (!isAdmin && slot.priorityOnly) return false
+      if (slot.status !== "available") return false;
 
-      const coachMatch = selectedCoach === "all" || slot.coachId.toString() === selectedCoach
-      const locationMatch = selectedLocation === "all" || slot.locationId.toString() === selectedLocation
+      const coachMatch =
+        selectedCoach === "all" || slot.coachId.toString() === selectedCoach;
+      const locationMatch =
+        selectedLocation === "all" ||
+        slot.locationId.toString() === selectedLocation;
       const searchMatch =
         searchTerm === "" ||
-        coaches.find((c) => c.id === slot.coachId)?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        locations.find((l) => l.id === slot.locationId)?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        coaches
+          .find((c) => c.id === slot.coachId)
+          ?.name.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        locations
+          .find((l) => l.id === slot.locationId)
+          ?.name.toLowerCase()
+          .includes(searchTerm.toLowerCase());
 
-      return coachMatch && locationMatch && searchMatch
-    })
-  }, [slots, selectedCoach, selectedLocation, searchTerm, isAdmin])
+      return coachMatch && locationMatch && searchMatch;
+    });
+  }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
   const eventStyleGetter = (event: SlotEvent) => {
-    let backgroundColor = "#10b981" // green for normal
-    if (event.priorityOnly) {
-      backgroundColor = "#ef4444" // red for priority
-    }
+    let backgroundColor = event.priorityOnly ? "#38bdf8" : "#38bdf8"; //#e879f9"; pastel pink for VIP, sky blue otherwise
     return {
       style: {
         backgroundColor,
@@ -117,17 +114,17 @@ export default function PrivateLessonCalendar() {
         padding: "2px 4px",
         fontSize: "12px",
       },
-    }
-  }
+    };
+  };
 
   const EventComponent = ({ event }: { event: SlotEvent }) => {
-    const coach = coaches.find((c) => c.id === event.coachId)
+    const coach = coaches.find((c) => c.id === event.coachId);
     return (
       <div className="text-xs">
         <div className="font-medium">{coach?.name}</div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="container mx-auto px-4 pb-16">
@@ -135,8 +132,12 @@ export default function PrivateLessonCalendar() {
         <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
           <CalendarIcon className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-4xl font-bold text-slate-800 mb-6">Available Private Lessons</h1>
-        <p className="text-xl text-slate-600">View available private lesson slots below</p>
+        <h1 className="text-4xl font-bold text-slate-800 mb-6">
+          Available Private Lessons
+        </h1>
+        <p className="text-xl text-slate-600">
+          View available private lesson slots below
+        </p>
       </section>
 
       <div className="max-w-6xl mx-auto mb-6">
@@ -175,14 +176,20 @@ export default function PrivateLessonCalendar() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <Select
+                  value={selectedLocation}
+                  onValueChange={setSelectedLocation}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All Locations" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Locations</SelectItem>
                     {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
+                      <SelectItem
+                        key={location.id}
+                        value={location.id.toString()}
+                      >
                         {location.name}
                       </SelectItem>
                     ))}
@@ -198,11 +205,9 @@ export default function PrivateLessonCalendar() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-slate-800">
-              <CalendarIcon className="w-6 h-6 mr-3 text-blue-600 inline" /> Available Slots
+              <CalendarIcon className="w-6 h-6 mr-3 text-blue-600 inline" />
+              Available Slots
             </CardTitle>
-            <CardDescription>
-              Green = normal slot, Red = VIP only (admin view)
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div style={{ height: "600px" }}>
@@ -227,5 +232,5 @@ export default function PrivateLessonCalendar() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
