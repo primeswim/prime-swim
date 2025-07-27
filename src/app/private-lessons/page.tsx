@@ -6,6 +6,7 @@ import moment from "moment";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { CalendarIcon, Filter } from "lucide-react";
+import Header from "@/components/header";
 import {
   Card,
   CardHeader,
@@ -128,6 +129,8 @@ export default function PrivateLessonCalendar() {
 
   return (
     <div className="container mx-auto px-4 pb-16">
+      {/* Header */}
+      <Header />
       <section className="py-12 text-center">
         <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
           <CalendarIcon className="w-10 h-10 text-white" />
