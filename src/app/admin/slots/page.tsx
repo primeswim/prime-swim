@@ -53,8 +53,6 @@ export default function AddSlotPage() {
     const end = new Date(`${date}T${endTime}`)
 
     try {
-        const auth = getAuth()
-console.log(auth.currentUser?.email, auth.currentUser?.uid)
       setLoading(true)
       await addDoc(collection(db, "availableSlots"), {
         startTime: Timestamp.fromDate(start),
