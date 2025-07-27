@@ -105,10 +105,8 @@ export default function PrivateLessonCalendar() {
     });
   }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
-  // eslint-disable-next-line prefer-const
-  const eventStyleGetter = (event: SlotEvent) => {
-    const _ = event; // Dummy usage to satisfy ESLint
-    const backgroundColor = "#FDF6F0" //#e879f9"; pastel pink for VIP, sky blue otherwise
+  const eventStyleGetter = () => {
+    const backgroundColor = "#FDF6F0";
     return {
       style: {
         backgroundColor,
@@ -119,6 +117,7 @@ export default function PrivateLessonCalendar() {
       },
     };
   };
+  
 
   const EventComponent = ({ event }: { event: SlotEvent }) => {
     const coach = coaches.find((c) => c.id === event.coachId);
