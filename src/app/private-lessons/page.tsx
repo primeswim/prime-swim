@@ -180,6 +180,9 @@ export default function PrivateLessonCalendar() {
         <p className="text-xl text-slate-600">
           View available private lesson slots below
         </p>
+        <p className="text-sm text-red-600 font-medium">
+        Please note: Lesson slots are first come, first served, and availability may change quickly as families finalize their bookings. Pls check with Coach Lara to lock your spot.
+        </p>
       </section>
 
       <div className="max-w-6xl mx-auto mb-6">
