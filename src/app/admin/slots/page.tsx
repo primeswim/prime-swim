@@ -1,6 +1,6 @@
 // File: app/admin/slots/page.tsx
 "use client"
-import { getAuth } from "firebase/auth"
+
 import { useState } from "react"
 import { Timestamp, collection, addDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
