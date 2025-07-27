@@ -20,6 +20,16 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 
+type SlotEvent = {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    coachId: number;
+    locationId: number;
+    status: string;
+    priorityOnly: boolean;
+  }
 const localizer = momentLocalizer(moment)
 
 const coaches = [
@@ -35,7 +45,7 @@ const locations = [
 ]
 
 export default function PrivateLessonCalendar() {
-  const [slots, setSlots] = useState<any[]>([])
+  const [slots, setSlots] = useState<SlotEvent[]>([])
   const [view, setView] = useState<View>("week")
   const [date, setDate] = useState(new Date())
   const [selectedCoach, setSelectedCoach] = useState<string>("all")
@@ -94,7 +104,7 @@ export default function PrivateLessonCalendar() {
     })
   }, [slots, selectedCoach, selectedLocation, searchTerm, isAdmin])
 
-  const eventStyleGetter = (event: any) => {
+  const eventStyleGetter = (event: SlotEvent) => {
     let backgroundColor = "#10b981" // green for normal
     if (event.priorityOnly) {
       backgroundColor = "#ef4444" // red for priority
@@ -110,7 +120,7 @@ export default function PrivateLessonCalendar() {
     }
   }
 
-  const EventComponent = ({ event }: { event: any }) => {
+  const EventComponent = ({ event }: { event: SlotEvent }) => {
     const coach = coaches.find((c) => c.id === event.coachId)
     return (
       <div className="text-xs">
