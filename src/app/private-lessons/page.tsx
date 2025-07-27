@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
 import { CalendarIcon, Filter } from "lucide-react";
 import Header from "@/components/header";
 import {
@@ -23,6 +23,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 
 type SlotEvent = {
   id: string;
@@ -56,6 +65,10 @@ export default function PrivateLessonCalendar() {
   const [selectedCoach, setSelectedCoach] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState<SlotEvent | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const isAdmin = useIsAdminFromDB();
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -105,8 +118,8 @@ export default function PrivateLessonCalendar() {
     });
   }, [slots, selectedCoach, selectedLocation, searchTerm]);
 
-  const eventStyleGetter = () => {
-    const backgroundColor = "#FDF6F0";
+  const eventStyleGetter = (event: SlotEvent) => {
+    let backgroundColor = "#FDF6F0";
     return {
       style: {
         backgroundColor,
@@ -117,7 +130,6 @@ export default function PrivateLessonCalendar() {
       },
     };
   };
-  
 
   const EventComponent = ({ event }: { event: SlotEvent }) => {
     const coach = coaches.find((c) => c.id === event.coachId);
@@ -128,9 +140,34 @@ export default function PrivateLessonCalendar() {
     );
   };
 
+  const handleEventClick = (event: SlotEvent) => {
+    if (isAdmin) {
+      setSelectedSlot(event);
+      setIsDialogOpen(true);
+    }
+  };
+
+  const handleSetTaken = async () => {
+    if (!selectedSlot) return;
+    try {
+      const slotRef = doc(db, "availableSlots", selectedSlot.id);
+      await updateDoc(slotRef, { status: "taken" });
+
+      // Update local state
+      setSlots((prev) =>
+        prev.map((slot) =>
+          slot.id === selectedSlot.id ? { ...slot, status: "taken" } : slot
+        )
+      );
+
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to update slot status:", error);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 pb-16">
-      {/* Header */}
       <Header />
       <section className="py-12 text-center">
         <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -230,11 +267,30 @@ export default function PrivateLessonCalendar() {
                 timeslots={1}
                 min={new Date(2025, 0, 1, 6, 0)}
                 max={new Date(2025, 0, 1, 22, 0)}
+                onSelectEvent={handleEventClick}
               />
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Slot</DialogTitle>
+          </DialogHeader>
+          <p>
+            Mark this slot by <strong>{selectedSlot?.title}</strong> as{" "}
+            <code>taken</code>?
+          </p>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetTaken}>Mark as Taken</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
