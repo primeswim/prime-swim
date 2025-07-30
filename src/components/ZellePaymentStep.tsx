@@ -262,6 +262,20 @@ export default function ZellePaymentStep({
 
               {/* Confirmation Form */}
               <div className="space-y-4">
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm mb-6">
+                    <p className="text-sm text-yellow-800 font-medium">
+                        ⚠️ After sending your Zelle payment, don’t forget to:
+                    </p>
+                    <ul className="list-disc list-inside text-sm text-yellow-800 mt-2 space-y-1">
+                        <li><strong>Fill in</strong> the <span className="underline">Name Used on Zelle Payment</span></li>
+                        <li><strong>Click</strong> the <em>“I’ve Completed the Payment”</em> button</li>
+                    </ul>
+                    <p className="text-xs text-yellow-700 mt-2">
+                        This helps us confirm and match your payment for review.
+                    </p>
+                </div>
+
+
                 <h4 className="text-lg font-semibold text-slate-800 mb-4">Payment Confirmation</h4>
 
                 {error && (
@@ -280,7 +294,10 @@ export default function ZellePaymentStep({
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="paymentName">Name Used on Zelle Payment *</Label>
+                    <Label htmlFor="paymentName" className="font-semibold text-red-600 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1 text-red-600" />
+                        Name Used on Zelle Payment (Required)
+                    </Label>
                     <Input
                       id="paymentName"
                       value={paymentData.paymentName}
