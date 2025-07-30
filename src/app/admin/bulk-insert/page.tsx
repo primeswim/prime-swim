@@ -11,6 +11,14 @@ export default function BulkInsertPage() {
   const [input, setInput] = useState('')
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  type SlotEvent = {
+    coachId: number;
+    locationId: number;
+    priorityOnly: boolean;
+    startTime: string;
+    endTime: string;
+    status: string;
+  };
 
   const handleInsert = async () => {
     setStatus('idle')
@@ -20,7 +28,7 @@ export default function BulkInsertPage() {
     try {
       parsed = JSON.parse(input)
       if (!Array.isArray(parsed)) throw new Error('Input must be an array')
-    } catch (err) {
+    } catch (_) {
       setStatus('error')
       setMessage('Invalid JSON format')
       return
@@ -30,7 +38,7 @@ export default function BulkInsertPage() {
       const batch = writeBatch(db)
       const ref = collection(db, 'availableSlots')
 
-      parsed.forEach((slot: any) => {
+      parsed.forEach((slot: SlotEvent) => {
         const docRef = doc(ref)
         batch.set(docRef, {
           ...slot,
