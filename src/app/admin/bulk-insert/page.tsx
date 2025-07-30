@@ -28,7 +28,7 @@ export default function BulkInsertPage() {
     try {
       parsed = JSON.parse(input)
       if (!Array.isArray(parsed)) throw new Error('Input must be an array')
-    } catch (_) {
+    } catch {
       setStatus('error')
       setMessage('Invalid JSON format')
       return
