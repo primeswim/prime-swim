@@ -8,7 +8,27 @@ import { Textarea } from '@/components/ui/textarea'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 
 export default function BulkInsertPage() {
-  const [input, setInput] = useState('')
+    const defaultJSON = `[
+        {
+          "coachId": 2,
+          "locationId": 1,
+          "priorityOnly": false,
+          "startTime": "2025-11-01T08:00:00-07:00",
+          "endTime": "2025-11-01T08:30:00-07:00",
+          "status": "available"
+        },
+        {
+          "coachId": 2,
+          "locationId": 1,
+          "priorityOnly": false,
+          "startTime": "2025-11-01T08:30:00-07:00",
+          "endTime": "2025-11-01T09:00:00-07:00",
+          "status": "available"
+        }
+      ]`
+      
+  const [input, setInput] = useState(defaultJSON)    
+
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
   type SlotEvent = {
@@ -65,7 +85,6 @@ export default function BulkInsertPage() {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         rows={15}
-        placeholder="Paste your slot JSON array here..."
         className="mb-4"
       />
 
