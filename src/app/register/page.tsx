@@ -625,7 +625,7 @@ export default function RegisterPage() {
                         I acknowledge that swimming and related activities involve inherent risks. I voluntarily accept these
                         risks on behalf of my child and agree not to hold Prime Swim Academy, its staff, or affiliates liable for
                         any injury arising from ordinary participation in the program. This waiver does not apply in cases of
-                        intentional misconduct.
+                        intentional misconduct. I further understand that I am responsible for my child’s behavior and compliance with safety rules, and that Prime Swim Academy is not liable for lost or stolen belongings.
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
