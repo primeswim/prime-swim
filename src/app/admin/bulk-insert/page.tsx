@@ -1,44 +1,81 @@
 'use client'
 
-import { useState } from 'react'
-import { collection, writeBatch, doc, Timestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { useState, useEffect } from 'react'
+import { collection, writeBatch, doc, Timestamp, getDoc } from 'firebase/firestore'
+import { onAuthStateChanged } from 'firebase/auth'
+import { useRouter } from 'next/navigation'
+import { db, auth } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 
 export default function BulkInsertPage() {
-    const defaultJSON = `[
-        {
-          "coachId": 2,
-          "locationId": 1,
-          "priorityOnly": false,
-          "startTime": "2025-11-01T08:00:00-07:00",
-          "endTime": "2025-11-01T08:30:00-07:00",
-          "status": "available"
-        },
-        {
-          "coachId": 2,
-          "locationId": 1,
-          "priorityOnly": false,
-          "startTime": "2025-11-01T08:30:00-07:00",
-          "endTime": "2025-11-01T09:00:00-07:00",
-          "status": "available"
-        }
-      ]`
-      
-  const [input, setInput] = useState(defaultJSON)    
+  const router = useRouter()
+  const [isAllowed, setIsAllowed] = useState(false)
+  const [checked, setChecked] = useState(false)
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      const userEmail = user.email
+      if (!userEmail) {
+        router.push('/not-authorized')
+        return
+      }
+
+      try {
+        const docSnap = await getDoc(doc(db, 'admin', userEmail))
+        if (docSnap.exists()) {
+          setIsAllowed(true)
+        } else {
+          router.push('/not-authorized')
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error)
+        router.push('/not-authorized')
+      } finally {
+        setChecked(true)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [router])
+
+  const defaultJSON = `[
+    {
+      "coachId": 2,
+      "locationId": 1,
+      "priorityOnly": false,
+      "startTime": "2025-11-01T08:00:00-07:00",
+      "endTime": "2025-11-01T08:30:00-07:00",
+      "status": "available"
+    },
+    {
+      "coachId": 2,
+      "locationId": 1,
+      "priorityOnly": false,
+      "startTime": "2025-11-01T08:30:00-07:00",
+      "endTime": "2025-11-01T09:00:00-07:00",
+      "status": "available"
+    }
+  ]`
+
+  const [input, setInput] = useState(defaultJSON)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+
   type SlotEvent = {
-    coachId: number;
-    locationId: number;
-    priorityOnly: boolean;
-    startTime: string;
-    endTime: string;
-    status: string;
-  };
+    coachId: number
+    locationId: number
+    priorityOnly: boolean
+    startTime: string
+    endTime: string
+    status: string
+  }
 
   const handleInsert = async () => {
     setStatus('idle')
@@ -75,6 +112,14 @@ export default function BulkInsertPage() {
       setStatus('error')
       setMessage('Insertion failed. Check console for details.')
     }
+  }
+
+  if (!checked) {
+    return <p className="text-center mt-10">Checking access...</p>
+  }
+
+  if (!isAllowed) {
+    return null
   }
 
   return (
