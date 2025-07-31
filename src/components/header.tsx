@@ -26,9 +26,10 @@ export default function Header() {
         </Link>
 
         {/* Navigation */}
-        <div className="hidden md:flex items-center space-x-8">
+        <div className="hidden md:flex items-center space-x-8 text-slate-600">
+          {/* About Us */}
           <DropdownMenu>
-            <DropdownMenuTrigger className="text-slate-600 hover:text-slate-800 transition-colors cursor-pointer">
+            <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
               About Us
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -38,36 +39,39 @@ export default function Header() {
               <DropdownMenuItem asChild>
                 <Link href="/coaches">Our Coaches</Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/#contact">Contact</Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Link
-            href="/#programs"
-            className="text-slate-600 hover:text-slate-800 transition-colors"
-          >
-            Programs
-          </Link>
-          <Link
-            href="/#schedule"
-            className="text-slate-600 hover:text-slate-800 transition-colors"
-          >
-            Schedule
-          </Link>
-          <Link
-            href="/#contact"
-            className="text-slate-600 hover:text-slate-800 transition-colors"
-          >
-            Contact
-          </Link>
+          {/* Programs */}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
+              Programs
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <Link href="/#programs">Group Programs</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/private-lessons">Private Lessons</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* News */}
           <Link
             href="/news"
-            className="text-slate-600 hover:text-slate-800 transition-colors"
+            className="hover:text-slate-800 transition-colors"
           >
             News
           </Link>
+
+          {/* Login */}
           <Link
             href="/login"
-            className="text-slate-600 hover:text-slate-800 transition-colors"
+            className="hover:text-slate-800 transition-colors"
           >
             Login
           </Link>

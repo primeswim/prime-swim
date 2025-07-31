@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import Header from "@/components/header";
 import {
   onAuthStateChanged,
   EmailAuthProvider,
@@ -180,12 +181,8 @@ export default function ManageAccountPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
-      <header className="container mx-auto px-4 py-6">
-        <Link href="/" className="flex items-center space-x-3">
-          <Image src="/images/psa-logo.png" alt="Prime Swim Academy Logo" width={50} height={50} className="rounded-full" />
-          <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
-        </Link>
-      </header>
+      {/* Header */}
+      <Header />
 
       <div className="container mx-auto px-4 py-10 max-w-3xl">
         <h1 className="text-3xl font-bold text-slate-800 mb-6 text-center">Manage Account</h1>
