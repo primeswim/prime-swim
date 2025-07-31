@@ -2,14 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Menu } from "lucide-react";
 
 export default function Header() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <header className="container mx-auto px-4 py-6">
       <nav className="flex items-center justify-between">
@@ -25,9 +29,8 @@ export default function Header() {
           <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
         </Link>
 
-        {/* Navigation */}
+        {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8 text-slate-600">
-          {/* About Us */}
           <DropdownMenu>
             <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
               About Us
@@ -45,7 +48,6 @@ export default function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Programs */}
           <DropdownMenu>
             <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
               Programs
@@ -60,23 +62,44 @@ export default function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* News */}
-          <Link
-            href="/news"
-            className="hover:text-slate-800 transition-colors"
-          >
+          <Link href="/news" className="hover:text-slate-800 transition-colors">
             News
           </Link>
 
-          {/* Login */}
-          <Link
-            href="/login"
-            className="hover:text-slate-800 transition-colors"
-          >
+          <Link href="/login" className="hover:text-slate-800 transition-colors">
             Login
           </Link>
         </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden text-slate-800"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          <Menu className="h-6 w-6" />
+        </button>
       </nav>
+
+      {/* Mobile Dropdown */}
+      {mobileOpen && (
+        <div className="md:hidden mt-4 space-y-2 text-slate-700">
+          <div className="space-y-1">
+            <p className="font-semibold">About Us</p>
+            <Link href="/mission" className="block ml-4">Mission & Vision</Link>
+            <Link href="/coaches" className="block ml-4">Our Coaches</Link>
+            <Link href="/#contact" className="block ml-4">Contact</Link>
+          </div>
+
+          <div className="space-y-1">
+            <p className="font-semibold">Programs</p>
+            <Link href="/#programs" className="block ml-4">Group Programs</Link>
+            <Link href="/private-lessons" className="block ml-4">Private Lessons</Link>
+          </div>
+
+          <Link href="/news" className="block">News</Link>
+          <Link href="/login" className="block">Login</Link>
+        </div>
+      )}
     </header>
   );
 }
