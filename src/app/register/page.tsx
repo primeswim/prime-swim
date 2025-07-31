@@ -157,6 +157,8 @@ export default function RegisterPage() {
     }
   }
   
+  // Add this computed variable before renderStepContent:
+  const isWaiversChecked = formData.liabilityWaiver && formData.medicalAuthorization && formData.codeOfConduct;
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -725,24 +727,25 @@ export default function RegisterPage() {
           
                   {/* Final submission button */}
                   <Button
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-full text-lg mt-8"
-                    onClick={async () => {
-                      if (!user) return
-                      try {
-                        const docRef = await addDoc(collection(db, "swimmers"), {
-                          ...formData,
-                          parentUID: user.uid,
-                          createdAt: serverTimestamp()
-                        })
-                        setSwimmerId(docRef.id)
-                        setCurrentStep(8)
-                      } catch (err) {
-                        console.error("Error creating swimmer document:", err)
-                        alert("There was an error submitting the registration. Please try again.")
-                      }
-                    }}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-full text-lg mt-8"
+                  disabled={!isWaiversChecked}
+                  onClick={async () => {
+                    if (!user || !isWaiversChecked) return
+                    try {
+                    const docRef = await addDoc(collection(db, "swimmers"), {
+                        ...formData,
+                        parentUID: user.uid,
+                        createdAt: serverTimestamp()
+                    })
+                    setSwimmerId(docRef.id)
+                    setCurrentStep(8)
+                    } catch (err) {
+                    console.error("Error creating swimmer document:", err)
+                    alert("There was an error submitting the registration. Please try again.")
+                    }
+                  }}
                   >
-                    Agree & Continue
+                  Agree & Continue
                   </Button>
                 </CardContent>
               </Card>
@@ -876,7 +879,7 @@ export default function RegisterPage() {
             {currentStep < totalSteps ? (
               <Button
                 onClick={nextStep}
-                disabled={!isStepComplete()}
+                disabled={!isStepComplete() || currentStep === 7}
                 className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-6"
               >
                 Next Step
