@@ -12,19 +12,19 @@ import { useRouter } from 'next/navigation'
 import Header from "@/components/header";
 
 interface Swimmer {
-  id: string;
-  childFirstName: string;
-  childLastName: string;
-  childDateOfBirth?: string;
-  childGender?: string;
-  emergencyContactName?: string;
-  emergencyContactEmail?: string;
-  emergencyContactPhone?: string;
-  parentName?: string;
-  paymentName?: string;
-  paymentMemo?: string;
-  paymentStatus?: string;
-}
+    id: string;
+    childFirstName: string;
+    childLastName: string;
+    childDateOfBirth?: string;
+    childGender?: string;
+    parentFirstName?: string;
+    parentLastName?: string;
+    parentEmail?: string;
+    parentPhone?: string;
+    paymentName?: string;
+    paymentMemo?: string;
+    paymentStatus?: string;
+}  
 
 export default function AdminSwimmerPage() {
   const router = useRouter()
@@ -115,30 +115,30 @@ export default function AdminSwimmerPage() {
         <TableBody>
           {filteredSwimmers.map((s) => (
             <TableRow key={s.id}>
-              <TableCell>{s.childFirstName} {s.childLastName}</TableCell>
-              <TableCell>{s.childDateOfBirth ?? '-'}</TableCell>
-              <TableCell>{s.childGender ?? '-'}</TableCell>
-              <TableCell>{s.emergencyContactName ?? '-'}</TableCell>
-              <TableCell>{s.emergencyContactEmail ?? '-'}</TableCell>
-              <TableCell>{s.emergencyContactPhone ?? '-'}</TableCell>
-              <TableCell>{s.paymentName ?? '-'}</TableCell>
-              <TableCell>{s.paymentMemo ?? '-'}</TableCell>
-              <TableCell className="space-x-2">
-                <Button
-                  onClick={() => markPaid(s.id)}
-                  className="bg-green-600 text-white"
-                  disabled={s.paymentStatus === 'paid'}
-                >
-                  {s.paymentStatus === 'paid' ? 'Paid' : 'Mark as Paid'}
-                </Button>
-                <Button
-                  onClick={() => deleteSwimmer(s.id)}
-                  className="bg-red-600 text-white"
-                >
-                  Delete
-                </Button>
-              </TableCell>
-            </TableRow>
+            <TableCell>{s.childFirstName} {s.childLastName}</TableCell>
+            <TableCell>{s.childDateOfBirth ?? '-'}</TableCell>
+            <TableCell>{s.childGender ?? '-'}</TableCell>
+            <TableCell>{s.parentFirstName || s.parentLastName ? `${s.parentFirstName ?? ''} ${s.parentLastName ?? ''}`.trim() : '-'}</TableCell>
+            <TableCell>{s.parentEmail ?? '-'}</TableCell>
+            <TableCell>{s.parentPhone ?? '-'}</TableCell>
+            <TableCell>{s.paymentName ?? '-'}</TableCell>
+            <TableCell>{s.paymentMemo ?? '-'}</TableCell>
+            <TableCell className="space-x-2">
+              <Button
+                onClick={() => markPaid(s.id)}
+                className="bg-green-600 text-white"
+                disabled={s.paymentStatus === 'paid'}
+              >
+                {s.paymentStatus === 'paid' ? 'Paid' : 'Mark as Paid'}
+              </Button>
+              <Button
+                onClick={() => deleteSwimmer(s.id)}
+                className="bg-red-600 text-white"
+              >
+                Delete
+              </Button>
+            </TableCell>
+          </TableRow>          
           ))}
         </TableBody>
       </Table>
