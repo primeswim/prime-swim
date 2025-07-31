@@ -13,12 +13,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mail, MapPin, Phone, Trophy, Users, Waves, CheckCircle, AlertCircle, Droplets } from "lucide-react"
 import Header from "@/components/header";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-  } from "@/components/ui/dropdown-menu"
 
 export default function TryoutPage() {
   const [formData, setFormData] = useState({
