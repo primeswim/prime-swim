@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   `;
 
   await resend.emails.send({
-    from: "onboarding@resend.dev",
+    from: "Prime Swim Academy <noreply@primeswimacademy.com>",
     to: "prime.swim.us@gmail.com",
     subject: "*** New Tryout Submission ***",
     html: emailHtml,

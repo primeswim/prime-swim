@@ -80,7 +80,21 @@ export default function AdminSwimmerPage() {
   const markPaid = async (id: string) => {
     const ref = doc(db, 'swimmers', id)
     await updateDoc(ref, { paymentStatus: 'paid' })
-    fetchSwimmers()
+    await fetchSwimmers()
+  
+    const swimmer = swimmers.find((s) => s.id === id)
+    console.log(swimmer?.parentEmail)
+    if (swimmer?.parentEmail && swimmer?.childFirstName) {
+      await fetch('/api/registration-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentEmail: swimmer.parentEmail,
+          parentName: `${swimmer.parentFirstName ?? ''} ${swimmer.parentLastName ?? ''}`.trim(),
+          swimmerName: `${swimmer.childFirstName} ${swimmer.childLastName}`
+        })
+      })
+    }
   }
 
   const markPending = async (id: string) => {
