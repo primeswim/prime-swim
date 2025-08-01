@@ -458,7 +458,7 @@ export default function LoginPage() {
                     />
                     <Label htmlFor="agreeToTerms" className="text-sm text-slate-600 leading-relaxed">
                       I agree to the{" "}
-                      <Link href="/terms" className="text-blue-600 hover:text-blue-800 underline">
+                      <Link href="/terms-of-service" className="text-blue-600 hover:text-blue-800 underline">
                         Terms of Service
                       </Link>{" "}
                       and{" "}
