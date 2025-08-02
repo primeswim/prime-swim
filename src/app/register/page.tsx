@@ -617,30 +617,36 @@ export default function RegisterPage() {
                 </CardHeader>
                 <CardContent className="space-y-8">
                   {/* Liability Waiver */}
-                  <div className="space-y-4">
+                    <div className="space-y-4">
                     <div className="flex items-center space-x-3">
-                      <Shield className="w-6 h-6 text-indigo-600" />
-                      <h3 className="text-lg font-semibold text-slate-800">Liability Waiver</h3>
+                        <Shield className="w-6 h-6 text-indigo-600" />
+                        <h3 className="text-lg font-semibold text-slate-800">Liability Waiver</h3>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
-                      <p className="mb-2">
+                        <p className="mb-2">
                         I acknowledge that swimming and related activities involve inherent risks. I voluntarily accept these
                         risks on behalf of my child and agree not to hold Prime Swim Academy, its staff, or affiliates liable for
                         any injury arising from ordinary participation in the program. This waiver does not apply in cases of
                         intentional misconduct. I further understand that I am responsible for my child’s behavior and compliance with safety rules, and that Prime Swim Academy is not liable for lost or stolen belongings.
-                      </p>
+                        </p>
+                        <p className="mt-2 text-blue-600">
+                        <Link href="/school-policy" target="_blank" className="underline hover:text-blue-800">
+                            📄 View detailed School Policies here
+                        </Link>
+                        </p>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox
+                        <Checkbox
                         id="liabilityWaiver"
                         checked={formData.liabilityWaiver}
                         onCheckedChange={(checked) => handleInputChange("liabilityWaiver", checked as boolean)}
-                      />
-                      <Label htmlFor="liabilityWaiver" className="text-sm">
-                        I have read and agree to the Liability Waiver *
-                      </Label>
+                        />
+                        <Label htmlFor="liabilityWaiver" className="text-sm">
+                        I have read and agree to the Liability Waiver and <Link href="/school-policy" target="_blank" className="underline text-blue-600 hover:text-blue-800">School Policies</Link> *
+                        </Label>
                     </div>
-                  </div>
+                    </div>
+
           
                   <Separator />
           
