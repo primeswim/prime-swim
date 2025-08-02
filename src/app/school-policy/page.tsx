@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -65,7 +65,7 @@ const policies = [
     title: "Photo & Video Consent Policy",
     icon: Camera,
     content: [
-      "Parents/guardians may voluntarily consent to the use of images and videos of their child for promotional materials, including brochures, social media, and the academy's website.",
+      "Parents/guardians may voluntarily consent to the use of images and videos of their child for promotional materials, including brochures, social media, and the academy&apos;s website.",
       "Consent is optional and must be explicitly provided during the registration process.",
     ],
   },
@@ -109,6 +109,25 @@ export default function SchoolPoliciesPage() {
     }
   }
 
+  // Update active section based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = policies.map(policy => policy.id)
+      const scrollPosition = window.scrollY + 100 // Offset for better detection
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const element = document.getElementById(sections[i])
+        if (element && element.offsetTop <= scrollPosition) {
+          setActiveSection(sections[i])
+          break
+        }
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -149,20 +168,25 @@ export default function SchoolPoliciesPage() {
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {policies.map((policy, index) => {
                   const IconComponent = policy.icon
+                  const isActive = activeSection === policy.id
                   return (
                     <Button
                       key={policy.id}
-                      variant="ghost"
-                      className="justify-start h-auto p-3 text-left hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                      variant={isActive ? "default" : "ghost"}
+                      className={`justify-start h-auto p-3 text-left transition-colors ${
+                        isActive 
+                          ? "bg-blue-600 text-white hover:bg-blue-700" 
+                          : "hover:bg-blue-50 hover:text-blue-700"
+                      }`}
                       onClick={() => scrollToSection(policy.id)}
                     >
-                      <IconComponent className="w-4 h-4 mr-2 text-blue-500" />
+                      <IconComponent className={`w-4 h-4 mr-2 ${isActive ? "text-white" : "text-blue-500"}`} />
                       <div className="flex-1">
                         <div className="text-sm font-medium">
                           {index + 1}. {policy.title}
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 ml-2" />
+                      <ChevronRight className={`w-4 h-4 ml-2 ${isActive ? "text-white" : ""}`} />
                     </Button>
                   )
                 })}
@@ -234,7 +258,7 @@ export default function SchoolPoliciesPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-800">Email Us</h3>
-                      <p className="text-slate-600 text-sm">We'll respond within 24 hours</p>
+                      <p className="text-slate-600 text-sm">We&apos;ll respond within 24 hours</p>
                     </div>
                   </div>
                   <a
