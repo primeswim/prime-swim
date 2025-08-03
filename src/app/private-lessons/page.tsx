@@ -5,7 +5,7 @@ import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
-import { CalendarIcon, Filter } from "lucide-react";
+import { CalendarIcon, Filter, AlertTriangle } from "lucide-react";
 import Header from "@/components/header";
 import {
   Card,
@@ -177,12 +177,36 @@ export default function PrivateLessonCalendar() {
         <h1 className="text-4xl font-bold text-slate-800 mb-6">
           Available Private Lessons
         </h1>
-        <p className="text-xl text-slate-600">
-          View available private lesson slots below
-        </p>
-        <p className="text-sm text-red-600 font-medium">
-        Please note: Lesson slots are first come, first served, and availability may change quickly as families finalize their bookings. Pls check with Coach Lara to lock your spot.
-        </p>
+        <div className="max-w-3xl mx-auto mt-4 mb-10 bg-red-50 border border-red-200 rounded-lg p-4 shadow-sm">
+        <div className="flex items-start space-x-3">
+          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm text-red-800 font-medium">
+              Please note: Lesson slots are first come, first served, and availability may change quickly as families finalize their bookings. Please check with Coach Lara to lock your spot.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-3xl mx-auto mt-4 mb-10 bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              Please complete the registration form first
+            </h3>
+            <p className="text-slate-600 leading-relaxed">
+              Before booking a private lesson, please fill out our registration form. This helps us understand each swimmer's background and health status to ensure a safe and effective training experience.
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <a
+              href="/private-lessons-register"
+              className="inline-block bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            >
+              Fill Out Registration Form
+            </a>
+          </div>
+        </div>
+      </div>
       </section>
 
       <div className="max-w-6xl mx-auto mb-6">
