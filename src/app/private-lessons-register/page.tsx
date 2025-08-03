@@ -591,8 +591,12 @@ export default function PrivateLessonsPage() {
                           costs incurred.
                         </p>
                         <p>
-                          <strong>6. PHOTOGRAPHY/VIDEO:</strong> I consent to the use of photographs or videos taken
-                          during lessons for promotional purposes.
+                          <strong>6. CANCELLATION POLICY:</strong> I understand that all cancellations must be made at least <strong>one week (7 days)</strong> in advance of the scheduled lesson to be eligible for a reschedule or credit. For lessons held at <strong>Mary Wayte Swimming Pool</strong>, a minimum of <strong>two weeks (14 days)</strong> advance notice is required due to the facility’s scheduling constraints. 
+
+                          Cancellations made after the respective deadline will result in forfeiture of the session without refund or makeup, <strong>except in cases of medical emergencies with valid documentation</strong>. In such cases, I understand that I will still be responsible for <strong>covering the lane rental fee</strong> incurred by Prime Swim Academy for the scheduled session.
+                        </p>
+                        <p>
+                          <strong>7. PHOTOGRAPHY/VIDEO:</strong> I understand that photos or videos may occasionally be taken during lessons for training or promotional use by Prime Swim Academy. I acknowledge that I have the option to <strong>opt out</strong> by informing the school in writing if I do not wish for my or my child’s image to be used.
                         </p>
                       </div>
                     </div>
