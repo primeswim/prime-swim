@@ -49,23 +49,87 @@ export default function PrivateLessonsPage() {
     date: new Date().toISOString().split("T")[0],
   })
 
-  const [, setIsSubmitting] = useState(false)
-
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [showPregnancyWarning, setShowPregnancyWarning] = useState(false)
+  const [showComplicationWarning, setShowComplicationWarning] = useState(false)
+  
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const validateForm = () => {
+    let valid = true
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "email",
+      "phone",
+      "swimmingLevel",
+      "isPregnant",
+      "hasComplications",
+      "agreesToTerms",
+      "agreesToLiability",
+      "agreesToMedical",
+    ]
+  
+    for (const field of requiredFields) {
+      const value = formData[field as keyof typeof formData]
+      if (
+        value === undefined ||
+        value === "" ||
+        value === null
+      ) {
+        valid = false
+      }
+    }
+  
+    // Special case: if isPregnant is "yes", pregnancyWeeks must be filled
+    // 红字警告：怀孕却没填周数
+    if (formData.isPregnant === "yes" && !formData.pregnancyWeeks) {
+      setShowPregnancyWarning(true)
+      valid = false
+    } else {
+      setShowPregnancyWarning(false)
+    }
+  
+    // Special case: if hasComplications is "yes", complications must be filled
+    // 红字警告：有medical condition但没填写说明
+    if (formData.hasComplications === "yes" && !formData.complications) {
+      setShowComplicationWarning(true)
+      valid = false
+    } else {
+      setShowComplicationWarning(false)
+    }
+  
+    return valid
+  }  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!validateForm()) {
+      alert("❌ Please complete all required fields before submitting.")
+      return
+    }
+
     setIsSubmitting(true)
+  
     try {
       await addDoc(collection(db, "privatelessonstudents"), formData)
+  
       await fetch("/api/registration-confirmation-pl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
-      router.push("/private-lessons")
+  
+      setIsSubmitted(true) // ✅ 显示成功提示
+  
+      // ✅ 2 秒后跳转到 private-lessons 页面
+      setTimeout(() => {
+        router.push("/private-lessons")
+      }, 500) // 延时10.5s
     } catch (error) {
       console.error("❌ Error submitting form:", error)
       alert("Something went wrong. Please try again.")
@@ -73,6 +137,7 @@ export default function PrivateLessonsPage() {
       setIsSubmitting(false)
     }
   }
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -117,6 +182,11 @@ export default function PrivateLessonsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {isSubmitted && (
+                  <div className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-100 border border-green-400 text-green-900 px-6 py-3 rounded-lg shadow-lg z-50 text-lg font-semibold animate-bounce">
+                    ✅ Registration successful! Redirecting...
+                  </div>
+                )}
                 <form onSubmit={handleSubmit} className="space-y-8">
                   {/* Personal Information Section */}
                   <div className="space-y-6">
@@ -272,16 +342,15 @@ export default function PrivateLessonsPage() {
 
                     {/* Pregnancy Section */}
                     <div className="space-y-2">
-                      <Label className="text-slate-700 font-medium block">Are you currently pregnant? *</Label>
+                      <Label className="text-slate-700 font-medium block">Is the swimmer currently pregnant? *</Label>
                       <div className="flex gap-3">
                         {["yes", "no", "na"].map((value) => (
                           <label
                             key={value}
                             className={`flex items-center gap-2 px-2 py-0.5 text-sm border rounded-md cursor-pointer transition 
-                              ${
-                                formData.isPregnant === value
-                                  ? "border-red-600 bg-red-50 text-red-700 font-semibold"
-                                  : "border-slate-300 text-slate-700"
+                              ${formData.isPregnant === value
+                                ? "border-red-600 bg-red-50 text-red-700 font-semibold"
+                                : "border-slate-300 text-slate-700"
                               }`}
                           >
                             <input
@@ -314,24 +383,27 @@ export default function PrivateLessonsPage() {
                             className="border-slate-300 focus:border-slate-500 max-w-xs"
                             placeholder="Enter weeks"
                           />
+                          {showPregnancyWarning && !formData.pregnancyWeeks && (
+                            <p className="text-sm text-red-600 font-medium">Please enter how many weeks pregnant.</p>
+                          )}
                         </div>
                       )}
                     </div>
 
-                    {/* Medical Complications */}
+
+                    {/* Medical Complications Section */}
                     <div className="space-y-2">
                       <Label className="text-slate-700 font-medium block">
-                        Do you have any medical complications or conditions that may affect swimming? *
+                        Does the swimmer have any medical conditions or complications that may affect swimming? *
                       </Label>
                       <div className="flex gap-3">
                         {["yes", "no"].map((value) => (
                           <label
                             key={value}
                             className={`flex items-center gap-2 px-2 py-0.5 text-sm border rounded-md cursor-pointer transition 
-                              ${
-                                formData.hasComplications === value
-                                  ? "border-red-600 bg-red-50 text-red-700 font-semibold"
-                                  : "border-slate-300 text-slate-700"
+                              ${formData.hasComplications === value
+                                ? "border-red-600 bg-red-50 text-red-700 font-semibold"
+                                : "border-slate-300 text-slate-700"
                               }`}
                           >
                             <input
@@ -359,9 +431,13 @@ export default function PrivateLessonsPage() {
                             placeholder="Please provide details about your medical conditions..."
                             className="border-slate-300 focus:border-slate-500 min-h-[100px]"
                           />
+                          {showComplicationWarning && !formData.complications && (
+                            <p className="text-sm text-red-600 font-medium">Please describe your medical condition.</p>
+                          )}
                         </div>
                       )}
                     </div>
+
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -594,10 +670,16 @@ export default function PrivateLessonsPage() {
                     type="submit"
                     size="lg"
                     className="w-full bg-slate-800 hover:bg-slate-700 text-white py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
-                    disabled={!formData.agreesToTerms || !formData.agreesToLiability || !formData.agreesToMedical}
+                    disabled={
+                      isSubmitting || 
+                      !formData.agreesToTerms || 
+                      !formData.agreesToLiability || 
+                      !formData.agreesToMedical
+                    }
                   >
-                    Submit Registration & Waiver
+                    {isSubmitting ? "Submitting..." : "Submit Registration & Waiver"}
                   </Button>
+
                 </form>
               </CardContent>
             </Card>
@@ -612,7 +694,7 @@ export default function PrivateLessonsPage() {
             <div className="md:col-span-2">
               <div className="flex items-center space-x-3 mb-6">
                 <Image
-                  src="/placeholder.svg?height=50&width=50"
+                  src="/images/psa-logo.png"
                   alt="Prime Swim Academy Logo"
                   width={50}
                   height={50}
