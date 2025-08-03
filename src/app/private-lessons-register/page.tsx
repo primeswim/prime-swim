@@ -126,10 +126,7 @@ export default function PrivateLessonsPage() {
   
       setIsSubmitted(true) // ✅ 显示成功提示
   
-      // ✅ 2 秒后跳转到 private-lessons 页面
-      setTimeout(() => {
-        router.push("/private-lessons")
-      }, 500) // 延时10.5s
+      router.push("/private-lessons")
     } catch (error) {
       console.error("❌ Error submitting form:", error)
       alert("Something went wrong. Please try again.")
