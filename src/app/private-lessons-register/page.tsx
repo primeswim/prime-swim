@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Mail, MapPin, Phone, AlertTriangle, Shield, FileText, Heart } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, addDoc } from "firebase/firestore"
+import { collection, addDoc, Timestamp } from "firebase/firestore"
 
 export default function PrivateLessonsPage() {
   const router = useRouter()
@@ -116,8 +116,10 @@ export default function PrivateLessonsPage() {
     setIsSubmitting(true)
   
     try {
-      await addDoc(collection(db, "privatelessonstudents"), formData)
-  
+      await addDoc(collection(db, "privatelessonstudents"), {
+        ...formData,
+        submittedAt: Timestamp.now(),
+      });
       await fetch("/api/registration-confirmation-pl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

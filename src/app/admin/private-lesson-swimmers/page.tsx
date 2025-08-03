@@ -29,7 +29,7 @@ interface Swimmer {
   lastName: string
   dateOfBirth?: string
   isPregnant?: string
-  pregnantWeeks?: string
+  pregnancyWeeks?: string
   phone?: string
   email?: string
   medicalConditions?: string
@@ -132,7 +132,7 @@ export default function PrivateLessonSwimmerAdmin() {
               <TableCell>{s.medicalConditions || 'None'}</TableCell>
               <TableCell>
                 {s.isPregnant === 'yes'
-                  ? `Yes (${s.pregnantWeeks ?? 'N/A'} weeks)`
+                  ? `Yes (${s.pregnancyWeeks ?? 'N/A'} weeks)`
                   : s.isPregnant || '-'}
               </TableCell>
               <TableCell>{s.swimmingLevel || '-'}</TableCell>
