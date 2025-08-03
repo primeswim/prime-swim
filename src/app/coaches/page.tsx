@@ -225,57 +225,7 @@ export default function CoachesPage() {
               </CardContent>
             </Card>
 
-            {/* Coach Alex */}
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 bg-orange-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Waves className="w-12 h-12 text-orange-600" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Alex</CardTitle>
-                <CardDescription className="text-slate-600">Stroke Technique Specialist</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                  Former collegiate swimmer specializing in stroke mechanics and technique refinement. Expert in
-                  biomechanics and underwater stroke analysis.
-                </p>
-                <div className="space-y-2 text-xs text-slate-500 mb-4">
-                  <p>• NCAA Division I Swimmer</p>
-                  <p>• Biomechanics Certified</p>
-                  <p>• 6 Years Coaching</p>
-                </div>
-                <div className="flex flex-wrap gap-1 justify-center">
-                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">Stroke Analysis</span>
-                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">Technique</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Coach Sarah */}
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 bg-pink-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Heart className="w-12 h-12 text-pink-600" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Sarah</CardTitle>
-                <CardDescription className="text-slate-600">Fitness & Conditioning Coach</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                  Certified fitness trainer specializing in swim-specific conditioning and injury prevention. Develops
-                  strength and flexibility programs for all levels.
-                </p>
-                <div className="space-y-2 text-xs text-slate-500 mb-4">
-                  <p>• Certified Personal Trainer</p>
-                  <p>• Sports Medicine Background</p>
-                  <p>• 10 Years Experience</p>
-                </div>
-                <div className="flex flex-wrap gap-1 justify-center">
-                  <span className="px-2 py-1 bg-pink-100 text-pink-800 text-xs rounded">Conditioning</span>
-                  <span className="px-2 py-1 bg-pink-100 text-pink-800 text-xs rounded">Injury Prevention</span>
-                </div>
-              </CardContent>
-            </Card>
+            
           </div>
         </div>
       </section>
