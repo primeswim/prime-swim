@@ -1,5 +1,6 @@
 "use client"
 
+import Header from "@/components/header";
 import type React from "react"
 import { useState } from "react"
 import Image from "next/image"
@@ -12,7 +13,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { Mail, MapPin, Phone, AlertTriangle, Shield, FileText, Heart } from "lucide-react"
 import { db } from "@/lib/firebase"
@@ -49,7 +49,7 @@ export default function PrivateLessonsPage() {
     date: new Date().toISOString().split("T")[0],
   })
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [_, setIsSubmitting] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -77,40 +77,7 @@ export default function PrivateLessonsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={50}
-              height={50}
-              className="rounded-full"
-            />
-            <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
-          </div>
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Home
-            </Link>
-            <Link href="/#programs" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Programs
-            </Link>
-            <Link href="/#coaches" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Coaches
-            </Link>
-            <Link href="/tryout" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Tryout
-            </Link>
-            <Link href="/news" className="text-slate-600 hover:text-slate-800 transition-colors">
-              News
-            </Link>
-            <Link href="/#contact" className="text-slate-600 hover:text-slate-800 transition-colors">
-              Contact
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
