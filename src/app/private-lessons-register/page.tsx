@@ -60,7 +60,7 @@ export default function PrivateLessonsPage() {
     setIsSubmitting(true)
     try {
       await addDoc(collection(db, "privatelessonstudents"), formData)
-      await fetch("/api/registration-confirm", {
+      await fetch("/api/registration-confirmation-pl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
