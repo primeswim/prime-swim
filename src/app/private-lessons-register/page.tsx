@@ -49,7 +49,7 @@ export default function PrivateLessonsPage() {
     date: new Date().toISOString().split("T")[0],
   })
 
-  const [_, setIsSubmitting] = useState(false)
+  const [, setIsSubmitting] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
