@@ -28,6 +28,7 @@ export default function TryoutPage() {
     location: "",
     healthIssues: "",
     notes: "",
+    liabilityAccepted: false,
   })
 
   const handleInputChange = (field: string, value: string) => {
@@ -59,6 +60,7 @@ export default function TryoutPage() {
           location: "",
           healthIssues: "",
           notes: "",
+          liabilityAccepted: false
         })
       } else {
         alert("❌  There was an error. Please try again.")
@@ -370,6 +372,29 @@ export default function TryoutPage() {
                       className="border-slate-300 focus:border-slate-500 min-h-[100px]"
                     />
                   </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <h4 className="font-bold text-amber-800 mb-3">ASSUMPTION OF RISK AND RELEASE OF LIABILITY</h4>
+                    <div className="text-amber-800 text-sm max-h-40 overflow-y-auto space-y-2 mb-4">
+                        <p><strong>1.</strong> I understand that swimming tryouts involve physical activity and the inherent risk of injury. I voluntarily accept full responsibility for any risk or harm that may arise during participation.</p>
+                        <p><strong>2.</strong> I release Prime Swim Academy and its staff from any and all liability for injury, illness, or damages that may occur as a result of my or my child’s participation in tryouts.</p>
+                        <p><strong>3.</strong> I certify that I or my child is physically fit to participate in the swimming tryout and that I have disclosed any relevant health conditions.</p>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                        <input
+                        type="checkbox"
+                        id="liabilityAccepted"
+                        checked={formData.liabilityAccepted}
+                        onChange={(e) => setFormData({ ...formData, liabilityAccepted: e.target.checked })}
+                        className="mt-1"
+                        required
+                        />
+                        <label htmlFor="liabilityAccepted" className="text-sm text-amber-800 font-medium">
+                        I have read and agree to the above waiver of liability.
+                        </label>
+                    </div>
+                  </div>
+
 
                   <Button
                     type="submit"
