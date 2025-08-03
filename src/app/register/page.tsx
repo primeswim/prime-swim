@@ -147,9 +147,7 @@ export default function RegisterPage() {
       })
       setSwimmerId(swimmerDoc.id)
       setShowZelleStep(true)
-      console.log("Swimmer registered with ID:", swimmerDoc.id)
       alert("Registration submitted. Please complete payment!")
-      console.log(`register - swimmer id=${swimmerDoc.id}`)
       router.push(`/zelle-payment?id=${swimmerDoc.id}`)
     } catch (e) {
       console.error("Error adding swimmer: ", e)
