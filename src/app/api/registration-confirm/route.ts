@@ -402,7 +402,7 @@ export async function POST(request: Request) {
           </p>
           
           <p style="font-size: 11px; margin-top: 15px; opacity: 0.6;">
-            You received this email because you registered for a tryout at Prime Swim Academy.<br>
+            You received this email because you registered at Prime Swim Academy.<br>
             <a href="#" style="color: #94a3b8; text-decoration: underline;">Unsubscribe</a> | 
             <a href="#" style="color: #94a3b8; text-decoration: underline;">Update Preferences</a>
           </p>
