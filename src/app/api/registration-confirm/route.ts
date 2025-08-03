@@ -296,7 +296,7 @@ export async function POST(request: Request) {
 
           <!-- Registration Details -->
           <div class="swimmer-info">
-            <h3>📋 Tryout Registration Details</h3>
+            <h3>📋 Registration Details</h3>
             <div class="info-row">
               <span class="info-label">Swimmer Name:</span>
               <span class="info-value">${data.swimmerName}</span>
