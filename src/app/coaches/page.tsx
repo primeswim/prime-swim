@@ -2,7 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Star, Trophy, Medal, Target, Heart, Waves, Mail, MapPin, Phone, CheckCircle } from "lucide-react"
+import { Users, Star, Trophy, Medal, Target, Heart, Mail, MapPin, Phone, CheckCircle } from "lucide-react"
 import Header from "@/components/header";
 
 export default function CoachesPage() {
