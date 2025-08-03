@@ -194,7 +194,7 @@ export default function PrivateLessonCalendar() {
               Please complete the registration form first
             </h3>
             <p className="text-slate-600 leading-relaxed">
-              Before booking a private lesson, please fill out our registration form. This helps us understand each swimmer's background and health status to ensure a safe and effective training experience.
+              Before booking a private lesson, please fill out our registration form. This helps us understand each swimmer&apos;s background and health status to ensure a safe and effective training experience.
             </p>
           </div>
           <div className="flex-shrink-0">
