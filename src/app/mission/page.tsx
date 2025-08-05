@@ -2,7 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Target, Eye, Heart, Users, Trophy, Waves, Star, Award, Mail, MapPin, Phone } from "lucide-react"
+import { Target, Eye, Heart, Users, Trophy, Waves, Star, Award } from "lucide-react"
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 

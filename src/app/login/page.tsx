@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { User, Lock, Mail, Eye, EyeOff, Phone, MapPin, AlertCircle, CheckCircle, ArrowRight } from "lucide-react"
+import { User, Lock, Mail, Eye, EyeOff, Phone, AlertCircle, CheckCircle, ArrowRight } from "lucide-react"
 import Header from "@/components/header";
 import { auth } from "@/lib/firebase"
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"

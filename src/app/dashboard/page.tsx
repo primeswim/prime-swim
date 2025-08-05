@@ -16,9 +16,6 @@ import {
   Users,
   Plus,
   LogOut,
-  Phone,
-  Mail,
-  MapPin,
   Settings,
   Waves,
 } from "lucide-react"

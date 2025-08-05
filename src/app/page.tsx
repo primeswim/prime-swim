@@ -2,7 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Clock, Mail, MapPin, Phone, Trophy, Users, Waves } from "lucide-react"
+import { Calendar, Clock, Trophy, Users, Waves } from "lucide-react"
 import Header from "@/components/header";
 import LatestNewsSection from "@/components/latest-news-section"
 import Footer from "@/components/footer";

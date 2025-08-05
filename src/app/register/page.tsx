@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { db } from "@/lib/firebase" // 你创建的 firebase.ts 路径
 import { collection, addDoc } from "firebase/firestore"
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,8 +32,6 @@ import {
   Shield,
   Camera,
   BookOpen,
-  Mail,
-  MapPin,
 } from "lucide-react"
 
 export default function RegisterPage() {
