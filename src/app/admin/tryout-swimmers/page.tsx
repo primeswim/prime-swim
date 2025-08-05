@@ -169,7 +169,7 @@ export default function TryoutSwimmersPage() {
                         onClick={() => toggleField(s.id, "willContinue", s.willContinue)}
                         className="text-xs"
                       >
-                        {s.willContinue ? "✅ Continue" : "Mark"}
+                        {s.willContinue ? "✅ Yes" : "Mark"}
                       </Button>
                     </td>
                     <td className="p-3">
