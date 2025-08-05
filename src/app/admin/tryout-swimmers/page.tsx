@@ -1,5 +1,6 @@
 "use client";
 
+import { Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -24,7 +25,7 @@ interface TryoutSwimmer {
   age?: string;
   email?: string;
   phone?: string;
-  submittedAt?: any;
+  submittedAt?: Timestamp;
   tryoutFinished?: boolean;
   willContinue?: boolean;
   preferredDate?: string;
@@ -130,7 +131,7 @@ export default function TryoutSwimmersPage() {
                   <th className="p-3 border-b">Health</th>
                   <th className="p-3 border-b">Notes</th>
                   <th className="p-3 border-b">Submitted</th>
-                  <th className="p-3 border-b">Tryout</th>
+                  <th className="p-3 border-b">Tryout?</th>
                   <th className="p-3 border-b">Enroll?</th>
                   <th className="p-3 border-b">Delete</th>
                 </tr>
