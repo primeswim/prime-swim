@@ -97,6 +97,9 @@ export default function TryoutPage() {
             Join Prime Swim Academy and discover your potential. Our tryout process helps us understand your current
             skill level and recommend the perfect program for your swimming journey.
           </p>
+          <p className="text-sm text-amber-600 font-medium mt-2">
+            ⚠️ Please note: Tryouts are only for group lessons and are not applicable to private lessons.
+          </p>
         </div>
       </section>
 
