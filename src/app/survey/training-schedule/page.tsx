@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Mail, MapPin, Phone, Calendar, User, Clock } from 'lucide-react'
+import { Mail, MapPin, Phone, Calendar, Clock } from 'lucide-react'
 import Header from "@/components/header";
 
 interface TimeSlot {
@@ -64,7 +64,7 @@ export default function TrainingSurvey() {
     timesPerWeek: 1,
   })
 
-  const handleChange = (field: keyof FormState, value: any) => {
+  const handleChange = (field: keyof FormState, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 

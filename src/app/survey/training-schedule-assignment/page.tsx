@@ -101,7 +101,7 @@ export default function TrainingSurveyStatsWeighted() {
     // Auto assignment logic
     const assigned: AssignmentMap = {};
     const swimmerAssignedCount: { [name: string]: number } = {};
-    Object.entries(swimmerMap).forEach(([name, entry]) => {
+    Object.entries(swimmerMap).forEach(([name]) => {
       swimmerAssignedCount[name] = 0;
       assigned[name] = [];
     });
