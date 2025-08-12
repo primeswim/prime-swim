@@ -6,7 +6,6 @@ import {
   collection,
   getDocs,
   updateDoc,
-  deleteDoc,
   doc,
   query,
   orderBy,
@@ -28,26 +27,28 @@ interface TryoutSwimmer {
   submittedAt?: Timestamp;
   tryoutFinished?: boolean;
   willContinue?: boolean;
-  preferredDate?: string;
-  program?: string;
+  preferredDate?: string;  // yyyy-mm-dd（已在后端 normalize）
+  program?: string;        // 已在后端转小写
   experience?: string;
   location?: string;
   healthIssues?: string;
   notes?: string;
+  capKey?: string | null;  // 形如 "bronze_2025-08-23"
 }
 
 export default function TryoutSwimmersPage() {
   const [swimmers, setSwimmers] = useState<TryoutSwimmer[]>([]);
   const [filtered, setFiltered] = useState<TryoutSwimmer[]>([]);
   const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const fetchSwimmers = async () => {
     const q = query(collection(db, "tryouts"), orderBy("submittedAt", "desc"));
     const snapshot = await getDocs(q);
     const data: TryoutSwimmer[] = snapshot.docs.map((docSnap) => ({
       id: docSnap.id,
-      ...docSnap.data(),
-    })) as TryoutSwimmer[];
+      ...(docSnap.data() as Omit<TryoutSwimmer, "id">),
+    }));
     setSwimmers(data);
     setFiltered(data);
   };
@@ -57,21 +58,47 @@ export default function TryoutSwimmersPage() {
     field: "tryoutFinished" | "willContinue",
     current: boolean | undefined
   ) => {
-    const ref = doc(db, "tryouts", id);
-    await updateDoc(ref, { [field]: !current });
-    fetchSwimmers();
+    setBusyId(id);
+    try {
+      const ref = doc(db, "tryouts", id);
+      await updateDoc(ref, { [field]: !current });
+      await fetchSwimmers();
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handleDelete = async (id: string) => {
+  // 通过服务端 API 同时删除报名与锁
+  const handleDelete = async (s: TryoutSwimmer) => {
     const confirmDelete = confirm("Are you sure you want to delete this swimmer?");
     if (!confirmDelete) return;
 
+    setBusyId(s.id);
     try {
-      await deleteDoc(doc(db, "tryouts", id));
-      fetchSwimmers(); // refresh after deletion
+      const res = await fetch("/api/tryout/admin-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: s.id,
+          capKey: s.capKey ?? null,
+          program: s.program ?? "",
+          preferredDate: s.preferredDate ?? "",
+        }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const msg = payload?.message || payload?.error || "Delete failed.";
+        alert(`❌ ${msg}`);
+        return;
+      }
+
+      await fetchSwimmers();
     } catch (error) {
       console.error("❌ Error deleting swimmer:", error);
       alert("Failed to delete swimmer. Please try again.");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -159,6 +186,7 @@ export default function TryoutSwimmersPage() {
                         variant={s.tryoutFinished ? "default" : "outline"}
                         onClick={() => toggleField(s.id, "tryoutFinished", s.tryoutFinished)}
                         className="text-xs"
+                        disabled={busyId === s.id}
                       >
                         {s.tryoutFinished ? "✅ Finished" : "Mark"}
                       </Button>
@@ -168,6 +196,7 @@ export default function TryoutSwimmersPage() {
                         variant={s.willContinue ? "default" : "outline"}
                         onClick={() => toggleField(s.id, "willContinue", s.willContinue)}
                         className="text-xs"
+                        disabled={busyId === s.id}
                       >
                         {s.willContinue ? "✅ Yes" : "Mark"}
                       </Button>
@@ -176,10 +205,11 @@ export default function TryoutSwimmersPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDelete(s.id)}
+                        onClick={() => handleDelete(s)}
                         className="text-xs"
+                        disabled={busyId === s.id}
                       >
-                        Delete
+                        {busyId === s.id ? "Deleting..." : "Delete"}
                       </Button>
                     </td>
                   </tr>
