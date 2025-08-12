@@ -13,10 +13,38 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Users, Waves, CheckCircle, AlertCircle, Droplets } from "lucide-react";
 
+// Narrow string unions for stricter typing (optional but nice)
+type Program = "bronze" | "silver" | "gold" | "platinum" | "olympic" | "unsure" | "";
+type Experience =
+  | "beginner"
+  | "recreational"
+  | "competitive"
+  | "advanced"
+  | "elite"
+  | "";
+type Location = "Redmond" | "Mercer Island" | "Issaquah" | "";
+
+// Form data model
+interface TryoutFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  age: string; // keep as string since it's from <input type="number">
+  program: Program;
+  experience: Experience;
+  preferredDate: string; // yyyy-mm-dd
+  preferredTime: "morning" | "afternoon" | "evening" | "flexible" | "";
+  location: Location;
+  healthIssues: string;
+  notes: string;
+  liabilityAccepted: boolean;
+}
+
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TryoutFormData>({
     firstName: "",
     lastName: "",
     email: "",
@@ -32,8 +60,12 @@ export default function TryoutPage() {
     liabilityAccepted: false,
   });
 
-  const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value as any }));
+  // Type-safe updater: value type depends on the field
+  const handleInputChange = <K extends keyof TryoutFormData>(
+    field: K,
+    value: TryoutFormData[K]
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const validateBeforeSubmit = (): string | null => {
@@ -137,9 +169,6 @@ export default function TryoutPage() {
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-slate-800 mb-4">What to Expect</h2>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Our comprehensive tryout process ensures we place you in the right program
-          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
@@ -302,7 +331,7 @@ export default function TryoutPage() {
                       </Label>
                       <Select
                         value={formData.program}
-                        onValueChange={(value) => handleInputChange("program", value)}
+                        onValueChange={(value) => handleInputChange("program", value as Program)}
                       >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select a program" />
@@ -326,7 +355,7 @@ export default function TryoutPage() {
                       </Label>
                       <Select
                         value={formData.experience}
-                        onValueChange={(value) => handleInputChange("experience", value)}
+                        onValueChange={(value) => handleInputChange("experience", value as Experience)}
                       >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select your experience level" />
@@ -347,7 +376,7 @@ export default function TryoutPage() {
                       </Label>
                       <Select
                         value={formData.location}
-                        onValueChange={(value) => handleInputChange("location", value)}
+                        onValueChange={(value) => handleInputChange("location", value as Location)}
                       >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select preferred location" />
@@ -382,7 +411,12 @@ export default function TryoutPage() {
                       </Label>
                       <Select
                         value={formData.preferredTime}
-                        onValueChange={(value) => handleInputChange("preferredTime", value)}
+                        onValueChange={(value) =>
+                          handleInputChange(
+                            "preferredTime",
+                            value as TryoutFormData["preferredTime"]
+                          )
+                        }
                       >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select preferred time" />
