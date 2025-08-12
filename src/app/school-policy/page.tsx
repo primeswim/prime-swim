@@ -25,9 +25,10 @@ const policies = [
     title: "Make-up & Cancellation Policy",
     icon: Calendar,
     content: [
-      "Classes missed due to swimmer absence will be considered for make-up based on available spots; however, make-ups cannot be guaranteed due to limited pool space and instructor availability.",
-      "Cancellations must be communicated at least 24 hours in advance to qualify for make-up consideration.",
-      "Prime Swim Academy reserves the right to limit make-up lessons to a maximum of two per month.",
+      "To ensure consistent progress and keep group training on the same pace, Prime Swim Academy does not offer make-up classes for missed lessons.",
+      "Joining a different group for make-up may cause mismatched skill levels, disrupt class flow, and create unnecessary traffic in the pool.",
+      "We encourage swimmers to attend all scheduled classes to maximize learning and skill development.",
+      "Please inform us at least 24 hours in advance of any absence to help us manage classes smoothly."
     ],
   },
   {

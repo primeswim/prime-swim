@@ -1,19 +1,21 @@
-"use client"
+"use client";
 
-import type React from "react"
-import Footer from "@/components/footer";
-import { useState } from "react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trophy, Users, Waves, CheckCircle, AlertCircle, Droplets } from "lucide-react"
+import type React from "react";
+import { useState } from "react";
+import Image from "next/image";
 import Header from "@/components/header";
+import Footer from "@/components/footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trophy, Users, Waves, CheckCircle, AlertCircle, Droplets } from "lucide-react";
 
 export default function TryoutPage() {
+  const [submitting, setSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -28,49 +30,75 @@ export default function TryoutPage() {
     healthIssues: "",
     notes: "",
     liabilityAccepted: false,
-  })
+  });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+  const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
+    setFormData((prev) => ({ ...prev, [field]: value as any }));
+  };
+
+  const validateBeforeSubmit = (): string | null => {
+    if (!formData.firstName || !formData.lastName) return "Please enter first and last name.";
+    if (!formData.email) return "Please enter your email.";
+    if (!formData.phone) return "Please enter your phone number.";
+    if (!formData.age) return "Please enter your age.";
+    if (!formData.program) return "Please select a program.";
+    if (!formData.location) return "Please select a location.";
+    if ((formData.program === "bronze" || formData.program === "silver") && !formData.preferredDate) {
+      return "Please choose a date for Bronze/Silver tryouts.";
+    }
+    if (!formData.liabilityAccepted) return "Please accept the liability waiver.";
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    const err = validateBeforeSubmit();
+    if (err) {
+      alert(err);
+      return;
+    }
+
     try {
+      setSubmitting(true);
       const res = await fetch("/api/tryout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
-      })
-  
-      if (res.ok) {
-        alert("✅ Your tryout request was submitted successfully!")
-        // 清空表单
-        setFormData({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          age: "",
-          program: "",
-          experience: "",
-          preferredDate: "",
-          preferredTime: "",
-          location: "",
-          healthIssues: "",
-          notes: "",
-          liabilityAccepted: false
-        })
-      } else {
-        alert("❌  There was an error. Please try again.")
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const msg =
+          payload?.message ||
+          payload?.error ||
+          "There was an error. Please try another date or try again later.";
+        alert(`❌ ${msg}`);
+        return;
       }
-    } catch (err) {
-      console.error(err)
-      alert("❌  There was an error submitting the form.")
+
+      alert("✅ Your tryout request was submitted successfully!");
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        age: "",
+        program: "",
+        experience: "",
+        preferredDate: "",
+        preferredTime: "",
+        location: "",
+        healthIssues: "",
+        notes: "",
+        liabilityAccepted: false,
+      });
+    } catch (error) {
+      console.error(error);
+      alert("❌ There was an error submitting the form.");
+    } finally {
+      setSubmitting(false);
     }
-  }
-  
-  
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -89,7 +117,9 @@ export default function TryoutPage() {
               className="mx-auto mb-6 rounded-full shadow-lg"
             />
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">Schedule Your Tryout</h1>
+          <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">
+            Schedule Your Tryout
+          </h1>
           <p className="text-xl md:text-2xl text-slate-600 mb-8 font-light">
             Take the first step towards swimming excellence
           </p>
@@ -265,11 +295,15 @@ export default function TryoutPage() {
                         required
                       />
                     </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="program" className="text-slate-700 font-medium">
-                        Interested Program  *
+                        Interested Program *
                       </Label>
-                      <Select onValueChange={(value) => handleInputChange("program", value)}>
+                      <Select
+                        value={formData.program}
+                        onValueChange={(value) => handleInputChange("program", value)}
+                      >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select a program" />
                         </SelectTrigger>
@@ -284,59 +318,72 @@ export default function TryoutPage() {
                       </Select>
                     </div>
                   </div>
+
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <Label htmlFor="experience" className="text-slate-700 font-medium">
+                      <Label htmlFor="experience" className="text-slate-700 font-medium">
                         Swimming Experience
-                        </Label>
-                        <Select onValueChange={(value) => handleInputChange("experience", value)}>
+                      </Label>
+                      <Select
+                        value={formData.experience}
+                        onValueChange={(value) => handleInputChange("experience", value)}
+                      >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                            <SelectValue placeholder="Select your experience level" />
+                          <SelectValue placeholder="Select your experience level" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="beginner">Beginner (Learning to swim)</SelectItem>
-                            <SelectItem value="recreational">Recreational swimmer</SelectItem>
-                            <SelectItem value="competitive">Some competitive experience</SelectItem>
-                            <SelectItem value="advanced">Advanced competitive swimmer</SelectItem>
-                            <SelectItem value="elite">Elite/National level</SelectItem>
+                          <SelectItem value="beginner">Beginner (Learning to swim)</SelectItem>
+                          <SelectItem value="recreational">Recreational swimmer</SelectItem>
+                          <SelectItem value="competitive">Some competitive experience</SelectItem>
+                          <SelectItem value="advanced">Advanced competitive swimmer</SelectItem>
+                          <SelectItem value="elite">Elite/National level</SelectItem>
                         </SelectContent>
-                        </Select>
+                      </Select>
                     </div>
+
                     <div className="space-y-2">
-                        <Label htmlFor="location" className="text-slate-700 font-medium">
-                            Preferred Location *
-                        </Label>
-                        <Select onValueChange={(value) => handleInputChange("location", value)}>
-                            <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                            <SelectValue placeholder="Select preferred location" />
-                            </SelectTrigger>
-                            <SelectContent>
-                            <SelectItem value="Redmond">Redmond</SelectItem>
-                            <SelectItem value="Mercer Island">Mercer Island</SelectItem>
-                            <SelectItem value="Issaquah">Issaquah</SelectItem>
-                            </SelectContent>
-                        </Select>
-                  </div>
+                      <Label htmlFor="location" className="text-slate-700 font-medium">
+                        Preferred Location *
+                      </Label>
+                      <Select
+                        value={formData.location}
+                        onValueChange={(value) => handleInputChange("location", value)}
+                      >
+                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
+                          <SelectValue placeholder="Select preferred location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Redmond">Redmond</SelectItem>
+                          <SelectItem value="Mercer Island">Mercer Island</SelectItem>
+                          <SelectItem value="Issaquah">Issaquah</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="preferredDate" className="text-slate-700 font-medium">
-                        Preferred Date
+                        Preferred Date {formData.program === "bronze" || formData.program === "silver" ? "*" : ""}
                       </Label>
                       <Input
                         id="preferredDate"
                         type="date"
                         value={formData.preferredDate}
                         onChange={(e) => handleInputChange("preferredDate", e.target.value)}
+                        required={formData.program === "bronze" || formData.program === "silver"}
                         className="border-slate-300 focus:border-slate-500"
                       />
                     </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="preferredTime" className="text-slate-700 font-medium">
                         Preferred Time
                       </Label>
-                      <Select onValueChange={(value) => handleInputChange("preferredTime", value)}>
+                      <Select
+                        value={formData.preferredTime}
+                        onValueChange={(value) => handleInputChange("preferredTime", value)}
+                      >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select preferred time" />
                         </SelectTrigger>
@@ -352,16 +399,17 @@ export default function TryoutPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="healthIssues" className="text-slate-700 font-medium">
-                        Any Health Issues or Special Considerations
+                      Any Health Issues or Special Considerations
                     </Label>
                     <Textarea
-                        id="healthIssues"
-                        value={formData.healthIssues}
-                        onChange={(e) => handleInputChange("healthIssues", e.target.value)}
-                        placeholder="Please share any medical conditions, allergies, or special needs we should be aware of..."
-                        className="border-slate-300 focus:border-slate-500 min-h-[80px]"
+                      id="healthIssues"
+                      value={formData.healthIssues}
+                      onChange={(e) => handleInputChange("healthIssues", e.target.value)}
+                      placeholder="Please share any medical conditions, allergies, or special needs we should be aware of..."
+                      className="border-slate-300 focus:border-slate-500 min-h-[80px]"
                     />
-                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="text-slate-700 font-medium">
                       Additional Notes
@@ -378,32 +426,43 @@ export default function TryoutPage() {
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <h4 className="font-bold text-amber-800 mb-3">ASSUMPTION OF RISK AND RELEASE OF LIABILITY</h4>
                     <div className="text-amber-800 text-sm max-h-40 overflow-y-auto space-y-2 mb-4">
-                        <p><strong>1.</strong> I understand that swimming tryouts involve physical activity and the inherent risk of injury. I voluntarily accept full responsibility for any risk or harm that may arise during participation.</p>
-                        <p><strong>2.</strong> I release Prime Swim Academy and its staff from any and all liability for injury, illness, or damages that may occur as a result of my or my child’s participation in tryouts.</p>
-                        <p><strong>3.</strong> I certify that I or my child is physically fit to participate in the swimming tryout and that I have disclosed any relevant health conditions.</p>
+                      <p>
+                        <strong>1.</strong> I understand that swimming tryouts involve physical activity and the
+                        inherent risk of injury. I voluntarily accept full responsibility for any risk or harm that may
+                        arise during participation.
+                      </p>
+                      <p>
+                        <strong>2.</strong> I release Prime Swim Academy and its staff from any and all liability for
+                        injury, illness, or damages that may occur as a result of my or my child’s participation in
+                        tryouts.
+                      </p>
+                      <p>
+                        <strong>3.</strong> I certify that I or my child is physically fit to participate in the
+                        swimming tryout and that I have disclosed any relevant health conditions.
+                      </p>
                     </div>
                     <div className="flex items-start space-x-2">
-                        <input
+                      <input
                         type="checkbox"
                         id="liabilityAccepted"
                         checked={formData.liabilityAccepted}
-                        onChange={(e) => setFormData({ ...formData, liabilityAccepted: e.target.checked })}
+                        onChange={(e) => handleInputChange("liabilityAccepted", e.target.checked)}
                         className="mt-1"
                         required
-                        />
-                        <label htmlFor="liabilityAccepted" className="text-sm text-amber-800 font-medium">
+                      />
+                      <label htmlFor="liabilityAccepted" className="text-sm text-amber-800 font-medium">
                         I have read and agree to the above waiver of liability.
-                        </label>
+                      </label>
                     </div>
                   </div>
-
 
                   <Button
                     type="submit"
                     size="lg"
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-white py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
+                    disabled={submitting}
+                    className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed text-white py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
                   >
-                    Schedule My Tryout
+                    {submitting ? "Submitting..." : "Schedule My Tryout"}
                   </Button>
                 </form>
               </CardContent>
@@ -483,5 +542,5 @@ export default function TryoutPage() {
       {/* Footer */}
       <Footer />
     </div>
-  )
+  );
 }
