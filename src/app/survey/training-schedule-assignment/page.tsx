@@ -28,16 +28,25 @@ interface WeightedStats {
 }
 
 interface AssignmentMap {
-  [swimmerName: string]: string[]; // selected time slots
+  [swimmerName: string]: string[]; // per-swimmer selected slot keys (for调试/观测)
 }
+
+interface SlotAssignments {
+  [slotKey: string]: string[]; // "location||time" -> ["Alice", "Bob", ...]
+}
+
+// —— 工具函数：从 "Wed 8–9pm" 提取星期 —— //
+const getDayFromTime = (t: string) => t.split(" ")[0]; // "Mon" | "Tue" | "Wed" ...
 
 export default function TrainingSurveyStatsWeighted() {
   const [stats, setStats] = useState<WeightedStats>({});
-  const [assignments, setAssignments] = useState<AssignmentMap>({});
+  const [assignments, setAssignments] = useState<SlotAssignments>({});
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
+
+  // 需求/容量参数
   const LANE_CAPACITY = 4;
   const MAX_LANE_SIZE = 6;
 
@@ -68,9 +77,9 @@ export default function TrainingSurveyStatsWeighted() {
     const weightedStats: WeightedStats = {};
     const swimmerMap: { [name: string]: SurveyEntry } = {};
 
-    snapshot.forEach((doc) => {
-      const data = doc.data() as SurveyEntry;
-      if (!data.preferences || data.preferences.length === 0) return;
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as SurveyEntry;
+      if (!data?.preferences?.length) return;
       if (!data.timesPerWeek) return;
 
       swimmerMap[data.swimmerName] = data;
@@ -78,6 +87,7 @@ export default function TrainingSurveyStatsWeighted() {
       const totalChoices = data.preferences.reduce((acc, pref) => acc + pref.timeSlots.length, 0);
       if (totalChoices === 0) return;
 
+      // 每个被选时段的权重 = timesPerWeek / 总选择数
       const weight = data.timesPerWeek / totalChoices;
 
       for (const pref of data.preferences) {
@@ -87,25 +97,30 @@ export default function TrainingSurveyStatsWeighted() {
             weightedStats[pref.location][slot] = { weight: 0, swimmers: [], swimmerDetails: [] };
           }
           weightedStats[pref.location][slot].weight += weight;
+
           if (!weightedStats[pref.location][slot].swimmers.includes(data.swimmerName)) {
             weightedStats[pref.location][slot].swimmers.push(data.swimmerName);
             weightedStats[pref.location][slot].swimmerDetails?.push({
               name: data.swimmerName,
-              timesPerWeek: data.timesPerWeek
+              timesPerWeek: data.timesPerWeek,
             });
           }
         }
       }
     });
 
-    // Auto assignment logic
-    const assigned: AssignmentMap = {};
+    // —— 自动排班：同一天只给每位泳员安排一次 —— //
+    const assignedBySwimmer: AssignmentMap = {};
     const swimmerAssignedCount: { [name: string]: number } = {};
-    Object.entries(swimmerMap).forEach(([name]) => {
+    const swimmerDayAssigned: { [name: string]: Set<string> } = {}; // 记录每个泳员已占用的“星期”
+
+    Object.keys(swimmerMap).forEach((name) => {
       swimmerAssignedCount[name] = 0;
-      assigned[name] = [];
+      assignedBySwimmer[name] = [];
+      swimmerDayAssigned[name] = new Set();
     });
 
+    // 所有时段，按需求人数降序（优先分配需求高的）
     const allSlots: { location: string; time: string; count: number }[] = [];
     for (const [location, timeMap] of Object.entries(weightedStats)) {
       for (const [time, info] of Object.entries(timeMap)) {
@@ -114,25 +129,31 @@ export default function TrainingSurveyStatsWeighted() {
     }
     allSlots.sort((a, b) => b.count - a.count);
 
-    const slotAssignments: { [key: string]: string[] } = {};
+    // 最终结果：slot -> swimmers
+    const slotAssignments: SlotAssignments = {};
 
     for (const { location, time } of allSlots) {
-      const key = `${time}-${location}`;
-      const slot = weightedStats[location][time];
-      let count = 0;
+      const slotKey = `${location}||${time}`; // 清晰分隔，便于展示解析
+      const slotInfo = weightedStats[location][time];
 
-      for (const swimmer of slot.swimmers) {
+      let filled = 0;
+      for (const swimmer of slotInfo.swimmers) {
         const entry = swimmerMap[swimmer];
+        const day = getDayFromTime(time);
+
         if (
           swimmerAssignedCount[swimmer] < entry.timesPerWeek &&
-          !assigned[swimmer].some(slot => slot.startsWith(time.split(" ")[0]))
+          !swimmerDayAssigned[swimmer].has(day) // 同一天不重复
         ) {
-          assigned[swimmer].push(key);
+          assignedBySwimmer[swimmer].push(slotKey);
           swimmerAssignedCount[swimmer]++;
-          if (!slotAssignments[key]) slotAssignments[key] = [];
-          slotAssignments[key].push(swimmer);
-          count++;
-          if (count >= MAX_LANE_SIZE) break;
+          swimmerDayAssigned[swimmer].add(day);
+
+          if (!slotAssignments[slotKey]) slotAssignments[slotKey] = [];
+          slotAssignments[slotKey].push(swimmer);
+
+          filled++;
+          if (filled >= MAX_LANE_SIZE) break; // 达到该时段泳道上限
         }
       }
     }
@@ -153,7 +174,7 @@ export default function TrainingSurveyStatsWeighted() {
         <p>Loading survey responses...</p>
       ) : (
         <>
-          {/* Demand section */}
+          {/* 需求统计 */}
           {Object.entries(stats).map(([location, slots]) => (
             <div key={location} className="mb-6 border border-gray-300 rounded-md p-4">
               <h2 className="text-lg font-semibold mb-3">🏊 {location}</h2>
@@ -165,6 +186,7 @@ export default function TrainingSurveyStatsWeighted() {
                       <span>
                         <strong>{weight.toFixed(1)}</strong> demand →
                         <span className="text-sm text-gray-600">
+                          {" "}
                           {Math.ceil(weight / LANE_CAPACITY)} lanes
                         </span>
                       </span>
@@ -180,20 +202,18 @@ export default function TrainingSurveyStatsWeighted() {
             </div>
           ))}
 
-          {/* Assignment section */}
+          {/* 最终排班 */}
           <div className="mt-10">
             <h2 className="text-xl font-bold mb-4">📅 Final Assignment</h2>
-            {Object.entries(assignments).length === 0 ? (
+            {Object.keys(assignments).length === 0 ? (
               <p>No final assignments available.</p>
             ) : (
               <ul className="space-y-3 text-sm">
-                {Object.entries(assignments).map(([slot, swimmers]) => {
-                  const [day, time, ...rest] = slot.split(" ");
-                  const location = rest.join(" ");
+                {Object.entries(assignments).map(([slotKey, swimmers]) => {
+                  const [location, time] = slotKey.split("||");
                   return (
-                    <li key={slot} className="border-b pb-2">
-                      <strong>{`${day} ${time} @ ${location}`}</strong>:{" "}
-                      {swimmers.join(", ")}
+                    <li key={slotKey} className="border-b pb-2">
+                      <strong>{`${time} @ ${location}`}</strong>: {swimmers.join(", ")}
                     </li>
                   );
                 })}

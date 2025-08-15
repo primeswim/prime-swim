@@ -37,22 +37,22 @@ interface FormState {
 }
 
 const poolOptions: PoolOptions = {
-  "Mary Wayte": [
+  "Mary Wayte Pool (Mercer Island)": [
     { time: "Mon 8–9pm", type: "lesson" },
     { time: "Tue 8–9pm", type: "lesson" },
     { time: "Wed 2:30–3:30pm", type: "lap" },
     { time: "Wed 8–9pm", type: "lesson" },
     { time: "Thu 8–9pm", type: "lesson" },
+    { time: "Fri 8–9pm", type: "lesson" },
   ],
-  Redmond: [
+  "Redmond Pool (Redmond)": [
     { time: "Sat 4–5pm", type: "lesson" },
     { time: "Sat 5–6pm", type: "lesson" },
     { time: "Sat 6–7pm", type: "lesson" },
     { time: "Sun 4–5pm", type: "lesson" },
     { time: "Sun 5–6pm", type: "lesson" },
     { time: "Sun 6–7pm", type: "lesson" },
-  ],
-  "Julius Boehm": [],
+  ]
 }
 
 export default function TrainingSurvey() {
@@ -234,22 +234,27 @@ export default function TrainingSurvey() {
                             {slots
                               .filter((slot) => {
                                 if (!form.groupLevel) return true
-                                if (["bronze", "silver-beginner", "silver-performance"].includes(form.groupLevel))
+                                if (["bronze", "silver-beginner"].includes(form.groupLevel)) {
                                   return slot.type === "lesson"
-                                if (form.groupLevel === "gold") return slot.type === "lap"
+                                }
+                                if (form.groupLevel === "silver-performance") {
+                                  // 允许 lesson + lap（比如 Wed 2:30–3:30pm 的 lap）
+                                  return slot.type === "lesson" || slot.type === "lap"
+                                }
+                                if (form.groupLevel === "gold") {
+                                  return slot.type === "lap"
+                                }
                                 return true
                               })
-                              .map(({ time }) => (
-                                <div key={time} className="flex items-center space-x-2">
+                              .map(({ time, type }) => (
+                                <div key={`${location}-${time}-${type}`} className="flex items-center space-x-2">
                                   <Checkbox
-                                    id={`${location}-${time}`}
-                                    checked={!!form.preferences.find(
-                                      (p) => p.location === location && p.timeSlots.includes(time),
-                                    )}
+                                    id={`${location}-${time}-${type}`}
+                                    checked={!!form.preferences.find((p) => p.location === location && p.timeSlots.includes(time))}
                                     onCheckedChange={() => updatePreference(location, time)}
                                     className="border-slate-300 data-[state=checked]:bg-slate-800 data-[state=checked]:text-white"
                                   />
-                                  <Label htmlFor={`${location}-${time}`} className="text-slate-700">
+                                  <Label htmlFor={`${location}-${time}-${type}`} className="text-slate-700">
                                     {time}
                                   </Label>
                                 </div>
@@ -261,7 +266,7 @@ export default function TrainingSurvey() {
 
                     <div className="space-y-2">
                       <Label htmlFor="timesPerWeek" className="text-slate-700 font-medium">
-                        Preferred Times Per Week *
+                        Preferred Training Frequency Per Week *
                       </Label>
                       <Select
                         value={String(form.timesPerWeek)}
