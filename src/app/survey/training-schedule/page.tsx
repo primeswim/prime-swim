@@ -2,8 +2,8 @@
 
 import type React from "react"
 import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase"; 
-import { useState } from "react"
+import { db } from "@/lib/firebase";
+import { useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -13,12 +13,12 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Mail, MapPin, Phone, Calendar, Clock } from 'lucide-react'
+import { Mail, MapPin, Phone, Calendar, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import Header from "@/components/header";
 
 interface TimeSlot {
   time: string
-  type: string
+  type: "lesson" | "lap"
 }
 
 interface PoolOptions {
@@ -28,12 +28,11 @@ interface PoolOptions {
 interface FormState {
   parentEmail: string
   swimmerName: string
-  groupLevel: string
+  groupLevel: "bronze" | "silver-beginner" | "silver-performance" | ""
   preferences: {
     location: string
     timeSlots: string[]
   }[]
-  timesPerWeek: number
 }
 
 const poolOptions: PoolOptions = {
@@ -52,7 +51,23 @@ const poolOptions: PoolOptions = {
     { time: "Sun 4–5pm", type: "lesson" },
     { time: "Sun 5–6pm", type: "lesson" },
     { time: "Sun 6–7pm", type: "lesson" },
-  ]
+  ],
+  "Bellevue Aquatic Center (Bellevue)": [
+    { time: "Wed 1:30–2:30pm", type: "lap" },
+    { time: "Wed 2:30–3:30pm", type: "lap" },
+  ],
+}
+
+// weekly minimums by group
+const REQUIRED_BY_GROUP: Record<Exclude<FormState["groupLevel"], "">, number> = {
+  bronze: 2,
+  "silver-beginner": 3,
+  "silver-performance": 4,
+}
+
+function getRequired(level: FormState["groupLevel"]) {
+  if (!level || !(level in REQUIRED_BY_GROUP)) return null
+  return REQUIRED_BY_GROUP[level as keyof typeof REQUIRED_BY_GROUP]
 }
 
 export default function TrainingSurvey() {
@@ -61,11 +76,18 @@ export default function TrainingSurvey() {
     swimmerName: "",
     groupLevel: "",
     preferences: [],
-    timesPerWeek: 1,
   })
 
+  // how many spots selected (all pools combined)
+  const selectedCount = useMemo(
+    () => form.preferences.reduce((sum, p) => sum + p.timeSlots.length, 0),
+    [form.preferences]
+  )
+  const required = getRequired(form.groupLevel)
+  const meetsMinimum = required != null ? selectedCount >= required : false
+
   const handleChange = (field: keyof FormState, value: unknown) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev) => ({ ...prev, [field]: value as any }))
   }
 
   const updatePreference = (location: string, time: string) => {
@@ -88,7 +110,6 @@ export default function TrainingSurvey() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      // Uncomment and configure Firebase if you want to use it
       await addDoc(collection(db, "trainingSurveys"), {
         ...form,
         submittedAt: new Date(),
@@ -99,7 +120,6 @@ export default function TrainingSurvey() {
         swimmerName: "",
         groupLevel: "",
         preferences: [],
-        timesPerWeek: 1,
       })
     } catch (err) {
       console.error(err)
@@ -125,15 +145,12 @@ export default function TrainingSurvey() {
             />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">
-            Fall 2025 Training Survey
+            Fall 2025 Bronze & Silver Training Schedule
           </h1>
-          <p className="text-xl md:text-2xl text-slate-600 mb-8 font-light">
-            Help us plan the best training schedule for your swimmer
+          <p className="text-xl md:text-2xl text-slate-600 mb-2 font-light">
+            Help us plan the best training schedule for Bronze & Silver swimmers
           </p>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Your feedback is crucial for optimizing our Fall 2025 training programs. Please fill out this survey to
-            indicate your preferences for locations and times.
-          </p>
+          {/* Removed the static blue banner. Dynamic notice appears after group selection below. */}
         </div>
       </section>
 
@@ -145,10 +162,10 @@ export default function TrainingSurvey() {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-slate-800 text-center flex items-center justify-center">
                   <Calendar className="w-6 h-6 mr-2" />
-                  Training Preferences
+                  Training Preferences (Bronze / Silver)
                 </CardTitle>
                 <CardDescription className="text-center text-slate-600">
-                  Please provide your details and preferences for the upcoming training season.
+                  Please provide your details and choose preferred locations and times.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -202,9 +219,42 @@ export default function TrainingSurvey() {
                           <SelectItem value="bronze">Bronze</SelectItem>
                           <SelectItem value="silver-beginner">Silver Beginner</SelectItem>
                           <SelectItem value="silver-performance">Silver Performance</SelectItem>
-                          <SelectItem value="gold">Gold</SelectItem>
                         </SelectContent>
                       </Select>
+
+                      {/* Dynamic minimum notice */}
+                      {form.groupLevel && required !== null && (
+                        <div
+                          className={[
+                            "mt-3 rounded-xl border px-4 py-3 text-sm md:text-base flex items-start gap-3",
+                            meetsMinimum
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                              : "bg-red-50 border-red-200 text-red-800"
+                          ].join(" ")}
+                        >
+                          {meetsMinimum ? (
+                            <CheckCircle2 className="w-5 h-5 mt-0.5" />
+                          ) : (
+                            <AlertTriangle className="w-5 h-5 mt-0.5" />
+                          )}
+                          <div>
+                            <strong>
+                              {form.groupLevel === "bronze" && "Bronze"}
+                              {form.groupLevel === "silver-beginner" && "Silver Beginner"}
+                              {form.groupLevel === "silver-performance" && "Silver Performance"}
+                            </strong>{" "}
+                            requires <strong>{required}x/week</strong>. Please select at least{" "}
+                            <strong>{required}</strong> preferred time slots。
+                            <div className="mt-1">
+                              Selected:{" "}
+                              <span className={meetsMinimum ? "font-semibold" : "font-extrabold underline"}>
+                                {selectedCount}
+                              </span>{" "}
+                              / {required}   Selecting more than {required} slots is encouraged to help us schedule.
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -222,68 +272,50 @@ export default function TrainingSurvey() {
                       </h3>
                     </div>
 
-                    {Object.entries(poolOptions).map(([location, slots]) => (
-                      <div key={location} className="bg-slate-50 border border-slate-200 rounded-lg p-5 space-y-4">
-                        <h4 className="text-lg font-semibold text-slate-800">{location}</h4>
-                        {slots.length === 0 ? (
-                          <p className="text-sm text-slate-500 italic">
-                            Times not available yet for this location. Please select preferred days.
-                          </p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {slots
-                              .filter((slot) => {
-                                if (!form.groupLevel) return true
-                                if (["bronze", "silver-beginner"].includes(form.groupLevel)) {
-                                  return slot.type === "lesson"
-                                }
-                                if (form.groupLevel === "silver-performance") {
-                                  // 允许 lesson + lap（比如 Wed 2:30–3:30pm 的 lap）
-                                  return slot.type === "lesson" || slot.type === "lap"
-                                }
-                                if (form.groupLevel === "gold") {
-                                  return slot.type === "lap"
-                                }
-                                return true
-                              })
-                              .map(({ time, type }) => (
-                                <div key={`${location}-${time}-${type}`} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`${location}-${time}-${type}`}
-                                    checked={!!form.preferences.find((p) => p.location === location && p.timeSlots.includes(time))}
-                                    onCheckedChange={() => updatePreference(location, time)}
-                                    className="border-slate-300 data-[state=checked]:bg-slate-800 data-[state=checked]:text-white"
-                                  />
-                                  <Label htmlFor={`${location}-${time}-${type}`} className="text-slate-700">
-                                    {time}
-                                  </Label>
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    {Object.entries(poolOptions).map(([location, slots]) => {
+                      // ❌ Silver Performance 不显示 Redmond
+                      if (form.groupLevel === "silver-performance" && location === "Redmond Pool (Redmond)") {
+                        return null;
+                      }
 
-                    <div className="space-y-2">
-                      <Label htmlFor="timesPerWeek" className="text-slate-700 font-medium">
-                        Preferred Training Frequency Per Week *
-                      </Label>
-                      <Select
-                        value={String(form.timesPerWeek)}
-                        onValueChange={(val) => handleChange("timesPerWeek", parseInt(val))}
-                      >
-                        <SelectTrigger className="border-slate-300 focus:border-slate-500 max-w-xs">
-                          <SelectValue placeholder="1" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5].map((num) => (
-                            <SelectItem key={num} value={String(num)}>
-                              {num}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      // ✅ Bellevue 只在 Silver Performance 时显示
+                      if (location === "Bellevue Aquatic Center (Bellevue)" && form.groupLevel !== "silver-performance") {
+                        return null;
+                      }
+
+                      // 组别可见时段过滤
+                      const visibleSlots = slots.filter((slot) => {
+                        if (!form.groupLevel) return false; // 未选组别先不显示
+                        if (["bronze", "silver-beginner"].includes(form.groupLevel)) return slot.type === "lesson";
+                        if (form.groupLevel === "silver-performance") return slot.type === "lesson" || slot.type === "lap";
+                        return false;
+                      });
+
+                      if (visibleSlots.length === 0) return null;
+
+                      return (
+                        <div key={location} className="bg-slate-50 border border-slate-200 rounded-lg p-5 space-y-4">
+                          <h4 className="text-lg font-semibold text-slate-800">{location}</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {visibleSlots.map(({ time, type }) => (
+                              <div key={`${location}-${time}-${type}`} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`${location}-${time}-${type}`}
+                                  checked={!!form.preferences.find(
+                                    (p) => p.location === location && p.timeSlots.includes(time)
+                                  )}
+                                  onCheckedChange={() => updatePreference(location, time)}
+                                  className="border-slate-300 data-[state=checked]:bg-slate-800 data-[state=checked]:text-white"
+                                />
+                                <Label htmlFor={`${location}-${time}-${type}`} className="text-slate-700">
+                                  {time}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <Button
@@ -291,7 +323,7 @@ export default function TrainingSurvey() {
                     size="lg"
                     className="w-full bg-slate-800 hover:bg-slate-700 text-white py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
                   >
-                    Submit Survey
+                    Submit Preferences
                   </Button>
                 </form>
               </CardContent>
