@@ -205,7 +205,7 @@ export default function TrainingSurveyStatsWeighted() {
         const info = weightedStats[location][time][group];
 
         // 候选：该组的泳员，尚未达最低周频，且这个泳馆这一天尚未被安排
-        let candidates = info.swimmers.filter((name) => {
+        const candidates = info.swimmers.filter((name) => {
           const entry = swimmerMap[name];
           const required = getRequiredPerWeek(entry);
           const poolDayKey = poolDayKeyOf(location, time);

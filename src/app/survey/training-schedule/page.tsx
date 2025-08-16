@@ -86,11 +86,16 @@ export default function TrainingSurvey() {
   const required = getRequired(form.groupLevel)
   const meetsMinimum = required != null ? selectedCount >= required : false
 
-  const handleChange = (field: keyof FormState, value: unknown) => {
-    setForm((prev) => ({ ...prev, [field]: value as any }))
+  // ✅ typed generic to remove "any"
+  const handleChange = <K extends keyof FormState>(field: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  // 后备拦截：Silver Performance 不允许选择 Redmond（UI 已隐藏，这里再双保险）
   const updatePreference = (location: string, time: string) => {
+    if (form.groupLevel === "silver-performance" && location === "Redmond Pool (Redmond)") {
+      return;
+    }
     setForm((prev) => {
       const existing = prev.preferences.find((p) => p.location === location)
       const newPreferences = existing
@@ -211,7 +216,10 @@ export default function TrainingSurvey() {
                       <Label htmlFor="groupLevel" className="text-slate-700 font-medium">
                         Current Group Level *
                       </Label>
-                      <Select value={form.groupLevel} onValueChange={(value) => handleChange("groupLevel", value)}>
+                      <Select
+                        value={form.groupLevel}
+                        onValueChange={(value) => handleChange("groupLevel", value as FormState["groupLevel"])}
+                      >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select group" />
                         </SelectTrigger>
@@ -244,13 +252,13 @@ export default function TrainingSurvey() {
                               {form.groupLevel === "silver-performance" && "Silver Performance"}
                             </strong>{" "}
                             requires <strong>{required}x/week</strong>. Please select at least{" "}
-                            <strong>{required}</strong> preferred time slots。
+                            <strong>{required}</strong> preferred time slots.
                             <div className="mt-1">
                               Selected:{" "}
                               <span className={meetsMinimum ? "font-semibold" : "font-extrabold underline"}>
                                 {selectedCount}
                               </span>{" "}
-                              / {required}   Selecting more than {required} slots is encouraged to help us schedule.
+                              / {required}     Selecting more than <strong>{required}</strong> slots is encouraged to help us schedule.
                             </div>
                           </div>
                         </div>
