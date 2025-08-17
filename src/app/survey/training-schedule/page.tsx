@@ -5,7 +5,6 @@ import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useMemo, useState } from "react"
 import Image from "next/image"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Mail, MapPin, Phone, Calendar, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Calendar, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 
