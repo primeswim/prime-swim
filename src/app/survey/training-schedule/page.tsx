@@ -15,6 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Separator } from "@/components/ui/separator"
 import { Mail, MapPin, Phone, Calendar, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import Header from "@/components/header";
+import Footer from "@/components/footer";
 
 interface TimeSlot {
   time: string
@@ -43,7 +44,7 @@ const poolOptions: PoolOptions = {
     { time: "Wed 8–9pm", type: "lesson" },
     { time: "Thu 8–9pm", type: "lesson" },
     { time: "Fri 8–9pm", type: "lesson" },
-    { time: "Sat 8–9am", type: "lesson" },
+    { time: "Sat 8–9am", type: "lesson" }, // NEW
   ],
   "Redmond Pool (Redmond)": [
     { time: "Sat 4–5pm", type: "lesson" },
@@ -92,9 +93,12 @@ export default function TrainingSurvey() {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  // 后备拦截：Silver Performance 不允许选择 Redmond（UI 已隐藏，这里再双保险）
+  // 后备拦截：Silver Beginner / Silver Performance 都不允许选择 Redmond（UI 已隐藏，这里再双保险）
   const updatePreference = (location: string, time: string) => {
-    if (form.groupLevel === "silver-performance" && location === "Redmond Pool (Redmond)") {
+    if (
+      (form.groupLevel === "silver-beginner" || form.groupLevel === "silver-performance") &&
+      location === "Redmond Pool (Redmond)"
+    ) {
       return;
     }
     setForm((prev) => {
@@ -282,8 +286,11 @@ export default function TrainingSurvey() {
                     </div>
 
                     {Object.entries(poolOptions).map(([location, slots]) => {
-                      // ❌ Silver Performance 不显示 Redmond
-                      if (form.groupLevel === "silver-performance" && location === "Redmond Pool (Redmond)") {
+                      // ❌ Silver Beginner & Silver Performance 不显示 Redmond
+                      if (
+                        (form.groupLevel === "silver-beginner" || form.groupLevel === "silver-performance") &&
+                        location === "Redmond Pool (Redmond)"
+                      ) {
                         return null;
                       }
 
@@ -342,69 +349,7 @@ export default function TrainingSurvey() {
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="bg-slate-800 text-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                <Image
-                  src="/placeholder.svg?height=50&width=50"
-                  alt="Prime Swim Academy Logo"
-                  width={50}
-                  height={50}
-                  className="rounded-full"
-                />
-                <span className="text-xl font-bold">Prime Swim Academy</span>
-              </div>
-              <p className="text-slate-300 mb-6 max-w-md">
-                Excellence in swimming instruction. Building confidence, technique, and champions one stroke at a time.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
-              <div className="space-y-3 text-slate-300">
-                <div className="flex items-center">
-                  <Phone className="w-4 h-4 mr-3" />
-                  <span className="text-sm">(401) 402-0052</span>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="w-4 h-4 mr-3" />
-                  <span className="text-sm">prime.swim.us@gmail.com</span>
-                </div>
-                <div className="flex items-start">
-                  <MapPin className="w-4 h-4 mr-3 mt-1" />
-                  <span className="text-sm">Bellevue, Washington</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
-              <div className="space-y-2 text-slate-300">
-                <Link href="/tryout" className="block text-sm hover:text-white transition-colors">
-                  Schedule Tryout
-                </Link>
-                <Link href="/news" className="block text-sm hover:text-white transition-colors">
-                  Latest News
-                </Link>
-                <Link href="/#programs" className="block text-sm hover:text-white transition-colors">
-                  Programs
-                </Link>
-                <Link href="/#coaches" className="block text-sm hover:text-white transition-colors">
-                  Our Coaches
-                </Link>
-                <Link href="/#schedule" className="block text-sm hover:text-white transition-colors">
-                  Schedules
-                </Link>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-700 mt-12 pt-8 text-center">
-            <p className="text-slate-400 text-sm">
-              © {new Date().getFullYear()} Prime Swim Academy. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
