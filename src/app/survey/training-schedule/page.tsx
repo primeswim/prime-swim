@@ -61,7 +61,7 @@ const poolOptions: PoolOptions = {
 // weekly minimums by group
 const REQUIRED_BY_GROUP: Record<Exclude<FormState["groupLevel"], "">, number> = {
   bronze: 2,
-  "silver-beginner": 3,
+  "silver-beginner": 2,
   "silver-performance": 4,
 }
 
