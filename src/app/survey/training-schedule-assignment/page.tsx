@@ -98,6 +98,79 @@ function prettyGroup(group: string) {
   return group;
 }
 
+// ---------- 每天的配色（Tailwind 颜色系） ----------
+const DAY_STYLE: Record<
+  string,
+  {
+    panelBorder: string;   // 天的容器边框色
+    headerBg: string;      // 天标题背景
+    headerText: string;    // 天标题文字
+    headerBorder: string;  // 天标题下边框
+    groupBg: string;       // 组卡片背景
+    groupBorder: string;   // 组卡片边框
+  }
+> = {
+  Mon: {
+    panelBorder: "border-blue-200",
+    headerBg: "bg-blue-50",
+    headerText: "text-blue-900",
+    headerBorder: "border-blue-200",
+    groupBg: "bg-blue-50",
+    groupBorder: "border-blue-200",
+  },
+  Tue: {
+    panelBorder: "border-emerald-200",
+    headerBg: "bg-emerald-50",
+    headerText: "text-emerald-900",
+    headerBorder: "border-emerald-200",
+    groupBg: "bg-emerald-50",
+    groupBorder: "border-emerald-200",
+  },
+  Wed: {
+    panelBorder: "border-amber-200",
+    headerBg: "bg-amber-50",
+    headerText: "text-amber-900",
+    headerBorder: "border-amber-200",
+    groupBg: "bg-amber-50",
+    groupBorder: "border-amber-200",
+  },
+  Thu: {
+    panelBorder: "border-violet-200",
+    headerBg: "bg-violet-50",
+    headerText: "text-violet-900",
+    headerBorder: "border-violet-200",
+    groupBg: "bg-violet-50",
+    groupBorder: "border-violet-200",
+  },
+  Fri: {
+    panelBorder: "border-rose-200",
+    headerBg: "bg-rose-50",
+    headerText: "text-rose-900",
+    headerBorder: "border-rose-200",
+    groupBg: "bg-rose-50",
+    groupBorder: "border-rose-200",
+  },
+  Sat: {
+    panelBorder: "border-sky-200",
+    headerBg: "bg-sky-50",
+    headerText: "text-sky-900",
+    headerBorder: "border-sky-200",
+    groupBg: "bg-sky-50",
+    groupBorder: "border-sky-200",
+  },
+  Sun: {
+    panelBorder: "border-lime-200",
+    headerBg: "bg-lime-50",
+    headerText: "text-lime-900",
+    headerBorder: "border-lime-200",
+    groupBg: "bg-lime-50",
+    groupBorder: "border-lime-200",
+  },
+};
+
+const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const dayIndex = (d: string) => DAY_ORDER.indexOf(d);
+
 export default function TrainingSurveyStatsWeighted() {
   const [stats, setStats] = useState<WeightedStats>({});
   const [assignments, setAssignments] = useState<SlotAssignments>({});
@@ -337,10 +410,7 @@ export default function TrainingSurveyStatsWeighted() {
     }
   };
 
-  // ---------- Final Assignment：按 周 → 泳池 → 组 列表展示 ----------
-  const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const dayIndex = (d: string) => DAY_ORDER.indexOf(d);
-
+  // ---------- Final Assignment：按 周 → 泳池 → 组 列表展示（带配色） ----------
   // 将 assignments 按 Day -> Location -> Group 分组
   const groupedAssignments = useMemo(() => {
     type Entry = { time: string; swimmers: string[] };
@@ -407,7 +477,7 @@ export default function TrainingSurveyStatsWeighted() {
             </div>
           ))}
 
-          {/* 最终排班（按 周→池→组 展示） */}
+          {/* 最终排班（按 周→池→组 展示 + 每天不同配色） */}
           <div className="mt-10">
             <h2 className="text-xl font-bold mb-4">📅 Final Assignment (By Day → Pool → Group)</h2>
 
@@ -417,36 +487,57 @@ export default function TrainingSurveyStatsWeighted() {
               <div className="space-y-6">
                 {Object.keys(groupedAssignments)
                   .sort((a, b) => dayIndex(a) - dayIndex(b))
-                  .map((day) => (
-                    <div key={day} className="border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="px-4 py-2 bg-gray-50 border-b font-semibold">{day}</div>
-
-                      {/* 每个泳池 */}
-                      {Object.entries(groupedAssignments[day]).map(([location, groups]) => (
-                        <div key={`${day}-${location}`} className="px-4 py-3 border-b last:border-b-0">
-                          <div className="font-medium text-gray-800 mb-2">🏊 {location}</div>
-
-                          {/* 每个组 */}
-                          <div className="space-y-2">
-                            {Object.entries(groups).map(([group, entries]) => (
-                              <div key={`${day}-${location}-${group}`} className="bg-white rounded-md border p-3">
-                                <div className="text-sm font-semibold mb-1">{prettyGroup(group)}</div>
-                                <ul className="text-sm leading-relaxed list-disc pl-5">
-                                  {entries.map(({ time, swimmers }) => (
-                                    <li key={`${day}-${location}-${group}-${time}`}>
-                                      <span className="font-medium">{time}</span>
-                                      {" — "}
-                                      <span>{swimmers.join(", ")}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ))}
-                          </div>
+                  .map((day) => {
+                    const style = DAY_STYLE[day] ?? {
+                      panelBorder: "border-gray-200",
+                      headerBg: "bg-gray-50",
+                      headerText: "text-gray-900",
+                      headerBorder: "border-gray-200",
+                      groupBg: "bg-white",
+                      groupBorder: "border-gray-200",
+                    };
+                    return (
+                      <div
+                        key={day}
+                        className={`rounded-lg overflow-hidden border ${style.panelBorder}`}
+                      >
+                        <div className={`px-4 py-2 ${style.headerBg} ${style.headerText} ${style.headerBorder} border-b font-semibold`}>
+                          {day}
                         </div>
-                      ))}
-                    </div>
-                  ))}
+
+                        {/* 每个泳池 */}
+                        {Object.entries(groupedAssignments[day]).map(([location, groups], idx, arr) => (
+                          <div
+                            key={`${day}-${location}`}
+                            className={`px-4 py-3 ${idx < arr.length - 1 ? "border-b" : ""} border-gray-100`}
+                          >
+                            <div className="font-medium text-gray-800 mb-2">🏊 {location}</div>
+
+                            {/* 每个组 */}
+                            <div className="space-y-2">
+                              {Object.entries(groups).map(([group, entries]) => (
+                                <div
+                                  key={`${day}-${location}-${group}`}
+                                  className={`rounded-md border ${style.groupBorder} ${style.groupBg} p-3`}
+                                >
+                                  <div className="text-sm font-semibold mb-1">{prettyGroup(group)}</div>
+                                  <ul className="text-sm leading-relaxed list-disc pl-5">
+                                    {entries.map(({ time, swimmers }) => (
+                                      <li key={`${day}-${location}-${group}-${time}`}>
+                                        <span className="font-medium">{time}</span>
+                                        {" — "}
+                                        <span>{swimmers.join(", ")}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
