@@ -42,7 +42,7 @@ const poolOptions: PoolOptions = {
     { time: "Wed 2:30–3:30pm", type: "lap" },
     { time: "Wed 8–9pm", type: "lesson" },
     { time: "Thu 8–9pm", type: "lesson" },
-    { time: "Fri 8–9pm", type: "lesson" },
+    { time: "Fri 7–8pm", type: "lesson" },
     { time: "Sat 8–9am", type: "lesson" }, // NEW
   ],
   "Redmond Pool (Redmond)": [
