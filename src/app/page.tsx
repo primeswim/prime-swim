@@ -312,7 +312,7 @@ export default function Home() {
             <CardContent className="space-y-3">
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
-                <span className="text-sm">Sat & Sun</span>
+                <span className="text-sm">Weekdays & Weekend</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
                 <p>7:00-8:00 PM (Mon)</p>
@@ -332,7 +332,7 @@ export default function Home() {
             <CardContent className="space-y-3">
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
-                <span className="text-sm">Sat & Sun</span>
+                <span className="text-sm">Weekdays</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
                 <p>8:00-9:00 PM (Mon)</p>
