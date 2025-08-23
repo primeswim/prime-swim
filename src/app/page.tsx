@@ -319,9 +319,6 @@ export default function Home() {
                 <p>7:00-8:00 PM (Fri)</p>
                 <p>4:00-5:00 PM (Sat)</p>
               </div>
-              <div className="pt-3 border-t">
-                <p className="text-xs text-slate-500">Weekend make-up sessions</p>
-              </div>
             </CardContent>
           </Card>
 
@@ -342,9 +339,6 @@ export default function Home() {
                 <p>8:00-9:00 PM (Tue)</p>
                 <p>8:00-9:00 PM (Thu)</p>
                 <p>7:00-8:00 PM (Fri)</p>
-              </div>
-              <div className="pt-3 border-t">
-                <p className="text-xs text-slate-500">Weekday sessions available</p>
               </div>
             </CardContent>
           </Card>
