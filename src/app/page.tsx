@@ -315,8 +315,9 @@ export default function Home() {
                 <span className="text-sm">Sat & Sun</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
+                <p>7:00-8:00 PM (Mon)</p>
+                <p>7:00-8:00 PM (Fri)</p>
                 <p>4:00-5:00 PM (Sat)</p>
-                <p>5:00-6:00 PM (Sun)</p>
               </div>
               <div className="pt-3 border-t">
                 <p className="text-xs text-slate-500">Weekend make-up sessions</p>
@@ -337,8 +338,10 @@ export default function Home() {
                 <span className="text-sm">Sat & Sun</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
-                <p>5:00-6:00 PM (Sat)</p>
-                <p>4:00-5:00 PM (Sun)</p>
+                <p>8:00-9:00 PM (Mon)</p>
+                <p>8:00-9:00 PM (Tue)</p>
+                <p>8:00-9:00 PM (Thu)</p>
+                <p>7:00-8:00 PM (Fri)</p>
               </div>
               <div className="pt-3 border-t">
                 <p className="text-xs text-slate-500">Weekday sessions available</p>
