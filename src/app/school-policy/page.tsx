@@ -22,13 +22,26 @@ import {
 const policies = [
   {
     id: "makeup-cancellation",
-    title: "Make-up & Cancellation Policy",
+    title: "Make-up & Cancellation Policy (Group Lessons)",
     icon: Calendar,
     content: [
+      "This section applies to group lessons. Private lessons follow the separate Private Lesson Cancellation Policy below.",
       "To ensure consistent progress and keep group training on the same pace, Prime Swim Academy does not offer make-up classes for missed lessons.",
       "Joining a different group for make-up may cause mismatched skill levels, disrupt class flow, and create unnecessary traffic in the pool.",
       "We encourage swimmers to attend all scheduled classes to maximize learning and skill development.",
-      "Please inform us at least 24 hours in advance of any absence to help us manage classes smoothly."
+      "Please inform us at least 24 hours in advance of any absence to help us manage classes smoothly.",
+    ],
+  },
+  {
+    id: "private-cancellation",
+    title: "Private Lesson Cancellation Policy",
+    icon: Calendar,
+    content: [
+      "Cancellations must be made at least one week (7 days) before the scheduled private lesson to be eligible for a reschedule or credit.",
+      "For lessons held at Mary Wayte Swimming Pool, a minimum of two weeks (14 days) advance notice is required due to the facility’s scheduling constraints.",
+      "Cancellations made after the respective deadline will result in forfeiture of the session without refund or makeup, except in cases of medical emergencies with valid documentation.",
+      "In approved medical-emergency cases, the family remains responsible for covering the lane rental fee incurred by Prime Swim Academy for the scheduled session.",
+      "Reschedules or credits are subject to coach and lane availability.",
     ],
   },
   {
@@ -66,7 +79,7 @@ const policies = [
     title: "Photo & Video Consent Policy",
     icon: Camera,
     content: [
-      "Parents/guardians may voluntarily consent to the use of images and videos of their child for promotional materials, including brochures, social media, and the academy&apos;s website.",
+      "Parents/guardians may voluntarily consent to the use of images and videos of their child for promotional materials, including brochures, social media, and the academy's website.",
       "Consent is optional and must be explicitly provided during the registration process.",
     ],
   },
@@ -150,7 +163,7 @@ export default function SchoolPoliciesPage() {
             all participants at Prime Swim Academy.
           </p>
           <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 px-4 py-2">
-            Last Updated: June 1, 2025
+            Last Updated: August 24, 2025
           </Badge>
         </div>
       </section>
@@ -259,7 +272,7 @@ export default function SchoolPoliciesPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-800">Email Us</h3>
-                      <p className="text-slate-600 text-sm">We&apos;ll respond within 24 hours</p>
+                      <p className="text-slate-600 text-sm">We\'ll respond within 24 hours</p>
                     </div>
                   </div>
                   <a
