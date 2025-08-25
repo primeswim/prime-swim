@@ -11,6 +11,9 @@ const QR_IMG: string =
   process.env.NEXT_PUBLIC_QR_IMAGE_URL ||
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
 
+// School policy URL (fixed)
+const POLICY_URL: string = "https://www.primeswimacademy.com/school-policy";
+
 type Payload = {
   parentName: string;
   parentEmail: string;
@@ -76,12 +79,15 @@ async function renderEmailHTML(data: Payload) {
     parentName: escapeHtml(data.parentName || "Parent/Guardian"),
     parentEmail: escapeHtml(data.parentEmail),
     swimmerName: escapeHtml(data.swimmerName),
-    practiceText: escapeHtml(data.practiceText || "Please check with your coach"),
+    // practiceText: handled separately to support <br/>
     dueDate: escapeHtml(fmtDate(data.dueDate)),
     amount: escapeHtml(String(data.amount)),
     months: escapeHtml(monthsLabel(data.months || [])),
     monthsShort: escapeHtml(shortLabel),
   };
+
+  // ✅ Escape first, then convert newline(s) to <br/> for proper line breaks
+  const practiceHtml = escapeHtml(data.practiceText || "Please check with your coach").replace(/\r?\n/g, "<br/>");
 
   return `<!DOCTYPE html>
 <html lang="en"><head>
@@ -96,13 +102,19 @@ async function renderEmailHTML(data: Payload) {
   .content{padding:40px 30px}
   .greeting-message{background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-left:4px solid #1e293b;padding:24px;margin-bottom:30px;border-radius:0 12px 12px 0}
   .tuition-details{background:linear-gradient(135deg,#f8fafc 0%,#fff 100%);padding:24px;border-radius:12px;margin:25px 0;border:1px solid #e2e8f0}
-  .detail-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e2e8f0}
+  .detail-row{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 0;border-bottom:1px solid #e2e8f0}
   .detail-row:last-child{border-bottom:none}
   .amount-highlight{background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border:1px solid #f59e0b;border-radius:12px;padding:20px;margin:25px 0;text-align:center}
   .payment-methods{background:linear-gradient(135deg,#f1f5f9 0%,#e2e8f0 100%);padding:24px;border-radius:12px;margin:25px 0}
   .qr-section{text-align:center;margin:30px 0;padding:20px;background:linear-gradient(135deg,rgba(248,250,252,.8) 0%,rgba(241,245,249,.8) 100%);border-radius:12px;border:1px solid #e2e8f0}
   .qr-img{width:150px;height:150px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;display:block;margin:0 auto;object-fit:contain}
   .footer{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:35px 30px;text-align:center}
+
+  /* Policy highlight block */
+  .policy-box{background:linear-gradient(135deg,#eef2ff 0%,#ffffff 100%);padding:24px;border-radius:12px;border:1px solid #c7d2fe;margin:25px 0}
+  .policy-box a{color:#4338ca;text-decoration:underline}
+  .policy-list{margin:10px 0 0 18px}
+  .policy-list li{margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -131,7 +143,7 @@ async function renderEmailHTML(data: Payload) {
         <div class="detail-row"><span>Swimmer:</span><span><strong>${safe.swimmerName}</strong></span></div>
         <div class="detail-row"><span>Training Period:</span><span>${safe.months}</span></div>
         <div class="detail-row"><span>Due Date:</span><span>${safe.dueDate}</span></div>
-        <div class="detail-row"><span>Practice Schedule:</span><span>${safe.practiceText}</span></div>
+        <div class="detail-row"><span>Practice Schedule:</span><span>${practiceHtml}</span></div>
         <div class="detail-row"><span>Amount:</span><span><strong>$${safe.amount}</strong></span></div>
       </div>
 
@@ -153,6 +165,20 @@ async function renderEmailHTML(data: Payload) {
         Once paid, please reply with a quick confirmation (a screenshot is perfect).
         If payment is not received by <strong>${safe.dueDate}</strong>, participation may be paused until the balance is cleared.
       </p>
+
+      <!-- Policy Highlights -->
+      <div class="policy-box">
+        <p><strong>Make-up & Cancellation Highlights</strong></p>
+        <ul class="policy-list">
+          <li><strong>Group lessons:</strong> one make-up class is offered each calendar month for missed group lessons. The make-up schedule is posted monthly; advance sign-up is required, space is limited, and make-ups do not roll over or transfer.</li>
+          <li><strong>Private lessons:</strong> cancel at least <strong>7 days</strong> in advance (Mary Wayte requires <strong>14 days</strong>). Late cancellations forfeit the session; documented medical emergencies may still incur the lane rental fee.</li>
+        </ul>
+        <p style="margin-top:12px;">
+          Full details: <a href="${POLICY_URL}" target="_blank" rel="noopener noreferrer">Prime Swim Academy School Policy</a>.
+        </p>
+      </div>
+      <!-- END Policy Highlights -->
+
     </div>
 
     <div class="footer">
