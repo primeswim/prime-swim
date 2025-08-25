@@ -272,7 +272,7 @@ export default function SchoolPoliciesPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-800">Email Us</h3>
-                      <p className="text-slate-600 text-sm">We\'ll respond within 24 hours</p>
+                      <p className="text-slate-600 text-sm">We&apos;ll respond within 24 hours</p>
                     </div>
                   </div>
                   <a
