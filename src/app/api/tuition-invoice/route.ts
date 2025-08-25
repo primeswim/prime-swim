@@ -108,7 +108,9 @@ async function renderEmailHTML(data: Payload) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">💰</div>
+      <div class="logo">
+        <img src="https://www.primeswimacademy.com/_next/image?url=%2Fimages%2Fpsa-logo.png&w=128&q=75" alt="Prime Swim Academy Logo" style="width: 100%; height: 100%; border-radius: 50%;" />
+      </div>
       <h1>Prime Swim Academy</h1>
       <p>Tuition Reminder</p>
     </div>
