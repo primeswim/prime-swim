@@ -1,4 +1,4 @@
-// app/admin/tuition/page.tsx
+// src/app/admin/tuition/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +12,22 @@ type SwimmerDoc = {
   parentName?: string;
   parentEmail: string;
 };
+
+// Firestore 中 swimmers 文档的字段（根据你的截图）
+type SwimmerFS = {
+  childFirstName?: string;
+  childLastName?: string;
+  swimmerName?: string;
+  name?: string;
+
+  parentFirstName?: string;
+  parentLastName?: string;
+  parentName?: string;
+  parentEmail?: string;
+  parentEmails?: string[];
+};
+
+type SendResp = { ok: boolean; data?: unknown; error?: string };
 
 const monthsChoices = (() => {
   const now = new Date();
@@ -28,7 +44,7 @@ const QR_IMG =
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
 
 export default function TuitionPage() {
-  // ✅ 用数据库里的 admin 集合判断是否管理员（你的 hook）
+  // 用数据库的 admin 集合判断
   const isAdmin = useIsAdminFromDB();
 
   const [swimmers, setSwimmers] = useState<SwimmerDoc[]>([]);
@@ -45,13 +61,13 @@ export default function TuitionPage() {
 
   const [status, setStatus] = useState("");
 
-  // 加载 swimmers（按你截图字段映射）
+  // 加载 swimmers（映射到你的字段）
   useEffect(() => {
     (async () => {
       const snap = await getDocs(collection(db, "swimmers"));
       const arr: SwimmerDoc[] = [];
       snap.forEach((d) => {
-        const x: any = d.data();
+        const x = d.data() as SwimmerFS;
 
         const computedSwimmerName =
           [x.childFirstName, x.childLastName].filter(Boolean).join(" ").trim() ||
@@ -142,11 +158,13 @@ export default function TuitionPage() {
           bccAdmin: true,
         }),
       });
-      const j = await res.json();
+
+      const j: SendResp = await res.json();
       if (!res.ok || !j.ok) throw new Error(j.error || "Send failed");
       setStatus("✅ Sent!");
-    } catch (e: any) {
-      setStatus("❌ " + (e?.message || String(e)));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus("❌ " + msg);
     }
   };
 
@@ -165,7 +183,8 @@ export default function TuitionPage() {
             <option value="">Select a student…</option>
             {swimmers.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.swimmerName}{s.parentName ? ` — ${s.parentName}` : ""}
+                {s.swimmerName}
+                {s.parentName ? ` — ${s.parentName}` : ""}
               </option>
             ))}
           </select>

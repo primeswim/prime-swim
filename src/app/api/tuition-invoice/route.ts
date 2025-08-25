@@ -1,7 +1,7 @@
 // app/api/tuition-invoice/route.ts
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getAuth } from "firebase-admin/auth";
+import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin"; // Admin SDK (server) with Firestore
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -108,9 +108,7 @@ async function renderEmailHTML(data: Payload) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">
-        <img src="https://www.primeswimacademy.com/_next/image?url=%2Fimages%2Fpsa-logo.png&w=128&q=75" alt="Prime Swim Academy Logo" style="width: 100%; height: 100%; border-radius: 50%;" />
-      </div>
+      <div class="logo">💰</div>
       <h1>Prime Swim Academy</h1>
       <p>Tuition Reminder</p>
     </div>
@@ -170,8 +168,12 @@ export async function POST(req: Request) {
     const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!idToken) return NextResponse.json({ error: "Missing token" }, { status: 401 });
 
-    const decoded = await getAuth().verifyIdToken(idToken);
-    const emailLower = (decoded.email || "").toLowerCase();
+    const decoded: DecodedIdToken = await getAuth().verifyIdToken(idToken);
+    const emailLower = (decoded.email ?? "").toLowerCase();
+
+    // Read custom claim "role" safely (TS doesn't know it exists)
+    const rawRole = (decoded as Record<string, unknown>)["role"];
+    const hasAdminRole = typeof rawRole === "string" && rawRole.toLowerCase() === "admin";
 
     // Accept any of: custom claim role=admin, allowlist, or Firestore admins
     const allow = (process.env.ADMIN_ALLOW_EMAILS || "prime.swim.us@gmail.com")
@@ -180,9 +182,9 @@ export async function POST(req: Request) {
       .filter(Boolean);
 
     const isAdmin =
-      (decoded as any).role === "admin" ||
-      (emailLower && allow.includes(emailLower)) ||
-      (await isInAdminsServer(decoded.email || null, decoded.uid));
+      hasAdminRole ||
+      (emailLower !== "" && allow.includes(emailLower)) ||
+      (await isInAdminsServer(decoded.email ?? null, decoded.uid));
 
     if (!isAdmin) {
       return NextResponse.json({ ok: false, error: "Not authorized" }, { status: 403 });
@@ -205,8 +207,9 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, data: resp });
-  } catch (e: any) {
-    console.error("tuition-invoice error:", e);
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("tuition-invoice error:", err);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }
