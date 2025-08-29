@@ -32,7 +32,7 @@ function fmtDate(d: string) {
   // Case 1: pure date like "2025-08-31" -> construct as local date (no TZ shift)
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
   if (m) {
-    const [_, y, mo, day] = m;
+    const [, y, mo, day] = m;
     const dtLocal = new Date(Number(y), Number(mo) - 1, Number(day));
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
