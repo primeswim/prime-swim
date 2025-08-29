@@ -27,11 +27,35 @@ type Payload = {
 };
 
 function fmtDate(d: string) {
+  if (!d) return "";
+
+  // Case 1: pure date like "2025-08-31" -> construct as local date (no TZ shift)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+  if (m) {
+    const [_, y, mo, day] = m;
+    const dtLocal = new Date(Number(y), Number(mo) - 1, Number(day));
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(dtLocal);
+  }
+
+  // Case 2: ISO with timezone or "Z": render in UTC to avoid shifting to prev day
   const dt = new Date(d);
-  return isNaN(dt.getTime())
-    ? d
-    : dt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  if (!isNaN(dt.getTime())) {
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(dt);
+  }
+
+  // Fallback: return as-is
+  return d;
 }
+
 function monthsLabel(ms: string[]) {
   if (!ms?.length) return "";
   if (ms.length === 1) return ms[0];
@@ -137,6 +161,9 @@ async function renderEmailHTML(data: Payload) {
         This is a friendly reminder that tuition for <strong>${safe.swimmerName}</strong>’s training in
         <strong>${safe.months}</strong> is now due. Please submit payment by <strong>${safe.dueDate}</strong>
         to keep ${safe.swimmerName}’s spot and avoid any interruption in attendance.
+        <span style="color:#b91c1c;">
+          ⚠️ A $35 late fee will be applied if tuition is not paid by the due date via Zelle, or at the first practice for cash payments.
+        </span>
       </p>
 
       <div class="tuition-details">

@@ -102,7 +102,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
-                <p>• 3 sessions per week</p>
+                <p>• 4 sessions per week</p>
                 <p>• 60-minute sessions</p>
                 <p>• Competition preparation</p>
               </div>
