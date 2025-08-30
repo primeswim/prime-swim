@@ -28,6 +28,8 @@ const policies = [
       "This section applies to group lessons. Private lessons follow the separate Private Lesson Cancellation Policy below.",
       "Prime Swim Academy offers one make-up class each month for swimmers who missed a regularly scheduled group lesson. The make-up class time will be published monthly on our website/calendar and shared via email/WeChat.",
       "Eligibility: one make-up per swimmer per calendar month; capacity is limited and advance sign-up is required (first-come, first-served).",
+      // >>> New policy line added per request (no carryover into next month)
+      "Missed classes in a given month cannot be carried over into the next month. Allowing carryovers would make it difficult to keep the program fair for all families, maintain consistent scheduling, and accurately track each swimmer’s progress.",
       "Make-up classes are combined-level clinics focused on core skills and may not exactly match a swimmer’s regular group level; they are intended to support continuity but are not a substitute for regular attendance.",
       "Make-up credits do not roll over, are not transferable, and cannot be converted to refunds or tuition credits.",
       "Please inform us at least 24 hours in advance of any absence to help us manage classes smoothly. No-shows are not eligible for a make-up.",
@@ -164,7 +166,7 @@ export default function SchoolPoliciesPage() {
             all participants at Prime Swim Academy.
           </p>
           <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 px-4 py-2">
-            Last Updated: August 25, 2025
+            Last Updated: August 29, 2025
           </Badge>
         </div>
       </section>
