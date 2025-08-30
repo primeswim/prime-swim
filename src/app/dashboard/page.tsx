@@ -12,7 +12,6 @@ import {
   query,
   where,
   getDocs,
-  getDoc,
   doc,
   deleteDoc,
   DocumentData,
@@ -35,14 +34,68 @@ type SwimmerWithMakeup = Swimmer & {
 
 type RSVPStatus = "yes" | "no" | "none"
 
+type EventLite = {
+  id: string
+  text?: string
+  startsAt?: string | null // ISO（推荐）。若无，则用 active 兜底
+  active?: boolean
+}
+
+// ---------------- 日期 & 字符串工具 ----------------
+function startOfTodayLocal() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+function parseIsoSafe(s?: string | null): Date | null {
+  if (!s) return null
+  const t = Date.parse(s)
+  return Number.isFinite(t) ? new Date(t) : null
+}
+function isUpcomingOrToday(evDate: Date) {
+  // 只按“天”比较：事件日 >= 今天
+  const eventDay = new Date(evDate.getFullYear(), evDate.getMonth(), evDate.getDate())
+  return eventDay.getTime() >= startOfTodayLocal().getTime()
+}
+function isLocked1h(evDate: Date) {
+  const now = Date.now()
+  const diffMs = evDate.getTime() - now
+  // 开课前 1 小时内锁定
+  return diffMs <= 60 * 60 * 1000
+}
+function formatStartsAt(d?: Date | null) {
+  if (!d) return ""
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+function normalizeId(s?: string | null) {
+  return (s || "").trim()
+}
+
+// 将 /api/makeup/events 结果做成索引，给每个 id 附带 isUpcoming / isLocked / 文案
+type EventIndexEntry = {
+  startsAt?: string | null
+  isUpcoming: boolean // 今天及以后
+  isLocked: boolean   // 距开始 < 1h
+  text?: string       // 事件文案；没有则回退到格式化 startsAt
+}
+
 export default function DashboardPage() {
   const [parentEmail, setParentEmail] = useState<string>("")
   const [swimmers, setSwimmers] = useState<SwimmerWithMakeup[]>([])
   const [loading, setLoading] = useState(true)
 
-  // RSVP 状态（key = `${swimmerId}_${makeupId}`）
+  // RSVP（key = `${swimmerId}_${makeupId}`）
   const [rsvpMap, setRsvpMap] = useState<Record<string, RSVPStatus>>({})
   const [busy, setBusy] = useState<Record<string, boolean>>({})
+
+  // 事件索引 + 加载状态
+  const [eventsIndex, setEventsIndex] = useState<Record<string, EventIndexEntry>>({})
+  const [eventsLoaded, setEventsLoaded] = useState(false)
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
@@ -61,6 +114,7 @@ export default function DashboardPage() {
     }
   }
 
+  // 登录 + 获取 swimmers
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -69,7 +123,6 @@ export default function DashboardPage() {
       }
       setParentEmail(user.email || "")
 
-      // 获取 swimmer 数据 + nextMakeup 字段
       const swimmerQuery = query(collection(db, "swimmers"), where("parentUID", "==", user.uid))
       const swimmerSnapshot = await getDocs(swimmerQuery)
       const swimmerData: SwimmerWithMakeup[] = swimmerSnapshot.docs.map((d) => {
@@ -92,27 +145,87 @@ export default function DashboardPage() {
     return () => unsubscribe()
   }, [])
 
-  // 加载 RSVP
+  // 拉取 events，构建索引：isUpcoming(今天及以后) + isLocked(1h内) + 文案
   useEffect(() => {
     ;(async () => {
-      const entries = swimmers
-        .filter((s) => s.nextMakeupId && s.id)
-        .map((s) => ({ key: `${s.id}_${s.nextMakeupId}`, swimmerId: s.id!, makeupId: s.nextMakeupId! }))
+      try {
+        const u = auth.currentUser
+        if (!u) return
+        const idToken = await u.getIdToken(true)
+        const res = await fetch("/api/makeup/events", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        })
+        const data = await res.json()
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Load events failed")
 
-      if (!entries.length) return
+        const idx: Record<string, EventIndexEntry> = {}
+        ;(data.events as EventLite[]).forEach((ev) => {
+          const d = parseIsoSafe(ev.startsAt ?? null)
+          if (d) {
+            idx[ev.id] = {
+              startsAt: ev.startsAt,
+              isUpcoming: isUpcomingOrToday(d),
+              isLocked: isLocked1h(d),
+              text: ev.text && ev.text.trim().length ? ev.text : formatStartsAt(d),
+            }
+          } else {
+            // 没有 startsAt：fallback 用 active 当“是否显示今天及以后”；锁定默认为 false
+            idx[ev.id] = {
+              startsAt: null,
+              isUpcoming: ev.active === true,
+              isLocked: false,
+              text: (ev.text || "").trim() || undefined,
+            }
+          }
+        })
 
-      const nextMap: Record<string, RSVPStatus> = {}
-      for (const { key, swimmerId, makeupId } of entries) {
-        const rsvpDocRef = doc(db, "makeup_responses", `${swimmerId}_${makeupId}`)
-        const snap = await getDoc(rsvpDocRef)
-        if (snap.exists()) {
-          const status = (snap.data().status as RSVPStatus) || "none"
-          nextMap[key] = status
-        } else {
-          nextMap[key] = "none"
-        }
+        setEventsIndex(idx)
+      } catch (e) {
+        console.error("Load events index failed:", e)
+        setEventsIndex({})
+      } finally {
+        setEventsLoaded(true)
       }
-      setRsvpMap((prev) => ({ ...prev, ...nextMap }))
+    })()
+  }, [])
+
+  // 加载 RSVP 回显（批量，通过服务端；不要再前端 getDoc 了）
+  useEffect(() => {
+    ;(async () => {
+      const pairs = swimmers
+        .filter((s) => s.id && s.nextMakeupId)
+        .map((s) => ({
+          swimmerId: s.id!,
+          makeupId: normalizeId(s.nextMakeupId),
+        }))
+
+      if (!pairs.length) return
+
+      try {
+        const u = auth.currentUser
+        if (!u) return
+        const idToken = await u.getIdToken(true)
+
+        const res = await fetch("/api/makeup/rsvp", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ pairs }),
+        })
+
+        const payload = await res.json()
+        if (!res.ok || !payload?.ok) {
+          throw new Error(payload?.error || `status load failed (${res.status})`)
+        }
+
+        const map: Record<string, RSVPStatus> = payload.map || {}
+        setRsvpMap((prev) => ({ ...prev, ...map }))
+      } catch (err) {
+        console.error("Load RSVP status failed:", err)
+        // 失败则保持默认 "none"
+      }
     })()
   }, [swimmers])
 
@@ -127,16 +240,18 @@ export default function DashboardPage() {
     return age
   }
 
+  // 提交 RSVP（使用规范化后的 makeupId 写入 & 更新本地 key）
   const handleRSVP = async (swimmer: SwimmerWithMakeup, status: RSVPStatus) => {
-    if (!swimmer.nextMakeupId) return;
-    const key = `${swimmer.id}_${swimmer.nextMakeupId}`;
+    if (!swimmer.nextMakeupId) return
+    const makeupId = normalizeId(swimmer.nextMakeupId)
+    const key = `${swimmer.id}_${makeupId}`
     try {
-      setBusy((b) => ({ ...b, [key]: true }));
-  
-      const u = auth.currentUser;
-      if (!u) throw new Error("Not signed in");
-      const idToken = await u.getIdToken(true);
-  
+      setBusy((b) => ({ ...b, [key]: true }))
+
+      const u = auth.currentUser
+      if (!u) throw new Error("Not signed in")
+      const idToken = await u.getIdToken(true)
+
       const res = await fetch("/api/makeup/rsvp", {
         method: "POST",
         headers: {
@@ -145,26 +260,27 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           swimmerId: swimmer.id,
-          makeupId: swimmer.nextMakeupId,
+          makeupId,
           status,
         }),
-      });
-  
-      const ctype = res.headers.get("content-type") || "";
-      const payload = ctype.includes("application/json") ? await res.json() : { ok: false, error: await res.text() };
-  
+      })
+
+      const ctype = res.headers.get("content-type") || ""
+      const payload = ctype.includes("application/json") ? await res.json() : { ok: false, error: await res.text() }
+
       if (!res.ok || !payload.ok) {
-        throw new Error(payload.error || `RSVP failed (${res.status})`);
+        throw new Error(payload.error || `RSVP failed (${res.status})`)
       }
-  
-      setRsvpMap((m) => ({ ...m, [key]: status }));
+
+      // 立即本地回显，刷新也能命中（因为读写 key 一致）
+      setRsvpMap((m) => ({ ...m, [key]: status }))
     } catch (e) {
-      console.error("RSVP update failed:", e);
-      alert(e instanceof Error ? e.message : "Failed to update RSVP.");
+      console.error("RSVP update failed:", e)
+      alert(e instanceof Error ? e.message : "Failed to update RSVP.")
     } finally {
-      setBusy((b) => ({ ...b, [key]: false }));
+      setBusy((b) => ({ ...b, [key]: false }))
     }
-  };  
+  }
 
   if (loading) {
     return (
@@ -199,7 +315,7 @@ export default function DashboardPage() {
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-800">{parentEmail}</p>
                 </div>
-                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-200 rounded-full flex items中心 justify-center">
                   <User className="w-4 h-4 text-slate-600" />
                 </div>
               </div>
@@ -238,14 +354,14 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="text-center">
               <Link href="/register">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
+                <Button className="bg-blue-600 hover:bg-blue-700 text白 rounded-full px-6">
                   Start Registration
                 </Button>
               </Link>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-green-100">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from绿色-50 to绿色-100">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-white" />
@@ -266,7 +382,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-purple-100">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from紫色-50 to紫色-100">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Settings className="w-8 h-8 text-white" />
@@ -299,10 +415,30 @@ export default function DashboardPage() {
           <div className="grid lg:grid-cols-2 gap-6">
             {swimmers.map((swimmer) => {
               const nextText = swimmer.nextMakeupText || ""
-              const nextId = swimmer.nextMakeupId || ""
+              const rawNextId = swimmer.nextMakeupId || ""
+              const nextId = normalizeId(rawNextId) // 👈 归一化，避免两端空格导致索引不到
               const rsvpKey = nextId ? `${swimmer.id}_${nextId}` : ""
               const rsvp = rsvpKey ? rsvpMap[rsvpKey] || "none" : "none"
               const isBusy = rsvpKey ? !!busy[rsvpKey] : false
+
+              const evt = nextId ? eventsIndex[nextId] : undefined
+
+              // 是否显示（更宽松）：事件未加载 -> 显示；找不到该事件 -> 显示；只有明确已过期才隐藏
+              const showMakeup =
+                !!nextId && (
+                  !eventsLoaded ||        // 事件未加载：先显示
+                  !evt ||                 // 没在索引里：也显示（避免误隐藏）
+                  evt.isUpcoming          // 明确今天及以后：显示
+                )
+
+              // 展示文本优先级：swimmer.nextMakeupText -> 事件 text -> 格式化 startsAt
+              const displayText =
+                nextText ||
+                evt?.text ||
+                (evt?.startsAt ? formatStartsAt(parseIsoSafe(evt.startsAt)) : "")
+
+              // 锁定（1h 内）：如有 startsAt 则精确判断；无 startsAt 则默认不锁
+              const locked = evt?.isLocked ?? false
 
               return (
                 <Card key={swimmer.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
@@ -359,12 +495,12 @@ export default function DashboardPage() {
                     {/* Next make-up class + RSVP */}
                     <div className="mt-4 p-3 rounded-lg border bg-slate-50">
                       <div className="text-sm text-slate-600 mb-2">Next make-up class</div>
-                      {nextText ? (
+                      {showMakeup && displayText ? (
                         <>
-                          <div className="font-medium text-slate-800">{nextText}</div>
+                          <div className="font-medium text-slate-800">{displayText}</div>
                           <div className="mt-3 flex gap-2">
                             <Button
-                              disabled={!nextId || isBusy || rsvp === "yes"}
+                              disabled={!nextId || isBusy || locked}
                               onClick={() => handleRSVP(swimmer, "yes")}
                               className="rounded-full px-4"
                             >
@@ -372,18 +508,22 @@ export default function DashboardPage() {
                             </Button>
                             <Button
                               variant="outline"
-                              disabled={!nextId || isBusy || rsvp === "no"}
+                              disabled={!nextId || isBusy || locked}
                               onClick={() => handleRSVP(swimmer, "no")}
                               className="rounded-full px-4"
                             >
                               {isBusy && rsvp !== "no" ? "Saving..." : rsvp === "no" ? "❌ Not going" : "Not going"}
                             </Button>
                           </div>
-                          {rsvp !== "none" && (
+                          {locked ? (
                             <div className="text-xs text-slate-500 mt-2">
-                              Your selection has been recorded. You can change it anytime.
+                              Changes are locked within 1 hour of class.
                             </div>
-                          )}
+                          ) : rsvp !== "none" ? (
+                            <div className="text-xs text-slate-500 mt-2">
+                              Your selection has been recorded. You can change it anytime (until 1 hour before class).
+                            </div>
+                          ) : null}
                         </>
                       ) : (
                         <div className="text-slate-500 text-sm">No make-up class announced yet.</div>
