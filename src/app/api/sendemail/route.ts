@@ -36,6 +36,18 @@ async function isInAdminsServer(email?: string | null, uid?: string | null) {
   return false;
 }
 
+// Minimal shape for the email payload (compatible with Resend)
+type EmailPayload = {
+  from: string;
+  to?: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
+  subject: string;
+  html?: string;
+  text?: string;
+  headers?: Record<string, string>;
+};
+
 function wrapWithTemplate(subject: string, content: string, contentType: "text" | "html") {
   // logo + footer 模板
   const header = `
@@ -124,25 +136,33 @@ export async function POST(req: Request) {
       );
     }
 
-    // Build Resend payload
+    // Build Resend payload (hide recipients by using BCC)
     const html = wrapWithTemplate(subject, content, contentType);
-    const base: any = {
+
+    // Merge BCCs: real recipients + optional admin
+    const bccList: string[] = bccAdmin ? [...toEmails, ADMIN_BCC] : [...toEmails];
+
+    const payload: EmailPayload = {
       from: FROM_EMAIL,
-      to: FROM_EMAIL,
-      bcc: toEmails,
+      to: FROM_EMAIL,      // visible To: only your noreply
+      bcc: bccList,        // real recipients hidden in BCC
       subject,
       html,
+      text:
+        contentType === "html"
+          ? content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+          : content,
     };
 
-    if (bccAdmin) base.bcc = ADMIN_BCC;
-    if (contentType === "text") base.text = content;
-    if (contentType === "html") base.text = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    // Resend typings vary by version but accept this shape at runtime.
+    const sent = await resend.emails.send(payload as unknown as Parameters<typeof resend.emails.send>[0]);
 
-    const sent = await resend.emails.send(base);
     return NextResponse.json({ ok: true, data: sent });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
     console.error("/api/sendemail error", err);
-    return NextResponse.json({ ok: false, error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
 
