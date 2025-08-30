@@ -14,9 +14,7 @@ import {
   getDocs,
   getDoc,
   doc,
-  setDoc,
   deleteDoc,
-  serverTimestamp,
   DocumentData,
 } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"

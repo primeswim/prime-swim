@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     let decoded: DecodedIdToken;
     try {
       decoded = await getAuth().verifyIdToken(idToken);
-    } catch (e) {
+    } catch {
       return NextResponse.json({ ok: false, stage: "auth", error: "Invalid token" }, { status: 401 });
     }
 

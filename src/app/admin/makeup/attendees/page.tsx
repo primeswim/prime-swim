@@ -24,6 +24,16 @@ type Row = {
   updatedAt: string | null;
 };
 
+type EventsResponse =
+  | { ok: true; events: EventLite[] }
+  | { ok: false; error?: string };
+
+type AttendeesResponse =
+  | { ok: true; rows: Row[] }
+  | { ok: false; error?: string };
+
+type Filter = "all" | "yes" | "no" | "none";
+
 function fmt(dt: string | null) {
   if (!dt) return "";
   const d = new Date(dt);
@@ -36,7 +46,7 @@ export default function MakeupAttendeesAdminPage() {
   const [events, setEvents] = useState<EventLite[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
-  const [filter, setFilter] = useState<"all" | "yes" | "no" | "none">("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [status, setStatus] = useState("");
 
   // load events via API
@@ -52,20 +62,26 @@ export default function MakeupAttendeesAdminPage() {
         const res = await fetch("/api/makeup/events", {
           headers: { Authorization: `Bearer ${idToken}` },
         });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || "Load events failed");
-
-        setEvents(data.events as EventLite[]);
-        if (data.events?.length && !selectedEventId) {
-          setSelectedEventId(data.events[0].id);
+        const data: EventsResponse = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(("error" in data && data.error) || "Load events failed");
         }
+
+        setEvents(data.events);
         setStatus("");
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Load events error:", e);
         setStatus("❌ Failed to load events");
       }
     })();
   }, [isAdmin]);
+
+  // choose a default event after events load
+  useEffect(() => {
+    if (events.length && !selectedEventId) {
+      setSelectedEventId(events[0].id);
+    }
+  }, [events, selectedEventId]);
 
   // load attendees for selected event via API
   useEffect(() => {
@@ -88,12 +104,14 @@ export default function MakeupAttendeesAdminPage() {
           },
           body: JSON.stringify({ makeupId: selectedEventId }),
         });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || "Load RSVPs failed");
+        const data: AttendeesResponse = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(("error" in data && data.error) || "Load RSVPs failed");
+        }
 
-        setRows(data.rows as Row[]);
+        setRows(data.rows);
         setStatus("");
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Load RSVPs error:", e);
         setStatus("❌ Failed to load RSVPs");
       }
@@ -101,8 +119,7 @@ export default function MakeupAttendeesAdminPage() {
   }, [selectedEventId]);
 
   const filtered = useMemo(() => {
-    const f = filter;
-    const rows2 = f === "all" ? rows : rows.filter((r) => r.status === f);
+    const rows2 = filter === "all" ? rows : rows.filter((r) => r.status === filter);
     // yes -> no -> none, then by swimmerName
     const order: Record<Row["status"], number> = { yes: 0, no: 1, none: 2 };
     return [...rows2].sort((a, b) => {
@@ -114,18 +131,27 @@ export default function MakeupAttendeesAdminPage() {
 
   const counts = useMemo(() => {
     const c = { yes: 0, no: 0, none: 0 };
-    rows.forEach((r) => (c[r.status]++));
+    rows.forEach((r) => {
+      c[r.status as "yes" | "no" | "none"]++;
+    });
     return c;
   }, [rows]);
 
   const yesEmails = useMemo(() => {
-    return Array.from(new Set(rows.filter(r => r.status === "yes").map(r => r.email).filter(Boolean)));
+    return Array.from(
+      new Set(
+        rows
+          .filter((r) => r.status === "yes")
+          .map((r) => r.email)
+          .filter((e): e is string => Boolean(e))
+      )
+    );
   }, [rows]);
 
   const copyYesEmails = async () => {
     try {
       await navigator.clipboard.writeText(yesEmails.join(", "));
-      setStatus("✅ Copied 'going' emails");
+      setStatus("✅ Copied ‘going’ emails");
       setTimeout(() => setStatus(""), 1500);
     } catch {
       setStatus("❌ Copy failed");
@@ -172,7 +198,7 @@ export default function MakeupAttendeesAdminPage() {
                 <select
                   className="border rounded-lg p-2"
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value as any)}
+                  onChange={(e) => setFilter(e.target.value as Filter)}
                 >
                   <option value="all">All</option>
                   <option value="yes">Going</option>
@@ -186,7 +212,7 @@ export default function MakeupAttendeesAdminPage() {
                   className="rounded-full"
                   disabled={!yesEmails.length}
                 >
-                  Copy "Going" Emails ({yesEmails.length})
+                  Copy &quot;Going&quot; Emails ({yesEmails.length})
                 </Button>
               </div>
 

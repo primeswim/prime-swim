@@ -38,33 +38,49 @@ type Row = {
   updatedAt: string | null; // ISO string or null
 };
 
+// Minimal shape we read from "swimmers"
+type Swimmer = {
+  swimmerName?: string;
+  childFirstName?: string;
+  childLastName?: string;
+  parentName?: string;
+  parentFirstName?: string;
+  parentLastName?: string;
+  parentEmail?: string;
+  parentEmails?: string[];
+};
+
+// --- helpers ---
+
+// Narrow unknown to a Firestore-like Timestamp with toDate()
+function hasToDate(x: unknown): x is { toDate: () => Date } {
+  return typeof (x as { toDate?: unknown }).toDate === "function";
+}
+
 // robust time coercion (Timestamp|Date|string|null|undefined -> ISO or null)
 function toIso(val: unknown): string | null {
-    try {
-      if (!val) return null;
-  
-      // Firestore Timestamp duck type check
-      if (typeof (val as any)?.toDate === "function") {
-        const d: Date = (val as any).toDate();
-        return isFinite(d.getTime()) ? d.toISOString() : null;
-      }
-  
-      if (val instanceof Date) {
-        return isFinite(val.getTime()) ? val.toISOString() : null;
-      }
-  
-      if (typeof val === "string") {
-        const d = new Date(val);
-        return isFinite(d.getTime()) ? d.toISOString() : null;
-      }
-  
-      return null;
-    } catch {
-      return null;
+  try {
+    if (!val) return null;
+
+    if (hasToDate(val)) {
+      const d = val.toDate();
+      return isFinite(d.getTime()) ? d.toISOString() : null;
     }
+
+    if (val instanceof Date) {
+      return isFinite(val.getTime()) ? val.toISOString() : null;
+    }
+
+    if (typeof val === "string") {
+      const d = new Date(val);
+      return isFinite(d.getTime()) ? d.toISOString() : null;
+    }
+
+    return null;
+  } catch {
+    return null;
   }
-  
-  
+}
 
 export async function POST(req: Request) {
   const reqId = Math.random().toString(36).slice(2, 8);
@@ -120,15 +136,13 @@ export async function POST(req: Request) {
       updatedAt?: unknown; // Timestamp | Date | string | undefined
     }>;
 
-    const swimmerIds = Array.from(
-      new Set(rsvps.map((r) => r.swimmerId).filter((x): x is string => !!x))
-    );
+    const swimmerIds = Array.from(new Set(rsvps.map((r) => r.swimmerId).filter((x): x is string => !!x)));
 
-    // pull swimmers
-    const swimmerMap: Record<string, any> = {};
+    // pull swimmers (typed, no 'any')
+    const swimmerMap: Record<string, Partial<Swimmer>> = {};
     for (const sid of swimmerIds) {
       const s = await adminDb.collection("swimmers").doc(sid).get();
-      if (s.exists) swimmerMap[sid] = s.data();
+      if (s.exists) swimmerMap[sid] = (s.data() ?? {}) as Partial<Swimmer>;
     }
 
     // rows
