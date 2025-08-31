@@ -1,7 +1,7 @@
 // src/app/api/makeup/events/route.ts
 import { NextResponse } from "next/server";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
-import { FieldValue } from "firebase-admin/firestore"; // NEW
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 
 export const runtime = "nodejs";
@@ -12,6 +12,37 @@ function normalizeId(s?: string | null) {
 }
 function isValidDocId(id: unknown): id is string {
   return typeof id === "string" && id.trim().length > 0 && !id.includes("/");
+}
+
+// ---- Types & helpers (no any) ----
+type TimestampLike = { toDate: () => Date };
+type MaybeDateish = Date | TimestampLike | string | null | undefined;
+
+type MakeupEventDoc = {
+  text?: string;
+  createdAt?: MaybeDateish;
+  createdBy?: string;
+  active?: boolean;
+};
+
+function hasToDate(x: unknown): x is TimestampLike {
+  return !!x && typeof x === "object" && typeof (x as { toDate?: unknown }).toDate === "function";
+}
+
+function toIso(raw: MaybeDateish): string | null {
+  if (!raw) return null;
+  if (raw instanceof Date) {
+    return Number.isFinite(raw.getTime()) ? raw.toISOString() : null;
+  }
+  if (typeof raw === "string") {
+    const d = new Date(raw);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+  if (hasToDate(raw)) {
+    const d = raw.toDate();
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+  return null;
 }
 
 async function isInAdminsServer(email?: string | null, uid?: string | null) {
@@ -78,25 +109,15 @@ export async function GET(req: Request) {
     // Admin SDK 查询（createdAt 倒序）
     const snap = await adminDb.collection("makeup_events").orderBy("createdAt", "desc").get();
     const events = snap.docs.map((d) => {
-      const data = d.data() || {};
-      let createdAt: string | null = null;
-
-      const raw = (data as any).createdAt;
-      if (raw instanceof Date) {
-        createdAt = raw.toISOString();
-      } else if (raw?.toDate) {
-        // Firestore.Timestamp
-        createdAt = raw.toDate().toISOString();
-      } else if (typeof raw === "string") {
-        createdAt = raw;
-      }
+      const data = (d.data() as MakeupEventDoc) ?? {};
+      const createdAt = toIso(data.createdAt);
 
       return {
         id: d.id,
-        text: String((data as any).text ?? ""),
+        text: data.text ?? "",
         createdAt,
-        createdBy: String((data as any).createdBy ?? ""),
-        active: Boolean((data as any).active),
+        createdBy: data.createdBy ?? "",
+        active: Boolean(data.active),
       };
     });
 
@@ -172,12 +193,12 @@ export async function DELETE(req: Request) {
       if (respSnap.empty) break;
 
       const batch = adminDb.batch();
-      respSnap.docs.forEach((d) => batch.delete(d.ref));
+      respSnap.docs.forEach((docRef) => batch.delete(docRef.ref));
       await batch.commit();
       deleted += respSnap.size;
     }
 
-    // NEW: 清空 swimmers 中的 nextMakeupId / nextMakeupText（分批）
+    // 清空 swimmers 中的 nextMakeupId / nextMakeupText（分批）
     let cleared = 0;
     while (true) {
       const swSnap = await adminDb
@@ -189,8 +210,8 @@ export async function DELETE(req: Request) {
       if (swSnap.empty) break;
 
       const batch = adminDb.batch();
-      swSnap.docs.forEach((d) => {
-        batch.update(d.ref, {
+      swSnap.docs.forEach((docRef) => {
+        batch.update(docRef.ref, {
           nextMakeupId: FieldValue.delete(),
           nextMakeupText: FieldValue.delete(),
         });

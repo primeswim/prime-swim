@@ -194,12 +194,13 @@ const handleDeleteEvent = async () => {
     }
 
     // UI 更新
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    setRows([]);
-    setSelectedEventId((prev) => {
-      const rest = events.filter((e) => e.id !== id);
-      return rest.length ? rest[0].id : "";
+    setEvents((prev) => {
+      const updated = prev.filter((e) => e.id !== id);
+      // 若当前选中就是被删的那条，则切到新的第一条；否则保持不变
+      setSelectedEventId((curr) => (curr === id ? (updated[0]?.id ?? "") : curr));
+      return updated;
     });
+    setRows([]);    
 
     setStatus(`✅ Deleted. Removed ${payload.deletedResponses ?? 0} RSVP records.`);
   } catch (e) {
