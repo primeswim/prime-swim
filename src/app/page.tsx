@@ -36,8 +36,27 @@ export default function Home() {
           </Button>
         </div>
       </section>
-
-
+      {/* 徽章：USA & PNS —— 居中显示，尺寸与 PSA 同步 */}
+      <div className="mt-4 md:mt-6 flex justify-center">
+        <div className="flex items-center gap-4 md:gap-5">
+          <Image
+            src="/images/usa-swimming.png"
+            alt="USA Swimming"
+            width={120}
+            height={120}
+            className="w-[120px] h-[120px] object-contain"
+            title="USA Swimming Member Club"
+          />
+          <Image
+            src="/images/pns-logo.JPG"
+            alt="Pacific Northwest Swimming (PNS)"
+            width={120}
+            height={120}
+            className="w-[120px] h-[120px] object-contain"
+            title="Pacific Northwest Swimming"
+          />
+        </div>
+      </div>
       {/* Programs Section */}
       <section id="programs" className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
