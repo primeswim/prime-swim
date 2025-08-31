@@ -76,6 +76,17 @@ function normalizeId(s?: string | null) {
   return (s || "").trim()
 }
 
+function rsvpSuffix(status: RSVPStatus) {
+  if (status === "yes") {
+    return <span className="ml-2 text-green-600 font-medium">— I&apos;m going</span>
+  }
+  if (status === "no") {
+    return <span className="ml-2 text-rose-600 font-medium">— Not going</span>
+  }
+  return null
+}
+
+
 // 将 /api/makeup/events 结果做成索引，给每个 id 附带 isUpcoming / isLocked / 文案
 type EventIndexEntry = {
   startsAt?: string | null
@@ -494,7 +505,10 @@ export default function DashboardPage() {
 
                     {/* Next make-up class + RSVP */}
                     <div className="mt-4 p-3 rounded-lg border bg-slate-50">
-                      <div className="text-sm text-slate-600 mb-2">Next make-up class</div>
+                    <div className="text-sm text-slate-600 mb-2 flex items-center">
+                      <span>Next make-up class</span>
+                      {rsvpSuffix(rsvp)}
+                    </div>
                       {showMakeup && displayText ? (
                         <>
                           <div className="font-medium text-slate-800">{displayText}</div>

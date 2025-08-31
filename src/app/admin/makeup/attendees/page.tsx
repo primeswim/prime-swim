@@ -1,4 +1,3 @@
-// src/app/admin/makeup/attendees/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,6 +5,7 @@ import { auth } from "@/lib/firebase";
 import { useIsAdminFromDB } from "../../../../hooks/useIsAdminFromDB";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Trash2 } from "lucide-react";
 
 type EventLite = {
   id: string;
@@ -48,6 +48,7 @@ export default function MakeupAttendeesAdminPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [status, setStatus] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // load events via API
   useEffect(() => {
@@ -164,6 +165,53 @@ export default function MakeupAttendeesAdminPage() {
     [events, selectedEventId]
   );
 
+  // NEW: delete the selected event (and cascade responses)
+const handleDeleteEvent = async () => {
+  if (!currentEvent) return;
+  const id = currentEvent.id;
+  if (!confirm(`Delete this make-up event?\n\n${currentEvent.text}\n\nThis will also remove all RSVP records for this event.`)) {
+    return;
+  }
+  try {
+    setDeletingId(id);
+    setStatus("Deleting event…");
+
+    const u = auth.currentUser;
+    if (!u) throw new Error("Not signed in");
+    const idToken = await u.getIdToken(true);
+
+    // ✅ 用查询参数传 id；不要放 body，兼容性最好
+    const res = await fetch(`/api/makeup/events?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    const payload = await res.json();
+    if (!res.ok || !payload?.ok) {
+      throw new Error(payload?.error || `Delete failed (${res.status})`);
+    }
+
+    // UI 更新
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    setRows([]);
+    setSelectedEventId((prev) => {
+      const rest = events.filter((e) => e.id !== id);
+      return rest.length ? rest[0].id : "";
+    });
+
+    setStatus(`✅ Deleted. Removed ${payload.deletedResponses ?? 0} RSVP records.`);
+  } catch (e) {
+    console.error("Delete event error:", e);
+    setStatus(e instanceof Error ? `❌ ${e.message}` : "❌ Delete failed");
+  } finally {
+    setDeletingId(null);
+    setTimeout(() => setStatus(""), 2500);
+  }
+};
+
+
   if (isAdmin === null) return <div className="p-6">Checking permission…</div>;
   if (!isAdmin) return <div className="p-6 text-red-600 font-semibold">Not authorized (admin only).</div>;
 
@@ -213,6 +261,17 @@ export default function MakeupAttendeesAdminPage() {
                   disabled={!yesEmails.length}
                 >
                   Copy &quot;Going&quot; Emails ({yesEmails.length})
+                </Button>
+
+                {/* NEW: delete button */}
+                <Button
+                  onClick={handleDeleteEvent}
+                  className="rounded-full bg-red-600 hover:bg-red-700 text-white"
+                  disabled={!currentEvent || deletingId === currentEvent?.id}
+                  title="Delete this event and all its RSVP records"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {deletingId === currentEvent?.id ? "Deleting…" : "Delete this event"}
                 </Button>
               </div>
 
