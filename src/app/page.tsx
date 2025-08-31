@@ -230,7 +230,7 @@ export default function Home() {
                   />
                 </div>
                 <CardTitle className="text-xl font-bold text-slate-800">Coach Lara</CardTitle>
-                <CardDescription className="text-slate-600">Director & Head Coach</CardDescription>
+                <CardDescription className="text-slate-600">Director & Coach</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">

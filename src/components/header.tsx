@@ -17,17 +17,60 @@ export default function Header() {
   return (
     <header className="container mx-auto px-4 py-6">
       <nav className="flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center space-x-3">
-          <Image
-            src="/images/psa-logo.png"
-            alt="Prime Swim Academy Logo"
-            width={60}
-            height={60}
-            className="rounded-full"
-          />
-          <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
-        </Link>
+        {/* Left: PSA logo + site title + affiliation logos */}
+        <div className="flex items-center gap-4">
+          {/* PSA brand (link to home) */}
+          <Link href="/" className="flex items-center space-x-3">
+            <Image
+              src="/images/psa-logo.png"
+              alt="Prime Swim Academy Logo"
+              width={60}
+              height={60}
+              className="rounded-full"
+              priority
+            />
+            <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
+          </Link>
+
+          {/* Affiliation logos: USA Swimming & PNS */}
+          <div className="flex items-center gap-3">
+            {/* USA Swimming */}
+            <Link
+              href="https://www.usaswimming.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="USA Swimming (opens in new tab)"
+              title="USA Swimming Member Club"
+              className="block"
+            >
+              <Image
+                src="/images/usa-swimming.png"  // ← 按你的实际文件名调整
+                alt="USA Swimming"
+                width={56}
+                height={56}
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+
+            {/* PNS */}
+            <Link
+              href="https://www.teamunify.com/team/pnws2/page/home"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Pacific Northwest Swimming (opens in new tab)"
+              title="Pacific Northwest Swimming (PNS)"
+              className="block"
+            >
+              <Image
+                src="/images/pns-logo.JPG"
+                alt="Pacific Northwest Swimming (PNS)"
+                width={56}
+                height={56}
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+          </div>
+        </div>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8 text-slate-600">
@@ -37,7 +80,7 @@ export default function Header() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem asChild>
-                <Link href="/mission">Mission & Vision</Link>
+                <Link href="/mission">Mission &amp; Vision</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/coaches">Our Coaches</Link>
@@ -75,6 +118,7 @@ export default function Header() {
         <button
           className="md:hidden text-slate-800"
           onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label="Open menu"
         >
           <Menu className="h-6 w-6" />
         </button>
@@ -83,9 +127,27 @@ export default function Header() {
       {/* Mobile Dropdown */}
       {mobileOpen && (
         <div className="md:hidden mt-4 space-y-2 text-slate-700">
+          {/* 把两个 affiliation logo 在移动端也展示一下（小一号） */}
+          <div className="flex items-center gap-3 mb-2">
+            <Image
+              src="/images/usa-swimming.png"
+              alt="USA Swimming"
+              width={44}
+              height={44}
+              className="h-8 w-auto object-contain"
+            />
+            <Image
+              src="/images/pns-logo.JPG"
+              alt="Pacific Northwest Swimming (PNS)"
+              width={44}
+              height={44}
+              className="h-8 w-auto object-contain"
+            />
+          </div>
+
           <div className="space-y-1">
             <p className="font-semibold">About Us</p>
-            <Link href="/mission" className="block ml-4">Mission & Vision</Link>
+            <Link href="/mission" className="block ml-4">Mission &amp; Vision</Link>
             <Link href="/coaches" className="block ml-4">Our Coaches</Link>
             <Link href="/#contact" className="block ml-4">Contact</Link>
           </div>
