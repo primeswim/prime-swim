@@ -770,6 +770,8 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+
+
               {/* (Optional) Combined acknowledgement for the four Safe Sport PDFs */}
               <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700">
                 <p className="font-medium mb-2">Safe Sport Policies (recommended):</p>
@@ -790,6 +792,41 @@ export default function RegisterPage() {
                   I have reviewed the Safe Sport policies listed above
                 </Label>
               </div>
+
+              <Separator />
+
+              {/* Parent Consent Forms (MAAPP Exceptions) – info only */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-6 h-6 text-slate-700" />
+                  <h3 className="text-lg font-semibold text-slate-800">Parent Consent Forms (as needed under MAAPP)</h3>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700">
+                  <p className="mb-2">
+                    Certain activities may require a separate parent/guardian consent form under USA Swimming’s MAAPP.
+                    These forms are <strong>not signed at initial registration</strong> and will be collected
+                    <strong> only when the specific situation occurs</strong> (e.g., room sharing with an unrelated adult athlete,
+                    local transportation by an unrelated applicable adult, therapeutic treatment by a licensed professional,
+                    or travel to competition with an unrelated applicable adult).
+                  </p>
+                  <p className="mt-2 text-blue-600">
+                    <Link
+                      href="/docs/safe-sport/prime-swim-academy-parent-consent-forms.pdf"
+                      target="_blank"
+                      className="underline hover:text-blue-800"
+                    >
+                      📄 Download Parent Consent Forms (PDF)
+                    </Link>
+                  </p>
+                </div>
+
+                <p className="text-xs text-slate-500">
+                  Prime Swim Academy will provide the applicable consent form(s) prior to any such activity; a signed form must be
+                  returned before participation.
+                </p>
+              </div>
+
 
               {/* Final submission/continue button for this step */}
               <Button
