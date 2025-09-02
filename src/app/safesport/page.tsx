@@ -274,6 +274,7 @@ export default function SafeSportPage() {
             { label: "Electronic Communication Policy", href: "/docs/safe-sport/electronic-communication-policy.pdf" },
             { label: "Anti-Bullying Policy", href: "/docs/safe-sport/anti-bullying-policy.pdf" },
             { label: "Travel Policy", href: "/docs/safe-sport/travel-policy.pdf" },
+            { label: "Parent Consent Forms", href: "/docs/safe-sport/prime-swim-academy-parent-consent-forms.pdf" },
           ].map((doc) => (
             <Card key={doc.label} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardContent className="p-6">
