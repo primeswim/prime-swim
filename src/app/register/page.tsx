@@ -99,11 +99,12 @@ export default function RegisterPage() {
     liabilityWaiver: false,
     medicalAuthorization: false,
     photoRelease: false,
-    codeOfConduct: false,
+    codeOfConduct: false,          // Athlete Code of Conduct (required)
+    parentCodeOfConduct: false,    // NEW: Parent Code of Conduct (required)
 
-    // NEW: Safe Sport / MAAPP acknowledgements
-    maappAck: false,              // required
-    safeSportPoliciesAck: false,  // optional combined ack for the four PDFs
+    // Safe Sport / MAAPP acknowledgements
+    maappAck: false,               // required
+    safeSportPoliciesAck: false,   // optional combined ack for reference docs
   })
 
   const totalSteps = 8
@@ -156,11 +157,12 @@ export default function RegisterPage() {
     }
   }
 
-  // Updated: all required acks must be checked including MAAPP
+  // All required acks must be checked
   const isWaiversChecked =
     formData.liabilityWaiver &&
     formData.medicalAuthorization &&
     formData.codeOfConduct &&
+    formData.parentCodeOfConduct &&
     formData.maappAck
 
   const renderStepContent = () => {
@@ -708,18 +710,23 @@ export default function RegisterPage() {
 
               <Separator />
 
-              {/* Code of Conduct */}
+              {/* Athlete Code of Conduct */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <BookOpen className="w-6 h-6 text-purple-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Code of Conduct</h3>
+                  <h3 className="text-lg font-semibold text-slate-800">Athlete Code of Conduct</h3>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
                   <p className="mb-2">
-                    I agree that my child and I will conduct ourselves in a respectful manner at all times. This includes
+                    I agree that my child will conduct themselves in a respectful manner at all times. This includes
                     showing respect to coaches, staff, other swimmers, and parents. Inappropriate behavior, including but not
                     limited to bullying, harassment, or disruptive conduct, may result in suspension or termination from the
                     program without refund.
+                  </p>
+                  <p className="mt-2 text-blue-600">
+                    <Link href="/docs/safe-sport/code-of-conduct.pdf" target="_blank" className="underline hover:text-blue-800">
+                      📄 View Athlete Code of Conduct (PDF)
+                    </Link>
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -729,7 +736,41 @@ export default function RegisterPage() {
                     onCheckedChange={(checked) => handleInputChange("codeOfConduct", checked as boolean)}
                   />
                   <Label htmlFor="codeOfConduct" className="text-sm">
-                    I agree to follow the Code of Conduct *
+                    I agree my athlete will follow the Athlete Code of Conduct *
+                  </Label>
+                </div>
+              </div>
+
+              {/* Parent Code of Conduct (NEW, required) */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <User className="w-6 h-6 text-slate-700" />
+                  <h3 className="text-lg font-semibold text-slate-800">Parent Code of Conduct</h3>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
+                  <p className="mb-2">
+                    As a parent/guardian, I will model respectful behavior, support coaches and officials,
+                    follow team policies, use positive communication, and help maintain a safe and inclusive environment.
+                    I understand that violations may result in warnings, suspension from team activities, or removal from the program.
+                  </p>
+                  <p className="mt-2 text-blue-600">
+                    <Link
+                      href="/docs/safe-sport/prime-swim-academy-parent-code-of-conduct.pdf"
+                      target="_blank"
+                      className="underline hover:text-blue-800"
+                    >
+                      📄 View Parent Code of Conduct (PDF)
+                    </Link>
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="parentCodeOfConduct"
+                    checked={formData.parentCodeOfConduct}
+                    onCheckedChange={(checked) => handleInputChange("parentCodeOfConduct", checked as boolean)}
+                  />
+                  <Label htmlFor="parentCodeOfConduct" className="text-sm">
+                    I agree to follow the Parent Code of Conduct *
                   </Label>
                 </div>
               </div>
@@ -770,13 +811,10 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-
-
-              {/* (Optional) Combined acknowledgement for the four Safe Sport PDFs */}
+              {/* (Optional) Combined acknowledgement for reference PDFs */}
               <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700">
-                <p className="font-medium mb-2">Safe Sport Policies (recommended):</p>
+                <p className="font-medium mb-2">Additional Safe Sport Policies (recommended):</p>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li><Link href="/docs/safe-sport/code-of-conduct.pdf" target="_blank" className="underline text-blue-600">Code of Conduct</Link></li>
                   <li><Link href="/docs/safe-sport/anti-bullying-policy.pdf" target="_blank" className="underline text-blue-600">Anti-Bullying Policy</Link></li>
                   <li><Link href="/docs/safe-sport/electronic-communication-policy.pdf" target="_blank" className="underline text-blue-600">Electronic Communication Policy</Link></li>
                   <li><Link href="/docs/safe-sport/travel-policy.pdf" target="_blank" className="underline text-blue-600">Travel Policy</Link></li>
@@ -789,7 +827,7 @@ export default function RegisterPage() {
                   onCheckedChange={(checked) => handleInputChange("safeSportPoliciesAck", checked as boolean)}
                 />
                 <Label htmlFor="safeSportPoliciesAck" className="text-sm">
-                  I have reviewed the Safe Sport policies listed above
+                  I have reviewed the policies listed above
                 </Label>
               </div>
 
@@ -827,8 +865,7 @@ export default function RegisterPage() {
                 </p>
               </div>
 
-
-              {/* Final submission/continue button for this step */}
+              {/* Final continue */}
               <Button
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-full text-lg mt-8"
                 disabled={!isWaiversChecked}
@@ -840,7 +877,7 @@ export default function RegisterPage() {
                       parentUID: user.uid,
                       isAdult: false,
                       createdAt: serverTimestamp(),
-                      maappAckAt: serverTimestamp(), // optional audit field
+                      maappAckAt: serverTimestamp(),
                     })
                     setSwimmerId(docRef.id)
                     setCurrentStep(8)
@@ -900,11 +937,12 @@ export default function RegisterPage() {
       case 6:
         return true // Optional fields
       case 7:
-        // Updated: require MAAPP acknowledgement in addition to the original three
+        // Require all five: liability, medical, athlete code, parent code, MAAPP
         return Boolean(
           formData.liabilityWaiver &&
           formData.medicalAuthorization &&
           formData.codeOfConduct &&
+          formData.parentCodeOfConduct &&
           formData.maappAck
         )
       case 8:
