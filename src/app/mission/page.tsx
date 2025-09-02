@@ -2,9 +2,10 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Target, Eye, Heart, Users, Trophy, Waves, Star, Award } from "lucide-react"
+import { Target, Eye, Heart, Users, Trophy, Waves, Star, Award, ShieldCheck } from "lucide-react"
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+
 
 export default function MissionPage() {
   return (
@@ -42,6 +43,7 @@ export default function MissionPage() {
         </div>
       </section>
 
+
       {/* Mission & Vision Cards */}
       <section className="container mx-auto px-4 py-20">
         <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
@@ -55,8 +57,7 @@ export default function MissionPage() {
             </CardHeader>
             <CardContent className="text-center px-8">
               <CardDescription className="text-slate-700 text-lg leading-relaxed mb-6">
-                To provide exceptional swimming instruction that builds confident, disciplined, and skilled swimmers, while fostering a
-                lifelong love of swimming in a safe, supportive, and inspiring environment.
+                To provide exceptional swimming instruction that builds confident, disciplined, and skilled swimmers—while ensuring the protection of children and maintaining a safe, healthy, and positive environment for all athletes. Prime Swim Academy adheres to USA Swimming Safe Sport and MAAPP requirements.
               </CardDescription>
               <div className="space-y-3 text-slate-600">
                 <div className="flex items-center justify-center">
@@ -85,7 +86,7 @@ export default function MissionPage() {
             </CardHeader>
             <CardContent className="text-center px-8">
               <CardDescription className="text-slate-700 text-lg leading-relaxed mb-6">
-              To be a leading force in youth swimming, inspiring young athletes to dream big, work hard, and grow into champions in and out of the pool. We strive for excellence, integrity, and a culture that values development over short-term results, welcoming swimmers of all backgrounds and earning recognition for building well-rounded, high-performing athletes.
+                To be a leading force in youth swimming, inspiring young athletes to dream big, work hard, and grow into champions in and out of the pool. We strive for excellence, integrity, and a culture of safety and child protection that values long-term development over short-term results, welcoming swimmers of all backgrounds and earning recognition for building well-rounded, high-performing athletes.
               </CardDescription>
               <div className="space-y-3 text-slate-600">
                 <div className="flex items-center justify-center">
@@ -165,17 +166,17 @@ export default function MissionPage() {
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardHeader className="text-center pb-4">
                 <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Star className="w-8 h-8 text-white" />
+                  <ShieldCheck className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Innovation</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-800">Safety</CardTitle>
               </CardHeader>
               <CardContent className="text-center">
                 <CardDescription className="text-slate-600 text-sm leading-relaxed">
-                  We continuously evolve our training methods and embrace new technologies to enhance the swimming
-                  experience.
+                  We prioritize child protection and a Safe Sport culture—upholding USA Swimming policies and MAAPP in every practice, meet, and event.
                 </CardDescription>
               </CardContent>
             </Card>
+
           </div>
         </div>
       </section>
@@ -253,13 +254,21 @@ export default function MissionPage() {
             >
               <Link href="/tryout">Schedule Your Tryout</Link>
             </Button>
+
             <Button
               asChild
               size="lg"
-              variant="outline"
-              className="border-0 shadow-xl bg-white hover:bg-slate-50 text-slate-800 px-8 py-6 text-lg rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
             >
               <Link href="/#programs">View Our Programs</Link>
+            </Button>
+
+            <Button
+              asChild
+              size="lg"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
+            >
+              <Link href="/safesport">Safe Sport</Link>
             </Button>
           </div>
         </div>
