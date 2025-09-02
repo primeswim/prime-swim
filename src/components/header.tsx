@@ -105,6 +105,11 @@ export default function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* New Safe Sport Link */}
+          <Link href="/safesport" className="hover:text-slate-800 transition-colors">
+            Safe Sport
+          </Link>
+
           <Link href="/news" className="hover:text-slate-800 transition-colors">
             News
           </Link>
