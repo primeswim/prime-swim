@@ -24,6 +24,9 @@ type Payload = {
   amount: number;         // e.g. 360
   cc?: string[];
   bccAdmin?: boolean;
+
+  // Extra note to show on its own line, styled like the main reminder paragraph
+  afterFeeNote?: string;
 };
 
 function fmtDate(d: string) {
@@ -113,6 +116,11 @@ async function renderEmailHTML(data: Payload) {
   // ✅ Escape first, then convert newline(s) to <br/> for proper line breaks
   const practiceHtml = escapeHtml(data.practiceText || "Please check with your coach").replace(/\r?\n/g, "<br/>");
 
+  // NEW: sanitize and format extra note; allow line breaks; styled same as main paragraph
+  const afterFeeNoteHtml = data.afterFeeNote
+    ? escapeHtml(data.afterFeeNote).replace(/\r?\n/g, "<br/>")
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -165,6 +173,13 @@ async function renderEmailHTML(data: Payload) {
           ⚠️ A $35 late fee will be applied if tuition is not paid by the due date via Zelle, or at the first practice for cash payments.
         </span>
       </p>
+
+      ${
+        afterFeeNoteHtml
+          // same style & color as the reminder paragraph; separate line
+          ? `<p style="font-size:16px;margin:0 0 24px;color:#475569;">${afterFeeNoteHtml}</p>`
+          : ""
+      }
 
       <div class="tuition-details">
         <div class="detail-row"><span>Swimmer:</span><span><strong>${safe.swimmerName}</strong></span></div>

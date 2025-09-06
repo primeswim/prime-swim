@@ -13,7 +13,7 @@ type SwimmerDoc = {
   parentEmail: string;
 };
 
-// Firestore 中 swimmers 文档的字段（根据你的截图）
+// Firestore swimmers 文档字段（兼容多种历史字段）
 type SwimmerFS = {
   childFirstName?: string;
   childLastName?: string;
@@ -44,7 +44,7 @@ const QR_IMG =
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
 
 export default function TuitionPage() {
-  // 用数据库的 admin 集合判断
+  // 用数据库 admin 集合判断权限
   const isAdmin = useIsAdminFromDB();
 
   const [swimmers, setSwimmers] = useState<SwimmerDoc[]>([]);
@@ -59,9 +59,12 @@ export default function TuitionPage() {
   const [dueDate, setDueDate] = useState("");
   const [amount, setAmount] = useState<number>(0);
 
+  // 新增：可自定义的一段话，将在邮件里插到 late-fee 句子后面
+  const [extraNote, setExtraNote] = useState("");
+
   const [status, setStatus] = useState("");
 
-  // 加载 swimmers（映射到你的字段）
+  // 加载 swimmers（映射到兼容字段）
   useEffect(() => {
     (async () => {
       const snap = await getDocs(collection(db, "swimmers"));
@@ -103,7 +106,7 @@ export default function TuitionPage() {
 
   // 切换学生 → 自动回填
   useEffect(() => {
-    const s = swimmers.find((s) => s.id === selectedId);
+    const s = swimmers.find((x) => x.id === selectedId);
     if (s) {
       setParentEmail(s.parentEmail || "");
       setParentName(s.parentName || "");
@@ -132,7 +135,12 @@ export default function TuitionPage() {
   }, [months, dueDate]);
 
   if (isAdmin === null) return <div className="p-6">Checking permission…</div>;
-  if (!isAdmin) return <div className="p-6 text-red-600 font-semibold">Not authorized (admin only).</div>;
+  if (!isAdmin)
+    return (
+      <div className="p-6 text-red-600 font-semibold">
+        Not authorized (admin only).
+      </div>
+    );
 
   const handleSend = async () => {
     try {
@@ -150,11 +158,12 @@ export default function TuitionPage() {
         body: JSON.stringify({
           parentName,
           parentEmail,
-          swimmerName,
+          swimmerName, // 读取可编辑的学生名字
           months,
           practiceText,
           dueDate,
           amount,
+          afterFeeNote: extraNote, // 新增：自定义补充段
           bccAdmin: true,
         }),
       });
@@ -173,6 +182,7 @@ export default function TuitionPage() {
       <h1 className="text-2xl font-bold">Send Tuition Email</h1>
 
       <div className="grid gap-4">
+        {/* 学生选择 */}
         <label className="grid gap-1">
           <span className="text-sm font-medium">Student</span>
           <select
@@ -190,7 +200,19 @@ export default function TuitionPage() {
           </select>
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* 新增：学生名字可编辑输入框（放在 Parent name 上方） */}
+        <label className="grid gap-1">
+          <span className="text-sm font-medium">Student name</span>
+          <input
+            className="border rounded-lg p-2"
+            value={swimmerName}
+            onChange={(e) => setSwimmerName(e.target.value)}
+            placeholder="Type or edit the swimmer's name"
+          />
+        </label>
+
+        {/* 家长信息 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="grid gap-1">
             <span className="text-sm font-medium">Parent name</span>
             <input
@@ -209,6 +231,7 @@ export default function TuitionPage() {
           </label>
         </div>
 
+        {/* 选择月份 */}
         <label className="grid gap-1">
           <span className="text-sm font-medium">Months (multi-select)</span>
           <select
@@ -225,9 +248,12 @@ export default function TuitionPage() {
               </option>
             ))}
           </select>
-          <span className="text-xs text-slate-500">Hold Cmd/Ctrl to select multiple</span>
+          <span className="text-xs text-slate-500">
+            Hold Cmd/Ctrl to select multiple
+          </span>
         </label>
 
+        {/* 训练安排描述 */}
         <label className="grid gap-1">
           <span className="text-sm font-medium">Practice details</span>
           <textarea
@@ -238,7 +264,8 @@ export default function TuitionPage() {
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* 学费到期与金额 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="grid gap-1">
             <span className="text-sm font-medium">Tuition due date</span>
             <input
@@ -256,11 +283,28 @@ export default function TuitionPage() {
               step={1}
               className="border rounded-lg p-2"
               value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
+              onChange={(e) => setAmount(Number(e.target.value || 0))}
             />
           </label>
         </div>
 
+        {/* 新增：额外文本框（将插入到 late fee 句子后） */}
+        <label className="grid gap-1">
+          <span className="text-sm font-medium">
+            Extra note (appended after the late-fee sentence)
+          </span>
+          <textarea
+            className="border rounded-lg p-2"
+            placeholder="This note will appear right after: “A $35 late fee will be applied …”."
+            value={extraNote}
+            onChange={(e) => setExtraNote(e.target.value)}
+          />
+          <span className="text-xs text-slate-500">
+            Style: plain black text. Leave empty if not needed.
+          </span>
+        </label>
+
+        {/* 二维码预览 */}
         <div className="grid gap-2">
           <span className="text-sm font-medium">QR Preview</span>
           <div className="border rounded-lg p-4 flex items-center justify-center min-h-48 bg-white">
@@ -268,11 +312,13 @@ export default function TuitionPage() {
           </div>
         </div>
 
+        {/* 主题预览 */}
         <div className="grid gap-1">
           <span className="text-sm font-medium">Subject Preview</span>
           <div className="border rounded-lg p-2 bg-slate-50">{subjectPreview}</div>
         </div>
 
+        {/* 发送按钮 */}
         <button
           onClick={handleSend}
           className="rounded-2xl px-5 py-3 font-semibold shadow bg-black text-white hover:opacity-90"
@@ -280,6 +326,7 @@ export default function TuitionPage() {
           Send Email
         </button>
 
+        {/* 状态 */}
         <div className="text-sm">{status}</div>
       </div>
     </div>
