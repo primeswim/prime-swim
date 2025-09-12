@@ -1,3 +1,4 @@
+// ./src/app/survey/clinic-result/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -23,7 +24,13 @@ interface DemandRow {
   location: string;
   label: string;
   dateKey: string;
-  swimmers: { key: string; swimmerName: string; parentEmail: string; parentPhone: string; level: Level }[];
+  swimmers: {
+    key: string;
+    swimmerName: string;
+    parentEmail: string;
+    parentPhone: string;
+    level: Level;
+  }[];
 }
 
 interface AggregatePayload {
@@ -107,20 +114,6 @@ function Simulator({ rows }: { rows: DemandRow[] }) {
     });
   }, [rows, lanesByLocation, capPerLane]);
 
-  const totals = useMemo(() => {
-    const byLoc: Record<string, { sessions: number; demand: number; capacity: number; over: number; under: number }> =
-      {} as any;
-    for (const s of perSession) {
-      const b = (byLoc[s.location] ||= { sessions: 0, demand: 0, capacity: 0, over: 0, under: 0 });
-      b.sessions += 1;
-      b.demand += s.demand;
-      b.capacity += s.capacity;
-      b.over += Math.max(0, s.delta);
-      b.under += Math.max(0, -s.delta);
-    }
-    return byLoc;
-  }, [perSession]);
-
   function updateLane(location: string, v: number) {
     setLanesByLocation((prev) => ({ ...prev, [location]: Math.max(0, Math.min(16, Math.floor(v))) }));
   }
@@ -188,16 +181,28 @@ function Simulator({ rows }: { rows: DemandRow[] }) {
       {/* Summary by location */}
       <div className="grid md:grid-cols-2 gap-6">
         {Object.entries(
-          rowsToPerSession(rows).reduce((acc, s) => {
-            const b =
-              (acc[s.location] ||= { sessions: 0, demand: 0, capacity: 0, over: 0, under: 0 });
-            b.sessions += 1;
-            b.demand += s.demand;
-            b.capacity += s.capacity;
-            b.over += Math.max(0, s.delta);
-            b.under += Math.max(0, -s.delta);
-            return acc;
-          }, {} as Record<string, { sessions: number; demand: number; capacity: number; over: number; under: number }>)
+          rowsToPerSession(rows).reduce(
+            (acc, s) => {
+              const b =
+                (acc[s.location] ||= {
+                  sessions: 0,
+                  demand: 0,
+                  capacity: 0,
+                  over: 0,
+                  under: 0,
+                });
+              b.sessions += 1;
+              b.demand += s.demand;
+              b.capacity += s.capacity;
+              b.over += Math.max(0, s.delta);
+              b.under += Math.max(0, -s.delta);
+              return acc;
+            },
+            {} as Record<
+              string,
+              { sessions: number; demand: number; capacity: number; over: number; under: number }
+            >
+          )
         ).map(([loc, t]) => (
           <Card key={loc} className="border-0 shadow-md">
             <CardHeader>

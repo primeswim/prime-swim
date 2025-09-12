@@ -1,3 +1,4 @@
+// ./src/app/survey/clinic-poll/page.tsx
 "use client"
 
 import type React from "react"
@@ -47,18 +48,20 @@ interface Preference {
 
 interface FormState {
   parentEmail: string
-  parentPhone: string            // ✅ 新增
+  parentPhone: string
   swimmerName: string
   level: Level | ""
   preferences: Preference[]
 }
+
+type SubmitResponse = { error?: string }
 
 const MIN_SUGGESTED_CHOICES = 2
 
 export default function ClinicSurveyPage() {
   const [form, setForm] = useState<FormState>({
     parentEmail: "",
-    parentPhone: "",             // ✅ 初始值
+    parentPhone: "",
     swimmerName: "",
     level: "",
     preferences: [],
@@ -146,18 +149,22 @@ export default function ClinicSurveyPage() {
           website: honeypot,
         }),
       })
-      const json = await res.json()
+      const json = (await res.json()) as SubmitResponse
       if (!res.ok) throw new Error(json?.error || "Submit failed")
 
       alert("Thanks! Your clinic preferences have been submitted.")
-      setForm({ parentEmail: "", parentPhone: "", swimmerName: "", level: "", preferences: [] }) // ✅ 重置 parentPhone
+      setForm({ parentEmail: "", parentPhone: "", swimmerName: "", level: "", preferences: [] })
       setHoneypot("")
-    } catch (err: any) {
-      alert(err?.message || "Failed to submit. Please try again.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to submit. Please try again."
+      alert(message)
     } finally {
       setSubmitting(false)
     }
   }
+
+  // 为 map 渲染获得更明确的键类型
+  const LOCATION_KEYS = Object.keys(CLINIC_OPTIONS) as LocationName[]
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -293,9 +300,17 @@ export default function ClinicSurveyPage() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-
+                    </div>
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 text-sm md:text-base">
+                      <strong>Note:</strong> Our clinics are designed for swimmers who already have some independent water skills.  
+                      If your child is brand new to swimming, we recommend starting with our{" "}
+                      <span className="font-semibold">Beginner Group Lessons</span> or{" "}
+                      <span className="font-semibold">Private Lessons</span> to build a solid foundation.
                     </div>
                   </div>
+
+                  
+
 
                   <Separator />
 
@@ -316,7 +331,7 @@ export default function ClinicSurveyPage() {
                       Select <em>all</em> dates that work (use “Select all” per location for convenience).
                     </p>
 
-                    {(Object.keys(CLINIC_OPTIONS) as LocationName[]).map((location) => {
+                    {LOCATION_KEYS.map((location) => {
                       const slots = CLINIC_OPTIONS[location]
                       if (!slots?.length) return null
 
