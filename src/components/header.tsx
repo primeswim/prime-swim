@@ -32,32 +32,29 @@ export default function Header() {
             <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
           </Link>
 
-          {/* Affiliation logos: USA Swimming & PNS */}
+          {/* Affiliation logos */}
           <div className="flex items-center gap-3">
-            {/* USA Swimming */}
             <Link
               href="https://www.usaswimming.org/"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="USA Swimming (opens in new tab)"
+              aria-label="USA Swimming"
               title="USA Swimming Member Club"
               className="block"
             >
               <Image
-                src="/images/usa-swimming.png"  // ← 按你的实际文件名调整
+                src="/images/usa-swimming.png"
                 alt="USA Swimming"
                 width={56}
                 height={56}
                 className="h-10 w-auto object-contain"
               />
             </Link>
-
-            {/* PNS */}
             <Link
               href="https://www.teamunify.com/team/pnws2/page/home"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Pacific Northwest Swimming (opens in new tab)"
+              aria-label="Pacific Northwest Swimming"
               title="Pacific Northwest Swimming (PNS)"
               className="block"
             >
@@ -86,6 +83,9 @@ export default function Header() {
                 <Link href="/coaches">Our Coaches</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
+                <Link href="/school-policy">School Policy</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link href="/#contact">Contact</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -105,15 +105,12 @@ export default function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* New Safe Sport Link */}
           <Link href="/safesport" className="hover:text-slate-800 transition-colors">
             Safe Sport
           </Link>
-
           <Link href="/news" className="hover:text-slate-800 transition-colors">
             News
           </Link>
-
           <Link href="/login" className="hover:text-slate-800 transition-colors">
             Login
           </Link>
@@ -132,7 +129,6 @@ export default function Header() {
       {/* Mobile Dropdown */}
       {mobileOpen && (
         <div className="md:hidden mt-4 space-y-2 text-slate-700">
-          {/* 把两个 affiliation logo 在移动端也展示一下（小一号） */}
           <div className="flex items-center gap-3 mb-2">
             <Image
               src="/images/usa-swimming.png"
@@ -154,6 +150,7 @@ export default function Header() {
             <p className="font-semibold">About Us</p>
             <Link href="/mission" className="block ml-4">Mission &amp; Vision</Link>
             <Link href="/coaches" className="block ml-4">Our Coaches</Link>
+            <Link href="/school-policy" className="block ml-4">School Policy</Link>
             <Link href="/#contact" className="block ml-4">Contact</Link>
           </div>
 
@@ -163,6 +160,7 @@ export default function Header() {
             <Link href="/private-lessons" className="block ml-4">Private Lessons</Link>
           </div>
 
+          <Link href="/safesport" className="block">Safe Sport</Link>
           <Link href="/news" className="block">News</Link>
           <Link href="/login" className="block">Login</Link>
         </div>
