@@ -37,7 +37,6 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#39;");
 }
 
-// 与后端保持一致的简版模板（仅用于预览；以服务端为准）
 function renderBrandedHTML(subject: string, innerHtml: string) {
   return `<!doctype html>
 <html><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -66,6 +65,33 @@ function renderBrandedHTML(subject: string, innerHtml: string) {
 </body></html>`;
 }
 
+/** 轻量邮箱校验（避免过度严格） */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+/** 拆分输入文本为邮箱数组，支持逗号/分号/换行/空白分隔，并做去重与基本校验 */
+function parseEmails(input: string): { emails: string[]; invalid: string[] } {
+  const raw = input
+    .split(/[\s,;]+/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  const invalid: string[] = [];
+  for (const token of raw) {
+    const t = token.toLowerCase();
+    if (!EMAIL_RE.test(t)) {
+      invalid.push(token);
+      continue;
+    }
+    if (!seen.has(t)) {
+      seen.add(t);
+      emails.push(t);
+    }
+  }
+  return { emails, invalid };
+}
+
 export default function SendEmailAdminPage() {
   const isAdmin = useIsAdminFromDB();
 
@@ -79,6 +105,10 @@ export default function SendEmailAdminPage() {
   const [useTemplate, setUseTemplate] = useState(true);
 
   const [status, setStatus] = useState("");
+
+  // 新增：可编辑的收件人文本与“是否手动修改”标记
+  const [recipientsText, setRecipientsText] = useState("");
+  const [recipientsDirty, setRecipientsDirty] = useState(false);
 
   // Load swimmers
   useEffect(() => {
@@ -106,14 +136,23 @@ export default function SendEmailAdminPage() {
     })();
   }, []);
 
-  // Derived recipients
-  const recipients = useMemo(() => {
+  /** 基于选择推导出的默认邮箱集合（去重） */
+  const recipientsDefault = useMemo(() => {
     return selectedIds
       .map((id) => swimmers.find((s) => s.id === id))
       .filter((s): s is SwimmerDoc => !!s && !!s.parentEmail)
-      .map((s) => s.parentEmail)
+      .map((s) => s.parentEmail.toLowerCase())
       .filter((email, idx, self) => self.indexOf(email) === idx);
   }, [selectedIds, swimmers]);
+
+  /** 当选择变化时，如果用户尚未手动改动过收件人，就同步默认值到可编辑文本 */
+  useEffect(() => {
+    if (!recipientsDirty) {
+      setRecipientsText(recipientsDefault.join(", "));
+    }
+    // 仅在 default 变化时尝试同步；一旦 dirty，就不再覆盖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipientsDefault.join("|"), recipientsDirty]);
 
   const subjectPreview = useMemo(() => {
     return subject || `Prime Swim Academy — Announcement`;
@@ -129,12 +168,23 @@ export default function SendEmailAdminPage() {
     return useTemplate ? renderBrandedHTML(subjectPreview, inner) : inner;
   }, [content, contentType, useTemplate, subjectPreview]);
 
+  // 解析当前可编辑文本为 emails
+  const { emails: recipientsParsed, invalid: invalidEmails } = useMemo(
+    () => parseEmails(recipientsText),
+    [recipientsText]
+  );
+
   if (isAdmin === null) return <div className="p-6">Checking permission…</div>;
   if (!isAdmin) return <div className="p-6 text-red-600 font-semibold">Not authorized (admin only).</div>;
 
   const handleSend = async () => {
     try {
-      if (!recipients.length) throw new Error("Please select at least one student.");
+      if (!recipientsParsed.length) throw new Error("Please provide at least one recipient email.");
+      if (invalidEmails.length) {
+        throw new Error(
+          `Invalid email(s): ${invalidEmails.join(", ")}`
+        );
+      }
       if (!subject.trim()) throw new Error("Subject is required.");
       if (!content.trim()) throw new Error("Content cannot be empty.");
 
@@ -150,22 +200,27 @@ export default function SendEmailAdminPage() {
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          toEmails: recipients,
+          toEmails: recipientsParsed, // ← 使用可编辑后的解析结果
           subject,
           content,
           contentType,
           bccAdmin,
-          useTemplate, // 关键：让后端套模板
+          useTemplate,
         }),
       });
 
       const j: SendResp = await res.json();
       if (!res.ok || !j.ok) throw new Error(j.error || "Send failed");
-      setStatus(`✅ Sent to ${recipients.length} recipient(s).`);
+      setStatus(`✅ Sent to ${recipientsParsed.length} recipient(s).`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setStatus("❌ " + msg);
     }
+  };
+
+  const resetRecipientsToSelection = () => {
+    setRecipientsText(recipientsDefault.join(", "));
+    setRecipientsDirty(false);
   };
 
   return (
@@ -195,11 +250,42 @@ export default function SendEmailAdminPage() {
           <span className="text-xs text-slate-500">Hold Cmd/Ctrl to select multiple</span>
         </div>
 
-        {/* Recipients preview */}
-        <div className="grid gap-1">
-          <span className="text-sm font-medium">Recipients ({recipients.length})</span>
-          <div className="border rounded-lg p-2 bg-slate-50 text-sm break-words min-h-10">
-            {recipients.join(", ")}
+        {/* Recipients (editable) */}
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              Recipients ({recipientsParsed.length}
+              {invalidEmails.length ? ` • ${invalidEmails.length} invalid` : ""})
+            </span>
+            <button
+              type="button"
+              onClick={resetRecipientsToSelection}
+              className="text-xs underline text-slate-600 hover:text-slate-800"
+              title="Reset to current selection"
+            >
+              Reset to selection
+            </button>
+          </div>
+          <textarea
+            className={[
+              "border rounded-lg p-2 min-h-24 text-sm",
+              invalidEmails.length ? "border-amber-400 bg-amber-50" : "bg-slate-50",
+            ].join(" ")}
+            placeholder="email1@example.com, email2@example.com (comma/semicolon/newline separated)"
+            value={recipientsText}
+            onChange={(e) => {
+              setRecipientsText(e.target.value);
+              setRecipientsDirty(true);
+            }}
+          />
+          {!!invalidEmails.length && (
+            <div className="text-xs text-amber-700">
+              Invalid: {invalidEmails.join(", ")}
+            </div>
+          )}
+          {/* 小提示 */}
+          <div className="text-xs text-slate-500">
+            Tip: You can edit addresses directly. Use commas, semicolons, spaces, or new lines as separators.
           </div>
         </div>
 
@@ -239,12 +325,20 @@ export default function SendEmailAdminPage() {
           </div>
 
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={useTemplate} onChange={(e) => setUseTemplate(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={useTemplate}
+              onChange={(e) => setUseTemplate(e.target.checked)}
+            />
             <span className="text-sm">Use PSA template</span>
           </label>
 
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={bccAdmin} onChange={(e) => setBccAdmin(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={bccAdmin}
+              onChange={(e) => setBccAdmin(e.target.checked)}
+            />
             <span className="text-sm">BCC admin (default)</span>
           </label>
         </div>
@@ -254,14 +348,16 @@ export default function SendEmailAdminPage() {
           <span className="text-sm font-medium">Content ({contentType.toUpperCase()})</span>
           <textarea
             className="border rounded-lg p-2 min-h-48 font-mono"
-            placeholder={contentType === "text" ? "Type your message…" : "<p>Type your HTML email…</p>"}
+            placeholder={
+              contentType === "text" ? "Type your message…" : "<p>Type your HTML email…</p>"
+            }
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
           <span className="text-xs text-slate-500">Tip: HTML supports inline CSS and basic tags.</span>
         </label>
 
-        {/* Preview (with or without template) */}
+        {/* Preview */}
         <div className="grid gap-1">
           <span className="text-sm font-medium">
             Preview {useTemplate ? "(with PSA template)" : "(raw)"}
