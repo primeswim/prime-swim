@@ -506,7 +506,7 @@ export default function DashboardPage() {
                     {/* Next make-up class + RSVP */}
                     <div className="mt-4 p-3 rounded-lg border bg-slate-50">
                     <div className="text-sm text-slate-600 mb-2 flex items-center">
-                      <span>Next make-up class</span>
+                      <span>Will you attend?</span>
                       {rsvpSuffix(rsvp)}
                     </div>
                       {showMakeup && displayText ? (
