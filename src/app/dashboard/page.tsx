@@ -535,7 +535,7 @@ export default function DashboardPage() {
                             </div>
                           ) : rsvp !== "none" ? (
                             <div className="text-xs text-slate-500 mt-2">
-                              Your selection has been recorded. You can change it anytime (until 1 hour before class).
+                              Your selection has been recorded. You can change it anytime (until 1 day before class).
                             </div>
                           ) : null}
                         </>
