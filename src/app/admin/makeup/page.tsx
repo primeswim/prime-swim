@@ -39,30 +39,39 @@ export default function MakeupAdminPage() {
       const arr: SwimmerPick[] = [];
       snap.forEach((d) => {
         const x = d.data() as SwimmerFS;
+
         const sName =
           [x.childFirstName, x.childLastName].filter(Boolean).join(" ").trim() ||
           x.swimmerName ||
           x.name ||
           d.id;
+
         const pName =
           [x.parentFirstName, x.parentLastName].filter(Boolean).join(" ").trim() ||
           x.parentName ||
           "";
-        const pEmail = x.parentEmail || (Array.isArray(x.parentEmails) ? x.parentEmails[0] : "") || "";
+
+        // 取单个主邮箱：parentEmail 优先；否则 parentEmails[0]
+        const pEmail =
+          x.parentEmail || (Array.isArray(x.parentEmails) ? x.parentEmails[0] : "") || "";
+
         if (sName) arr.push({ id: d.id, swimmerName: sName, parentName: pName, parentEmail: pEmail });
       });
+
       setSwimmers(arr.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName)));
     })();
   }, []);
 
-  const recipientsPreview = useMemo(
-    () =>
-      selectedIds
-        .map((id) => swimmers.find((s) => s.id === id)?.swimmerName || "")
-        .filter(Boolean)
-        .join(", "),
-    [selectedIds, swimmers]
-  );
+  // 预览：展示选中条目的邮箱列表（去重）
+  const recipientsPreview = useMemo(() => {
+    const emails = selectedIds
+      .map((id) => swimmers.find((s) => s.id === id)?.parentEmail?.toLowerCase() || "")
+      .filter(Boolean);
+
+    // 去重
+    const unique = Array.from(new Set(emails));
+    return unique.join(", ");
+  }, [selectedIds, swimmers]);
 
   if (isAdmin === null) return <div className="p-6">Checking permission…</div>;
   if (!isAdmin) return <div className="p-6 text-red-600 font-semibold">Not authorized (admin only).</div>;
@@ -124,7 +133,9 @@ export default function MakeupAdminPage() {
           >
             {swimmers.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.swimmerName} {s.parentName ? `— ${s.parentName}` : ""}
+                {s.swimmerName}
+                {s.parentName ? ` — ${s.parentName}` : ""}
+                {s.parentEmail ? ` <${s.parentEmail}>` : ""}
               </option>
             ))}
           </select>
@@ -132,11 +143,16 @@ export default function MakeupAdminPage() {
         </label>
 
         <div className="grid gap-1">
-          <span className="text-sm font-medium">Preview</span>
-          <div className="border rounded-lg p-2 bg-slate-50 text-sm">{recipientsPreview || "—"}</div>
+          <span className="text-sm font-medium">Preview (emails)</span>
+          <div className="border rounded-lg p-2 bg-slate-50 text-sm">
+            {recipientsPreview || "—"}
+          </div>
         </div>
 
-        <Button onClick={handlePublish} className="rounded-2xl px-5 py-3 font-semibold shadow bg-black text-white hover:opacity-90">
+        <Button
+          onClick={handlePublish}
+          className="rounded-2xl px-5 py-3 font-semibold shadow bg-black text-white hover:opacity-90"
+        >
           Publish
         </Button>
 
