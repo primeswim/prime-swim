@@ -37,7 +37,7 @@ const policies = [
     title: "Attendance & Spot Reservation (Group Lessons)",
     icon: Shield,
     content: [
-      "If a swimmer does not attend any classes for 14 consecutive calendar days and the family has not coordinated with us, we will stop reserving the spot and offer it to the next swimmer on the waitlist.",
+      "If a swimmer does not attend any classes for 14 consecutive calendar days and the family has not coordinated with us 14 days ahead, we will stop reserving the spot and offer it to the next swimmer on the waitlist.",
       "To keep a group spot reserved, full regular monthly tuition must be paid on time. Tuition holds or partial payments do not reserve a spot.",
       "Missed classes may use the once‑per‑month make‑up clinic described below (subject to eligibility and capacity).",
     ],
