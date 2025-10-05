@@ -195,20 +195,6 @@ export default function ZellePaymentStep({
               <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg text-center">
                 <h3 className="text-3xl font-bold text-slate-800 mb-2">$75.00</h3>
                 <p className="text-slate-600">Annual Registration Fee</p>
-                <div className="mt-4 space-y-2 text-sm text-slate-600">
-                  <div className="flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                    <span>Team swim cap</span>
-                  </div>
-                  <div className="flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                    <span>Team T-shirt</span>
-                  </div>
-                  <div className="flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                    <span>Administrative setup</span>
-                  </div>
-                </div>
               </div>
 
               <Separator />
