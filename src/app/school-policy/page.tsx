@@ -50,6 +50,7 @@ const policies = [
       "This section applies to group lessons. Private lessons follow the separate Private Lesson Cancellation Policy below.",
       "Prime Swim Academy offers one make-up class each month for swimmers who missed a regularly scheduled group lesson. The make-up class time will be published monthly on our website/calendar and shared via email/WeChat.",
       "Eligibility: one make-up per swimmer per calendar month; capacity is limited and advance sign-up is required (first-come, first-served).",
+      "Please note: Make-up classes are scheduled **once per month for all swimmers**, and we cannot provide additional make-up sessions or individual rescheduling requests. This ensures fairness and consistency for all families.",
       "Missed classes in a given month cannot be carried over into the next month. Allowing carryovers would make it difficult to keep the program fair for all families, maintain consistent scheduling, and accurately track each swimmer’s progress.",
       "Make-up credits do not roll over, are not transferable, and cannot be converted to refunds or tuition credits.",
     ],
