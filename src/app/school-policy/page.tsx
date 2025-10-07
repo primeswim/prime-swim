@@ -52,7 +52,6 @@ const policies = [
       "Eligibility: one make-up per swimmer per calendar month; capacity is limited and advance sign-up is required (first-come, first-served).",
       "Missed classes in a given month cannot be carried over into the next month. Allowing carryovers would make it difficult to keep the program fair for all families, maintain consistent scheduling, and accurately track each swimmer’s progress.",
       "Make-up credits do not roll over, are not transferable, and cannot be converted to refunds or tuition credits.",
-      "Please inform us at least 24 hours in advance of any absence to help us manage classes smoothly. No-shows are not eligible for a make-up.",
     ],
   },
   {
