@@ -184,9 +184,6 @@ export default function SchoolPoliciesPage() {
           <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-8">
             请查阅以下政策，确保每位学员在 Prime Swim Academy 拥有安全且愉快的学习体验。
           </p>
-          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 px-4 py-2">
-            最后更新：2025 年 7 月 1 日
-          </Badge>
         </div>
       </section>
 
