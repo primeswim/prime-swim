@@ -68,11 +68,11 @@ const policies = [
   },
   {
     id: "refund",
-    title: "Refund Policy",
+    title: "Refund Policy (Group Lessons)",
     icon: DollarSign,
     content: [
-      "Full refunds will be provided if cancellation is made at least two weeks before the scheduled start of the session.",
-      "No refunds will be granted after the session begins, except in cases of documented medical emergencies. In such approved cases, families remain responsible for covering the lane rental fee already incurred by Prime Swim Academy for the scheduled session.",
+      "Full refunds will be provided if a swimmer withdraws from the program at least two weeks before the scheduled start of the session.",
+      "Please note: This refund policy applies only to withdrawing from the program before the session starts. No refunds will be given for missed classes after the session has begun, except in cases of documented medical emergencies. In such approved cases, families remain responsible for covering the lane rental fee already incurred by Prime Swim Academy.",
       "In the case of facility closures or session cancellations initiated by Prime Swim Academy, pro-rated refunds or credits for future classes will be issued.",
     ],
   },
