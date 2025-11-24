@@ -15,18 +15,24 @@ export default function LatestNewsSection() {
 
   useEffect(() => {
     const fetchLatestNews = async () => {
-      const q = query(
-        collection(db, "news"),
-        where("isPublished", "==", true),
-        orderBy("createdAt", "desc"),
-        limit(3)
-      );
-      const snapshot = await getDocs(q);
-      const newsList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as NewsItem[];
-      setLatestNews(newsList);
+      try {
+        const q = query(
+          collection(db, "news"),
+          where("isPublished", "==", true),
+          orderBy("createdAt", "desc"),
+          limit(3)
+        );
+        const snapshot = await getDocs(q);
+        const newsList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as NewsItem[];
+        setLatestNews(newsList);
+      } catch (error) {
+        console.error("Failed to fetch latest news:", error);
+        // Silently fail - don't break the page if news can't be loaded
+        setLatestNews([]);
+      }
     };
 
     fetchLatestNews();

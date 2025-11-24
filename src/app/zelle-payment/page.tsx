@@ -1,7 +1,7 @@
 // app/zelle-payment/page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth, db } from "@/lib/firebase"
@@ -14,10 +14,10 @@ type PaymentDoc = {
   status: "pending" | "paid" | "cancelled"
   method: "zelle"
   amountCents: number
-  zelleSubmitted?: boolean        // ✅ 新增：家长是否已经点了 “I've completed”
+  zelleSubmitted?: boolean        // ✅ 新增：家长是否已经点了 "I've completed"
 }
 
-export default function ZellePaymentPage() {
+function ZellePaymentPageContent() {
   const sp = useSearchParams()
   const router = useRouter()
   const paymentId = sp.get("paymentId") || null     // Renew 优先走 paymentId
@@ -85,5 +85,13 @@ export default function ZellePaymentPage() {
       user={user}
       paymentId={resolvedPaymentId}
     />
+  )
+}
+
+export default function ZellePaymentPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-700">Loading…</div>}>
+      <ZellePaymentPageContent />
+    </Suspense>
   )
 }

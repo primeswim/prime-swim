@@ -266,12 +266,35 @@ async function handleRequest(req: NextRequest) {
       console.log(`[Auto Reminders] Running manually by admin ${decoded.email} at ${new Date().toISOString()}`);
     }
 
+    // Helper function to convert Firestore Timestamp or Date to Date
+    const toDate = (v: { toDate: () => Date } | Date | string | undefined): Date | undefined => {
+      if (!v) return undefined
+      if (typeof v === "object" && v !== null && "toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
+        return (v as { toDate: () => Date }).toDate()
+      }
+      if (v instanceof Date) return v
+      if (typeof v === "string") return new Date(v)
+      return undefined
+    }
+
     const now = new Date();
     const swimmersSnapshot = await adminDb.collection("swimmers").get();
     const swimmers = swimmersSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-    }));
+    })) as Array<{
+      id: string;
+      isFrozen?: boolean;
+      parentEmail?: string;
+      parentFirstName?: string;
+      parentLastName?: string;
+      childFirstName?: string;
+      childLastName?: string;
+      nextDueDate?: { toDate: () => Date } | Date | string;
+      registrationAnchorDate?: { toDate: () => Date } | Date | string;
+      currentPeriodStart?: { toDate: () => Date } | Date | string;
+      currentPeriodEnd?: { toDate: () => Date } | Date | string;
+    }>;
 
     // Filter swimmers with due_soon or grace status
     const toNotify: Array<{
@@ -290,13 +313,13 @@ async function handleRequest(req: NextRequest) {
       // Compute dates
       let nextDue: Date | undefined;
       if (swimmer.nextDueDate) {
-        nextDue = swimmer.nextDueDate.toDate ? swimmer.nextDueDate.toDate() : new Date(swimmer.nextDueDate);
+        nextDue = toDate(swimmer.nextDueDate);
       } else if (swimmer.registrationAnchorDate) {
-        const anchor = swimmer.registrationAnchorDate.toDate 
-          ? swimmer.registrationAnchorDate.toDate() 
-          : new Date(swimmer.registrationAnchorDate);
-        const coverage = deriveCoverageFromAnchor(anchor);
-        nextDue = coverage.nextDueDate as Date;
+        const anchor = toDate(swimmer.registrationAnchorDate);
+        if (anchor) {
+          const coverage = deriveCoverageFromAnchor(anchor);
+          nextDue = coverage.nextDueDate as Date;
+        }
       }
 
       if (!nextDue) continue;
@@ -304,15 +327,9 @@ async function handleRequest(req: NextRequest) {
       // Compute status
       const status = computeStatus(
         {
-          registrationAnchorDate: swimmer.registrationAnchorDate?.toDate 
-            ? swimmer.registrationAnchorDate.toDate() 
-            : swimmer.registrationAnchorDate,
-          currentPeriodStart: swimmer.currentPeriodStart?.toDate 
-            ? swimmer.currentPeriodStart.toDate() 
-            : swimmer.currentPeriodStart,
-          currentPeriodEnd: swimmer.currentPeriodEnd?.toDate 
-            ? swimmer.currentPeriodEnd.toDate() 
-            : swimmer.currentPeriodEnd,
+          registrationAnchorDate: toDate(swimmer.registrationAnchorDate),
+          currentPeriodStart: toDate(swimmer.currentPeriodStart),
+          currentPeriodEnd: toDate(swimmer.currentPeriodEnd),
           nextDueDate: nextDue,
         },
         now

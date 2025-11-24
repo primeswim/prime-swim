@@ -342,8 +342,11 @@ export default function AdminSwimmerPage() {
 
     const toDateLocal = (v: Date | { toDate: () => Date } | string | number | null | undefined) => {
       if (!v) return undefined
-      if (typeof v?.toDate === 'function') return v.toDate() as Date
-      if (typeof v === 'string' || typeof v === 'number') return new Date(v)
+      if (typeof v === "object" && v !== null && "toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
+        return (v as { toDate: () => Date }).toDate() as Date
+      }
+      if (typeof v === "string" || typeof v === "number") return new Date(v)
+      if (v instanceof Date) return v
       return undefined
     }
 

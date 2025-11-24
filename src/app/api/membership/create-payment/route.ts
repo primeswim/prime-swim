@@ -7,9 +7,8 @@ import { DEFAULT_AMOUNT_CENTS } from "@/lib/membership"
 
 // —— 初始化 Admin SDK（按你的项目实际方式来）
 if (!getApps().length) {
-  initializeApp({
-    // 如果你用环境变量 SA，则省略 cert；否则按需配置
-  } as { credential?: unknown; projectId?: string })
+  // Use default credentials from environment variables
+  initializeApp()
 }
 const fauth = getAuth()
 const fdb = getFirestore()

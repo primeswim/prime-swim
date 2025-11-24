@@ -14,18 +14,24 @@ export default function NewsPage() {
 
   useEffect(() => {
     const fetchNews = async () => {
-      const q = query(
-        collection(db, "news"),
-        where("isPublished", "==", true),
-        orderBy("createdAt", "desc")
-      );
-      const snapshot = await getDocs(q);
-      const newsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as NewsItem[];
+      try {
+        const q = query(
+          collection(db, "news"),
+          where("isPublished", "==", true),
+          orderBy("createdAt", "desc")
+        );
+        const snapshot = await getDocs(q);
+        const newsList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as NewsItem[];
 
-      setAllNews(newsList);
+        setAllNews(newsList);
+      } catch (error) {
+        console.error("Failed to fetch news:", error);
+        // Silently fail - don't break the page if news can't be loaded
+        setAllNews([]);
+      }
     };
 
     fetchNews();
