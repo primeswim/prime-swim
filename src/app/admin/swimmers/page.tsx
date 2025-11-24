@@ -101,50 +101,63 @@ export default function AdminSwimmerPage() {
     const data = snap.docs.map((d) => {
       const raw = d.data() as Record<string, unknown>
 
+      // Helper function to safely access nested properties
+      const getNested = (obj: unknown, path: string[]): unknown => {
+        let current: unknown = obj
+        for (const key of path) {
+          if (current && typeof current === 'object' && key in current) {
+            current = (current as Record<string, unknown>)[key]
+          } else {
+            return undefined
+          }
+        }
+        return current
+      }
+
       // —— 字段名兼容映射（确保 Family Doctor/Medical 能显示）
       const familyDoctorName =
-        raw.familyDoctorName ??
-        raw.doctorName ??
-        raw.physicianName ??
-        raw?.medical?.doctor?.name ??
-        raw?.medical?.physician?.name ??
+        (raw.familyDoctorName as string | undefined) ??
+        (raw.doctorName as string | undefined) ??
+        (raw.physicianName as string | undefined) ??
+        (getNested(raw, ['medical', 'doctor', 'name']) as string | undefined) ??
+        (getNested(raw, ['medical', 'physician', 'name']) as string | undefined) ??
         null
 
       const familyDoctorPhone =
-        raw.familyDoctorPhone ??
-        raw.doctorPhone ??
-        raw.physicianPhone ??                       // ✅ 新增这一行
-        raw?.medical?.doctor?.phone ??
-        raw?.medical?.physician?.phone ??
+        (raw.familyDoctorPhone as string | undefined) ??
+        (raw.doctorPhone as string | undefined) ??
+        (raw.physicianPhone as string | undefined) ??
+        (getNested(raw, ['medical', 'doctor', 'phone']) as string | undefined) ??
+        (getNested(raw, ['medical', 'physician', 'phone']) as string | undefined) ??
         null
 
       const emergencyContactName =
-        raw.emergencyContactName ??
-        raw.emergency?.name ??
-        raw.emergencyName ??
+        (raw.emergencyContactName as string | undefined) ??
+        (getNested(raw, ['emergency', 'name']) as string | undefined) ??
+        (raw.emergencyName as string | undefined) ??
         null
 
       const emergencyContactPhone =
-        raw.emergencyContactPhone ??
-        raw.emergency?.phone ??
-        raw.emergencyPhone ??
+        (raw.emergencyContactPhone as string | undefined) ??
+        (getNested(raw, ['emergency', 'phone']) as string | undefined) ??
+        (raw.emergencyPhone as string | undefined) ??
         null
 
       const allergies =
-        raw.allergies ??
-        raw.medicalAllergies ??
-        raw?.medical?.allergies ??
+        (raw.allergies as string | undefined) ??
+        (raw.medicalAllergies as string | undefined) ??
+        (getNested(raw, ['medical', 'allergies']) as string | undefined) ??
         null
 
       const medications =
-        raw.medications ??
-        raw.medicalMedications ??
-        raw?.medical?.medications ??
+        (raw.medications as string | undefined) ??
+        (raw.medicalMedications as string | undefined) ??
+        (getNested(raw, ['medical', 'medications']) as string | undefined) ??
         null
 
       const medicalNotes =
-        raw.medicalNotes ??
-        raw?.medical?.notes ??
+        (raw.medicalNotes as string | undefined) ??
+        (getNested(raw, ['medical', 'notes']) as string | undefined) ??
         null
 
       return {
