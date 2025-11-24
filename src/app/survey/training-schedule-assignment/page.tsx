@@ -405,7 +405,6 @@ export default function TrainingSurveyStatsWeighted() {
     setLoading(false);
 
     if (insufficientSelections.length) {
-      // eslint-disable-next-line no-console
       console.warn("Selected fewer slots than required:", insufficientSelections);
     }
   };

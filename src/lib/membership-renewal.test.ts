@@ -4,14 +4,13 @@
  * Or add to package.json: "test": "ts-node src/lib/membership-renewal.test.ts"
  */
 
-const {
+import {
   toMidnightLocal,
-  addYearsMinusOneDay,
   computeStatus,
   RENEWAL_WINDOW_DAYS,
   GRACE_DAYS,
-} = require('./membership')
-type MembershipStatus = "active" | "due_soon" | "grace" | "inactive"
+  type MembershipStatus,
+} from './membership'
 
 // Constants from admin/swimmers/page.tsx
 const MS = 24 * 60 * 60 * 1000
@@ -212,9 +211,9 @@ function runTests() {
       fn()
       console.log(`✅ ${name}`)
       passed++
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`❌ ${name}`)
-      console.error(`   Error: ${error.message}`)
+      console.error(`   Error: ${error instanceof Error ? error.message : String(error)}`)
       failed++
     }
   }
@@ -385,7 +384,7 @@ function runTests() {
 
       try {
         result = simulateMarkPaid(swimmer, today)
-      } catch (e) {
+      } catch {
         // Skip test if swimmer is not in valid renewal state
         return
       }
@@ -421,9 +420,9 @@ function runTests() {
 }
 
 // Run tests if executed directly
-if (require.main === module) {
+if (typeof require !== 'undefined' && require.main === module) {
   runTests()
 }
 
-module.exports = { simulateMarkPaid, createSwimmer, runTests }
+export { simulateMarkPaid, createSwimmer, runTests }
 

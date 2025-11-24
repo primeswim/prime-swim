@@ -36,7 +36,6 @@ import {
 export default function ZellePaymentStep({
   swimmerId,
   user,               // 注册/续费都能传
-  formData,           // 目前只在注册 Step8 会用到
   paymentId,          // 续费路径以后可以用，现在可以为空
 }: {
   swimmerId: string

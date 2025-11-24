@@ -308,6 +308,7 @@ export default function TuitionPage() {
         <div className="grid gap-2">
           <span className="text-sm font-medium">QR Preview</span>
           <div className="border rounded-lg p-4 flex items-center justify-center min-h-48 bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={QR_IMG} alt="Payment QR" className="max-h-48" />
           </div>
         </div>

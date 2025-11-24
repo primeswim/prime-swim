@@ -44,7 +44,7 @@ const nextDueFromAnchor = (anchor: Date) => {
 }
 
 // 推断是否已付费
-async function inferPaid(swimmerId: string, data: any): Promise<boolean> {
+async function inferPaid(swimmerId: string, data: Record<string, unknown>): Promise<boolean> {
   // 优先使用 paymentStatus（新的标准字段）
   if (data?.paymentStatus === "paid") return true
   // 向后兼容：检查旧的 isPaid 字段
@@ -64,12 +64,20 @@ async function inferPaid(swimmerId: string, data: any): Promise<boolean> {
 }
 
 // 从已有数据中选择锚定日期
-function pickAnchorDate(data: any): Date {
+function pickAnchorDate(data: Record<string, unknown>): Date {
+  const toDate = (v: unknown): Date | null => {
+    if (!v) return null
+    if (typeof v === 'object' && v !== null && 'toDate' in v && typeof (v as { toDate: () => Date }).toDate === 'function') {
+      return (v as { toDate: () => Date }).toDate()
+    }
+    if (v instanceof Date) return v
+    return null
+  }
   const dates = [
-    data?.currentPeriodStart?.toDate?.(),
-    data?.registrationAnchorDate?.toDate?.(),
-    data?.createdAt?.toDate?.(),
-  ].filter(Boolean) as Date[]
+    toDate(data?.currentPeriodStart),
+    toDate(data?.registrationAnchorDate),
+    toDate(data?.createdAt),
+  ].filter((d): d is Date => d !== null)
   
   if (dates.length > 0) {
     return toMidnight(dates[0])
@@ -122,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 获取要迁移的学员
-    let docs: Array<{ id: string; data: () => any }>
+    let docs: Array<{ id: string; data: () => Record<string, unknown> }>
     if (swimmerIds && swimmerIds.length > 0) {
       // 迁移指定的学员
       const fetchedDocs = await Promise.all(
@@ -136,7 +144,7 @@ export async function POST(req: NextRequest) {
           }
         })
       )
-      docs = fetchedDocs.filter((d): d is { id: string; data: () => any } => d !== null)
+      docs = fetchedDocs.filter((d): d is { id: string; data: () => Record<string, unknown> } => d !== null)
     } else {
       // 获取所有学员
       const swimmersSnapshot = await fdb.collection("swimmers").get()
@@ -160,7 +168,7 @@ export async function POST(req: NextRequest) {
       const batch = docs.slice(i, i + batchSize)
       
       await Promise.all(
-        batch.map(async (docSnap: any) => {
+        batch.map(async (docSnap: { id: string; data: () => Record<string, unknown> }) => {
           try {
             const id = docSnap.id
             const data = docSnap.data() || {}
@@ -188,7 +196,7 @@ export async function POST(req: NextRequest) {
             const coverage = buildCoverageFromAnchor(anchor)
             
             // 构建更新补丁
-            const patch: Record<string, any> = {
+            const patch: Record<string, unknown> = {
               updatedAt: FieldValue.serverTimestamp(),
             }
             
@@ -205,10 +213,10 @@ export async function POST(req: NextRequest) {
             // 更新文档
             await fdb.collection("swimmers").doc(id).update(patch)
             results.migrated++
-          } catch (error: any) {
+          } catch (error: unknown) {
             results.errors.push({
               id: docSnap.id,
-              error: error?.message || "Unknown error",
+              error: error instanceof Error ? error.message : "Unknown error",
             })
           }
         })
@@ -219,10 +227,10 @@ export async function POST(req: NextRequest) {
       ok: true,
       results,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Migration error:", error)
     return NextResponse.json(
-      { ok: false, error: error?.message || "Migration failed" },
+      { ok: false, error: error instanceof Error ? error.message : "Migration failed" },
       { status: 500 }
     )
   }

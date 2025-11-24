@@ -10,9 +10,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   computeStatus,
   deriveCoverageFromAnchor,
-  toMidnightLocal,
-  RENEWAL_WINDOW_DAYS,
-  GRACE_DAYS,
 } from "@/lib/membership";
 
 // ===== Resend
@@ -368,9 +365,9 @@ async function handleRequest(req: NextRequest) {
     console.log(`[Auto Reminders] Completed: ${successCount} sent, ${failureCount} failed out of ${toNotify.length} total`);
     
     return NextResponse.json(response);
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Auto reminder error:", e);
-    return NextResponse.json({ ok: false, error: e?.message ?? "unknown" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }
 

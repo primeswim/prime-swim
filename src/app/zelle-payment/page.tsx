@@ -25,7 +25,7 @@ export default function ZellePaymentPage() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<{ uid: string; email: string | null } | null>(null)
   const [swimmerId, setSwimmerId] = useState<string>("")
   const [resolvedPaymentId, setResolvedPaymentId] = useState<string | undefined>(undefined)
 
@@ -67,8 +67,8 @@ export default function ZellePaymentPage() {
         } else {
           throw new Error("Missing paymentId or swimmer id")
         }
-      } catch (e: any) {
-        setError(e?.message || "Load failed")
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Load failed")
       } finally {
         setLoading(false)
       }

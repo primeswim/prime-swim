@@ -174,8 +174,8 @@ export default function RenewPage() {
           maappAck: !!data.maappAck,
           safeSportPoliciesAck: !!data.safeSportPoliciesAck,
         }))
-      } catch (e: any) {
-        setError(e?.message || "Load failed")
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Load failed")
       } finally {
         setLoading(false)
       }
@@ -185,7 +185,7 @@ export default function RenewPage() {
 
   const goBackDashboard = () => router.push("/dashboard")
 
-  const updateField = (field: keyof RenewForm, value: any) => {
+  const updateField = (field: keyof RenewForm, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -694,7 +694,7 @@ export default function RenewPage() {
                         I acknowledge that swimming and related activities involve inherent risks. I voluntarily accept these
                         risks on behalf of my child and agree not to hold Prime Swim Academy, its staff, or affiliates liable for
                         any injury arising from ordinary participation in the program. This waiver does not apply in cases of
-                        intentional misconduct. I further understand that I am responsible for my child's behavior and compliance with safety rules, and that Prime Swim Academy is not liable for lost or stolen belongings.
+                        intentional misconduct. I further understand that I am responsible for my child&apos;s behavior and compliance with safety rules, and that Prime Swim Academy is not liable for lost or stolen belongings.
                       </p>
                       <p className="mt-2 text-blue-600">
                         <Link href="/school-policy" target="_blank" className="underline hover:text-blue-800">

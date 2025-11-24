@@ -292,8 +292,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, data: response });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(e);
-    return NextResponse.json({ ok: false, error: e?.message ?? "unknown" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }

@@ -33,14 +33,14 @@ interface Swimmer {
   paymentMemo?: string
   paymentStatus?: string
 
-  registrationAnchorDate?: any
-  currentPeriodStart?: any
-  currentPeriodEnd?: any
-  nextDueDate?: any
+  registrationAnchorDate?: Date | { toDate: () => Date } | string | null
+  currentPeriodStart?: Date | { toDate: () => Date } | string | null
+  currentPeriodEnd?: Date | { toDate: () => Date } | string | null
+  nextDueDate?: Date | { toDate: () => Date } | string | null
   renewalWindowDays?: number
   graceDays?: number
   lastPaymentId?: string | null
-  lastRenewalAt?: any
+  lastRenewalAt?: Date | { toDate: () => Date } | string | null
   pilot?: boolean
   isFrozen?: boolean
 
@@ -99,7 +99,7 @@ export default function AdminSwimmerPage() {
   const fetchSwimmers = async () => {
     const snap = await getDocs(collection(db, 'swimmers'))
     const data = snap.docs.map((d) => {
-      const raw = d.data() as any
+      const raw = d.data() as Record<string, unknown>
 
       // —— 字段名兼容映射（确保 Family Doctor/Medical 能显示）
       const familyDoctorName =
@@ -163,7 +163,7 @@ export default function AdminSwimmerPage() {
     setSelectedIds(prev => new Set([...prev].filter(id => data.some(s => s.id === id))))
   }
 
-  const toDate = (v: any) => {
+  const toDate = (v: Date | { toDate: () => Date } | string | number | null | undefined) => {
     if (!v) return undefined
     if (typeof v?.toDate === 'function') return v.toDate() as Date
     if (typeof v === 'string' || typeof v === 'number') return new Date(v)
@@ -196,7 +196,7 @@ export default function AdminSwimmerPage() {
         return hay.includes(search.toLowerCase())
       })
       .map(s => {
-        let anchor = toDate(s.registrationAnchorDate)
+        const anchor = toDate(s.registrationAnchorDate)
         let cps = toDate(s.currentPeriodStart)
         let cpe = toDate(s.currentPeriodEnd)
         let due = toDate(s.nextDueDate)
@@ -324,7 +324,7 @@ export default function AdminSwimmerPage() {
 
     const nowMid = toMidnightLocal(new Date())
 
-    const toDateLocal = (v:any) => {
+    const toDateLocal = (v: Date | { toDate: () => Date } | string | number | null | undefined) => {
       if (!v) return undefined
       if (typeof v?.toDate === 'function') return v.toDate() as Date
       if (typeof v === 'string' || typeof v === 'number') return new Date(v)
@@ -398,7 +398,7 @@ export default function AdminSwimmerPage() {
     // —— 按 baseStart 建一整年周期
     const { start: newStart, end: newEnd, nextDue: newNextDue } = makePeriodFromStart(baseStart)
 
-    const patch: any = {
+    const patch: Record<string, unknown> = {
       paymentStatus: 'paid',
       currentPeriodStart: newStart,
       currentPeriodEnd: newEnd,
@@ -415,7 +415,7 @@ export default function AdminSwimmerPage() {
 
     await updateDoc(doc(db, 'swimmers', id), patch)
 
-    if ((s as any).parentEmail && s.childFirstName) {
+    if (s.parentEmail && s.childFirstName) {
       // Calculate age from date of birth
       const calculateAge = (dateOfBirth?: string): number | null => {
         if (!dateOfBirth) return null
@@ -435,8 +435,8 @@ export default function AdminSwimmerPage() {
       await fetch('/api/registration-confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentEmail: (s as any).parentEmail,
+          body: JSON.stringify({
+            parentEmail: s.parentEmail,
           parentName: `${s.parentFirstName ?? ''} ${s.parentLastName ?? ''}`.trim(),
           swimmerName: `${s.childFirstName} ${s.childLastName}`,
           phone: s.parentPhone || undefined,
@@ -470,7 +470,7 @@ export default function AdminSwimmerPage() {
           parentName: `${s.parentFirstName ?? ''} ${s.parentLastName ?? ''}`.trim(),
           swimmerName: `${s.childFirstName} ${s.childLastName}`,
           status: s._status,
-          nextDueDate: (s as any).nextDueDate?.toDate ? (s as any).nextDueDate.toDate() : (s as any).nextDueDate,
+          nextDueDate: (s.nextDueDate && typeof s.nextDueDate === 'object' && 'toDate' in s.nextDueDate) ? s.nextDueDate.toDate() : s.nextDueDate,
         })
       })
       const data = await res.json()
@@ -478,8 +478,8 @@ export default function AdminSwimmerPage() {
         return { success: false, error: data.error || 'Failed to send email' }
       }
       return { success: true }
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Unknown error' }
+    } catch (error: unknown) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
@@ -600,7 +600,7 @@ export default function AdminSwimmerPage() {
           parentName: `${testSwimmer.parentFirstName ?? ''} ${testSwimmer.parentLastName ?? ''}`.trim(),
           swimmerName: `${testSwimmer.childFirstName} ${testSwimmer.childLastName}`,
           status: testSwimmer._status,
-          nextDueDate: (testSwimmer as any).nextDueDate?.toDate ? (testSwimmer as any).nextDueDate.toDate() : (testSwimmer as any).nextDueDate,
+          nextDueDate: (testSwimmer.nextDueDate && typeof testSwimmer.nextDueDate === 'object' && 'toDate' in testSwimmer.nextDueDate) ? testSwimmer.nextDueDate.toDate() : testSwimmer.nextDueDate,
           testMode: true, // Send test email to admin
         })
       })
@@ -663,7 +663,6 @@ export default function AdminSwimmerPage() {
 
   const allVisibleSelected = currentPageRows.length > 0 && currentPageRows.every(r => selectedIds.has(r.id))
   const someVisibleSelected = currentPageRows.some(r => selectedIds.has(r.id))
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
 
   if (!checkedAuth) return <p className="text-center mt-10">Checking access...</p>
   if (!isAdmin) return null

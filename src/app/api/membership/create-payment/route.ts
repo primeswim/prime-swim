@@ -1,6 +1,6 @@
 // app/api/membership/create-payment/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { getApps, initializeApp, cert } from "firebase-admin/app"
+import { getApps, initializeApp } from "firebase-admin/app"
 import { getAuth } from "firebase-admin/auth"
 import { getFirestore, FieldValue } from "firebase-admin/firestore"
 import { DEFAULT_AMOUNT_CENTS } from "@/lib/membership"
@@ -9,7 +9,7 @@ import { DEFAULT_AMOUNT_CENTS } from "@/lib/membership"
 if (!getApps().length) {
   initializeApp({
     // 如果你用环境变量 SA，则省略 cert；否则按需配置
-  } as any)
+  } as { credential?: unknown; projectId?: string })
 }
 const fauth = getAuth()
 const fdb = getFirestore()
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       paymentId: pref.id,
       redirectUrl: `/zelle-payment?paymentId=${encodeURIComponent(pref.id)}`
     })
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("create-payment failed:", e)
     return NextResponse.json({ ok: false, error: "INTERNAL" }, { status: 500 })
   }

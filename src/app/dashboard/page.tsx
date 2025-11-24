@@ -67,8 +67,8 @@ type EventLite = {
 type FBTimestamp = { toDate: () => Date } | Date | null | undefined
 function tsToDate(v: FBTimestamp): Date | undefined {
   if (!v) return undefined
-  // @ts-ignore
-  if (typeof v?.toDate === "function") return (v as any).toDate()
+  // @ts-expect-error - Firestore Timestamp compatibility
+  if (typeof v?.toDate === "function") return (v as { toDate: () => Date }).toDate()
   return v as Date
 }
 
@@ -134,7 +134,7 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState<Record<string, boolean>>({})
 
   // Renew busy
-  const [renewBusyMap, setRenewBusyMap] = useState<Record<string, boolean>>({})
+  const [renewBusyMap] = useState<Record<string, boolean>>({})
 
   // 事件索引 + 加载状态
   const [eventsIndex, setEventsIndex] = useState<Record<string, EventIndexEntry>>({})
