@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/send-renewal-reminders-auto",
+      "schedule": "0 10 * * 1"
+    }
+  ]
+}
+

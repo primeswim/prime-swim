@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:pilot": "DOTENV_CONFIG_PATH=.env.local ts-node -r dotenv/config scripts/migratePilot.ts",
+    "test:membership": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/lib/membership-renewal.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.2",
@@ -22,7 +24,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "firebase": "^12.0.0",
-    "firebase-admin": "^13.4.0",
+    "firebase-admin": "^13.5.0",
     "googleapis": "^152.0.0",
     "lucide-react": "^0.525.0",
     "moment": "^2.30.1",
@@ -37,15 +39,17 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.11",
-    "@types/node": "^20",
+    "@types/node": "^20.19.21",
     "@types/react": "^19",
     "@types/react-big-calendar": "^1.16.2",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

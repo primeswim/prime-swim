@@ -111,8 +111,8 @@ export default function Header() {
           <Link href="/news" className="hover:text-slate-800 transition-colors">
             News
           </Link>
-          <Link href="/login" className="hover:text-slate-800 transition-colors">
-            Login
+          <Link href="/dashboard" className="hover:text-slate-800 transition-colors">
+            Dashboard
           </Link>
         </div>
 
@@ -162,7 +162,7 @@ export default function Header() {
 
           <Link href="/safesport" className="block">Safe Sport</Link>
           <Link href="/news" className="block">News</Link>
-          <Link href="/login" className="block">Login</Link>
+          <Link href="/dashboard" className="block">Dashboard</Link>
         </div>
       )}
     </header>

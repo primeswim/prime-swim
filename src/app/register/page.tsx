@@ -1003,35 +1003,37 @@ export default function RegisterPage() {
         <div className="max-w-4xl mx-auto">
           {renderStepContent()}
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8">
-            <Button
-              variant="outline"
-              onClick={prevStep}
-              disabled={currentStep === 1}
-              className="border-0 shadow-lg bg-white hover:bg-slate-50 text-slate-800 rounded-full px-6"
-            >
-              Previous
-            </Button>
+          {/* Navigation Buttons - Hide when showing Zelle Payment Step (step 8) */}
+          {currentStep !== totalSteps && (
+            <div className="flex justify-between mt-8">
+              <Button
+                variant="outline"
+                onClick={prevStep}
+                disabled={currentStep === 1}
+                className="border-0 shadow-lg bg-white hover:bg-slate-50 text-slate-800 rounded-full px-6"
+              >
+                Previous
+              </Button>
 
-            {currentStep < totalSteps ? (
-              <Button
-                onClick={nextStep}
-                disabled={!isStepComplete() || currentStep === 7}
-                className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-6"
-              >
-                Next Step
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={!isStepComplete()}
-                className="bg-green-600 hover:bg-green-700 text-white rounded-full px-6"
-              >
-                Submit Registration
-              </Button>
-            )}
-          </div>
+              {currentStep < totalSteps ? (
+                <Button
+                  onClick={nextStep}
+                  disabled={!isStepComplete() || currentStep === 7}
+                  className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-6"
+                >
+                  Next Step
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!isStepComplete()}
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-full px-6"
+                >
+                  Submit Registration
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

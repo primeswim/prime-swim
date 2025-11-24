@@ -1,6 +1,7 @@
 // app/dashboard/page.tsx
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -12,6 +13,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   doc,
   deleteDoc,
   DocumentData,
@@ -27,9 +29,29 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 
+// 会员：状态计算与工具
+import {
+  computeStatus,
+  computeBadgeStatus,
+  inRenewWindow,
+  fmt,
+  diffInDays,
+  RENEWAL_WINDOW_DAYS,
+} from "@/lib/membership"
+
 type SwimmerWithMakeup = Swimmer & {
   nextMakeupText?: string
   nextMakeupId?: string
+
+  // 会员相关字段（从 swimmers 文档读取）
+  nextDueDate?: FBTimestamp
+  currentPeriodStart?: FBTimestamp
+  currentPeriodEnd?: FBTimestamp
+  registrationAnchorDate?: FBTimestamp
+
+  // 新增：控制 UI 行为
+  isFrozen?: boolean        // 被俱乐部冻结
+  paymentStatus?: string    // ✅ 读取 swimmers.paymentStatus：'pending' | 'paid' | null/undefined
 }
 
 type RSVPStatus = "yes" | "no" | "none"
@@ -37,8 +59,17 @@ type RSVPStatus = "yes" | "no" | "none"
 type EventLite = {
   id: string
   text?: string
-  startsAt?: string | null // ISO（推荐）。若无，则用 active 兜底
+  startsAt?: string | null // ISO
   active?: boolean
+}
+
+// ---------------- Firestore Timestamp 兼容 ----------------
+type FBTimestamp = { toDate: () => Date } | Date | null | undefined
+function tsToDate(v: FBTimestamp): Date | undefined {
+  if (!v) return undefined
+  // @ts-ignore
+  if (typeof v?.toDate === "function") return (v as any).toDate()
+  return v as Date
 }
 
 // ---------------- 日期 & 字符串工具 ----------------
@@ -52,14 +83,12 @@ function parseIsoSafe(s?: string | null): Date | null {
   return Number.isFinite(t) ? new Date(t) : null
 }
 function isUpcomingOrToday(evDate: Date) {
-  // 只按“天”比较：事件日 >= 今天
   const eventDay = new Date(evDate.getFullYear(), evDate.getMonth(), evDate.getDate())
   return eventDay.getTime() >= startOfTodayLocal().getTime()
 }
 function isLocked1h(evDate: Date) {
   const now = Date.now()
   const diffMs = evDate.getTime() - now
-  // 开课前 1 小时内锁定
   return diffMs <= 60 * 60 * 1000
 }
 function formatStartsAt(d?: Date | null) {
@@ -86,27 +115,33 @@ function rsvpSuffix(status: RSVPStatus) {
   return null
 }
 
-
-// 将 /api/makeup/events 结果做成索引，给每个 id 附带 isUpcoming / isLocked / 文案
+// 将 /api/makeup/events 结果做成索引
 type EventIndexEntry = {
   startsAt?: string | null
-  isUpcoming: boolean // 今天及以后
-  isLocked: boolean   // 距开始 < 1h
-  text?: string       // 事件文案；没有则回退到格式化 startsAt
+  isUpcoming: boolean
+  isLocked: boolean
+  text?: string
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [parentEmail, setParentEmail] = useState<string>("")
   const [swimmers, setSwimmers] = useState<SwimmerWithMakeup[]>([])
   const [loading, setLoading] = useState(true)
 
-  // RSVP（key = `${swimmerId}_${makeupId}`）
+  // RSVP
   const [rsvpMap, setRsvpMap] = useState<Record<string, RSVPStatus>>({})
   const [busy, setBusy] = useState<Record<string, boolean>>({})
+
+  // Renew busy
+  const [renewBusyMap, setRenewBusyMap] = useState<Record<string, boolean>>({})
 
   // 事件索引 + 加载状态
   const [eventsIndex, setEventsIndex] = useState<Record<string, EventIndexEntry>>({})
   const [eventsLoaded, setEventsLoaded] = useState(false)
+
+  // 每个 swimmer 是否存在未完成付款（payments.status = 'pending'）
+  const [pendingMap, setPendingMap] = useState<Record<string, { paymentId: string }>>({})
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
@@ -125,9 +160,12 @@ export default function DashboardPage() {
     }
   }
 
-  // 登录 + 获取 swimmers
+  // 登录 + 获取 swimmers + 读取每个 swimmer 是否有未完成付款
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeSwimmers: (() => void) | null = null
+    let unsubscribeAuth: (() => void) | null = null
+
+    unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         window.location.href = "/login"
         return
@@ -135,28 +173,73 @@ export default function DashboardPage() {
       setParentEmail(user.email || "")
 
       const swimmerQuery = query(collection(db, "swimmers"), where("parentUID", "==", user.uid))
-      const swimmerSnapshot = await getDocs(swimmerQuery)
-      const swimmerData: SwimmerWithMakeup[] = swimmerSnapshot.docs.map((d) => {
-        const data = d.data() as DocumentData
-        return {
-          id: d.id,
-          childFirstName: data.childFirstName,
-          childLastName: data.childLastName,
-          childDateOfBirth: data.childDateOfBirth,
-          createdAt: data.createdAt,
-          paymentStatus: data.paymentStatus,
-          nextMakeupText: data.nextMakeupText,
-          nextMakeupId: data.nextMakeupId,
+      
+      // 使用 onSnapshot 实时监听 swimmer 数据变化
+      unsubscribeSwimmers = onSnapshot(swimmerQuery, async (swimmerSnapshot) => {
+        const swimmerData: SwimmerWithMakeup[] = swimmerSnapshot.docs.map((d) => {
+          const data = d.data() as DocumentData
+          return {
+            id: d.id,
+            childFirstName: data.childFirstName,
+            childLastName: data.childLastName,
+            childDateOfBirth: data.childDateOfBirth,
+            createdAt: data.createdAt,
+            paymentStatus: data.paymentStatus || null, // ✅ 读取 swimmers.paymentStatus
+
+            nextMakeupText: data.nextMakeupText,
+            nextMakeupId: data.nextMakeupId,
+
+            // 会员字段
+            nextDueDate: data.nextDueDate,
+            currentPeriodStart: data.currentPeriodStart,
+            currentPeriodEnd: data.currentPeriodEnd,
+            registrationAnchorDate: data.registrationAnchorDate,
+
+            // 新增从库里读（若不存在，前端默认 false）
+            isFrozen: !!data.isFrozen,
+          }
+        })
+        setSwimmers(swimmerData)
+        setLoading(false)
+
+        // —— 每次更新时重新拉取每个 swimmer 的 pending payment —— //
+        if (!swimmerData.length) {
+          setPendingMap({})
+        } else {
+          const pendingEntries: Record<string, { paymentId: string }> = {}
+          // 查询每个 swimmer 的 pending payments
+          await Promise.all(
+            swimmerData.map(async (s) => {
+              const qs = await getDocs(
+                query(
+                  collection(db, "payments"),
+                  where("swimmerId", "==", s.id),
+                  where("status", "==", "pending")
+                )
+              )
+              const first = qs.docs[0]
+              if (first) {
+                pendingEntries[s.id] = { paymentId: first.id }
+              }
+              // 注意：即使 payments 集合中没有记录，如果 paymentStatus === 'pending'，
+              // 也会通过 swimmer.paymentStatus 显示 pending 提示
+            })
+          )
+          setPendingMap(pendingEntries)
         }
+      }, (error) => {
+        console.error("Error listening to swimmers:", error)
+        setLoading(false)
       })
-      setSwimmers(swimmerData)
-      setLoading(false)
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribeAuth?.()
+      unsubscribeSwimmers?.()
+    }
   }, [])
 
-  // 拉取 events，构建索引：isUpcoming(今天及以后) + isLocked(1h内) + 文案
+  // 拉取 events 索引
   useEffect(() => {
     ;(async () => {
       try {
@@ -180,7 +263,6 @@ export default function DashboardPage() {
               text: ev.text && ev.text.trim().length ? ev.text : formatStartsAt(d),
             }
           } else {
-            // 没有 startsAt：fallback 用 active 当“是否显示今天及以后”；锁定默认为 false
             idx[ev.id] = {
               startsAt: null,
               isUpcoming: ev.active === true,
@@ -200,7 +282,7 @@ export default function DashboardPage() {
     })()
   }, [])
 
-  // 加载 RSVP 回显（批量，通过服务端；不要再前端 getDoc 了）
+  // 批量加载 RSVP 回显
   useEffect(() => {
     ;(async () => {
       const pairs = swimmers
@@ -235,7 +317,6 @@ export default function DashboardPage() {
         setRsvpMap((prev) => ({ ...prev, ...map }))
       } catch (err) {
         console.error("Load RSVP status failed:", err)
-        // 失败则保持默认 "none"
       }
     })()
   }, [swimmers])
@@ -251,7 +332,7 @@ export default function DashboardPage() {
     return age
   }
 
-  // 提交 RSVP（使用规范化后的 makeupId 写入 & 更新本地 key）
+  // 提交 RSVP
   const handleRSVP = async (swimmer: SwimmerWithMakeup, status: RSVPStatus) => {
     if (!swimmer.nextMakeupId) return
     const makeupId = normalizeId(swimmer.nextMakeupId)
@@ -283,7 +364,6 @@ export default function DashboardPage() {
         throw new Error(payload.error || `RSVP failed (${res.status})`)
       }
 
-      // 立即本地回显，刷新也能命中（因为读写 key 一致）
       setRsvpMap((m) => ({ ...m, [key]: status }))
     } catch (e) {
       console.error("RSVP update failed:", e)
@@ -291,6 +371,11 @@ export default function DashboardPage() {
     } finally {
       setBusy((b) => ({ ...b, [key]: false }))
     }
+  }
+
+  // ✅ Renew：只负责跳转到 renew 页面，不创建 payment
+  const handleRenew = (swimmer: SwimmerWithMakeup) => {
+    router.push(`/renew/${swimmer.id}`)
   }
 
   if (loading) {
@@ -326,7 +411,7 @@ export default function DashboardPage() {
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-800">{parentEmail}</p>
                 </div>
-                <div className="w-8 h-8 bg-slate-200 rounded-full flex items中心 justify-center">
+                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4 text-slate-600" />
                 </div>
               </div>
@@ -365,14 +450,14 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="text-center">
               <Link href="/register">
-                <Button className="bg-blue-600 hover:bg-blue-700 text白 rounded-full px-6">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
                   Start Registration
                 </Button>
               </Link>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from绿色-50 to绿色-100">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-green-100">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-white" />
@@ -393,7 +478,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from紫色-50 to紫色-100">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-purple-100">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Settings className="w-8 h-8 text-white" />
@@ -425,31 +510,69 @@ export default function DashboardPage() {
 
           <div className="grid lg:grid-cols-2 gap-6">
             {swimmers.map((swimmer) => {
+              // —— Make-up —— //
               const nextText = swimmer.nextMakeupText || ""
               const rawNextId = swimmer.nextMakeupId || ""
-              const nextId = normalizeId(rawNextId) // 👈 归一化，避免两端空格导致索引不到
+              const nextId = normalizeId(rawNextId)
               const rsvpKey = nextId ? `${swimmer.id}_${nextId}` : ""
-              const rsvp = rsvpKey ? rsvpMap[rsvpKey] || "none" : "none"
+              const rsvp = rsvpKey ? (rsvpMap[rsvpKey] || "none") : "none"
               const isBusy = rsvpKey ? !!busy[rsvpKey] : false
-
               const evt = nextId ? eventsIndex[nextId] : undefined
-
-              // 是否显示（更宽松）：事件未加载 -> 显示；找不到该事件 -> 显示；只有明确已过期才隐藏
               const showMakeup =
                 !!nextId && (
-                  !eventsLoaded ||        // 事件未加载：先显示
-                  !evt ||                 // 没在索引里：也显示（避免误隐藏）
-                  evt.isUpcoming          // 明确今天及以后：显示
+                  !eventsLoaded ||
+                  !evt ||
+                  evt.isUpcoming
                 )
-
-              // 展示文本优先级：swimmer.nextMakeupText -> 事件 text -> 格式化 startsAt
               const displayText =
                 nextText ||
                 evt?.text ||
                 (evt?.startsAt ? formatStartsAt(parseIsoSafe(evt.startsAt)) : "")
-
-              // 锁定（1h 内）：如有 startsAt 则精确判断；无 startsAt 则默认不锁
               const locked = evt?.isLocked ?? false
+
+              // —— 会员状态计算 —— //
+              const hasPending = !!pendingMap[swimmer.id]
+              const isFrozen = !!swimmer.isFrozen
+              const paymentStatus = swimmer.paymentStatus
+              const isPaid = paymentStatus === 'paid'
+              
+              // 判断是否有待确认的付款（paymentStatus='pending' 或 payments 集合中有 pending 记录）
+              // 但如果 paymentStatus 已经是 'paid'，说明管理员已经确认了，不应该显示 pending
+              const isPaymentPending = paymentStatus === 'pending'
+              const hasPendingPayment = paymentStatus !== 'paid' && (isPaymentPending || hasPending)
+              
+              const nextDue = tsToDate(swimmer.nextDueDate)
+              const baseStatus = computeStatus({ nextDueDate: nextDue })
+              
+              // 判断是否是老 swimmer（有会员期）
+              const hasMembershipPeriod = !!nextDue
+
+              // 优先级：frozen > 新注册+pending > 未付费 > 基于日期的状态
+              // 对于老 swimmer：即使有 pending payment，badge 也基于实际会员期状态
+              // 对于新注册：如果有 pending payment，显示 inactive
+              let badgeKind: "frozen" | "active" | "due_soon" | "grace" | "inactive"
+              if (isFrozen) {
+                badgeKind = "frozen"
+              } else if (!isPaid && !hasMembershipPeriod && hasPendingPayment) {
+                // 新注册 + pending payment：显示 inactive
+                badgeKind = "inactive"
+              } else if (!isPaid && !hasMembershipPeriod) {
+                // 新注册 + 未付费：显示 inactive
+                badgeKind = "inactive"
+              } else if (!isPaid && hasMembershipPeriod) {
+                // 老 swimmer + 未付费：基于实际会员期状态（即使有 pending payment，也显示实际状态）
+                badgeKind = computeBadgeStatus(baseStatus)
+              } else {
+                // 已付费：基于实际会员期状态
+                badgeKind = computeBadgeStatus(baseStatus)
+              }
+
+              const daysLeft = typeof nextDue === "number" ? null : (nextDue ? diffInDays(nextDue, new Date()) : null)
+
+              const isInactiveByDate = baseStatus === "inactive" || !nextDue
+              // Renew button 不应该在有 pending payment 时显示
+              const canShowRenew = !isFrozen && !hasPendingPayment && (inRenewWindow({ nextDueDate: nextDue }) || isInactiveByDate)
+              const renewBusy = !!renewBusyMap[swimmer.id]
 
               return (
                 <Card key={swimmer.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
@@ -472,43 +595,105 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="hover:bg-slate-100">
-                            <MoreHorizontal className="w-5 h-5 text-slate-500" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="text-red-600 focus:bg-red-50"
-                            onClick={() => handleDeleteSwimmer(swimmer.id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            badgeKind === "frozen"
+                              ? "bg-rose-100 text-rose-700"
+                              : badgeKind === "active"
+                              ? "bg-green-100 text-green-700"
+                              : badgeKind === "grace"
+                              ? "bg-amber-100 text-amber-700"
+                              : badgeKind === "due_soon"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                          title={nextDue ? `Next due ${fmt(nextDue)}` : "No due date"}
+                        >
+                          {badgeKind === "frozen" ? "FROZEN" : badgeKind === "due_soon" ? "DUE SOON" : badgeKind.toUpperCase()}
+                          {/* 只在非 inactive 和非 pending 状态时显示天数 */}
+                          {badgeKind !== "inactive" && typeof daysLeft === "number" && nextDue ? (
+                            <em className="ml-1 not-italic opacity-70">
+                              {daysLeft >= 0 ? `in ${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`}
+                            </em>
+                          ) : null}
+                        </span>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="hover:bg-slate-100">
+                              <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-red-600 focus:bg-red-50"
+                              onClick={() => handleDeleteSwimmer(swimmer.id)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </CardHeader>
 
                   <CardContent>
-                    {/* Payment */}
-                    <div className="flex justify-end">
-                      <div className="text-sm font-medium">
-                        {swimmer.paymentStatus === "paid" ? (
-                          <span className="text-green-600">✅ Paid</span>
+                    {/* Payment pending 提醒（仅当存在未完成付款单且未标记为已付费） */}
+                    {hasPendingPayment && (
+                      <div className="flex items-center justify-between rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 mb-3">
+                        <div className="text-sm text-yellow-800">
+                          <span className="font-medium">Payment pending </span> – waiting for admin confirmation.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Membership info + Action */}
+                    <div className="mt-3 p-3 rounded-lg border bg-slate-50">
+                      <div className="text-sm text-slate-600">
+                        <div>
+                          Membership Due: <b>{fmt(nextDue)}</b>{" "}
+                          {typeof daysLeft === "number" && nextDue && (
+                            <em className="text-slate-500">
+                              ({daysLeft >= 0 ? `in ${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`})
+                            </em>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          Renewal window: {RENEWAL_WINDOW_DAYS} days before expiration
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        {isFrozen ? (
+                          <div className="text-xs text-rose-600">This account is frozen. Please contact us if you have questions.</div>
+                        ) : hasPendingPayment ? (
+                          <div className="text-xs text-slate-500">
+                            Payment pending / awaiting admin review.
+                          </div>
+                        ) : canShowRenew ? (
+                          <Button
+                            onClick={() => handleRenew(swimmer)}
+                            disabled={renewBusy}
+                            className="bg-slate-800 text-white"
+                          >
+                            {renewBusy ? "Processing..." : "Renew"}
+                          </Button>
                         ) : (
-                          <span className="text-yellow-600">⏳ Pending</span>
+                          <div className="text-xs text-slate-500">
+                            Membership is active. No action needed.
+                          </div>
                         )}
                       </div>
                     </div>
 
                     {/* Next make-up class + RSVP */}
                     <div className="mt-4 p-3 rounded-lg border bg-slate-50">
-                    <div className="text-sm text-slate-600 mb-2 flex items-center">
-                      <span>Will you attend?</span>
-                      {rsvpSuffix(rsvp)}
-                    </div>
+                      <div className="text-sm text-slate-600 mb-2 flex items-center">
+                        <span>Will you attend?</span>
+                        {rsvpSuffix(rsvp)}
+                      </div>
                       {showMakeup && displayText ? (
                         <>
                           <div className="font-medium text-slate-800">{displayText}</div>

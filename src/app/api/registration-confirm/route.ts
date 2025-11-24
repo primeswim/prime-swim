@@ -311,11 +311,11 @@ export async function POST(request: Request) {
             </div>
             <div class="info-row">
               <span class="info-label">Phone:</span>
-              <span class="info-value">${data.phone || "Not provided"}</span>
+              <span class="info-value">${data.phone ? String(data.phone) : "Not provided"}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Age:</span>
-              <span class="info-value">${data.age || "Not provided"}</span>
+              <span class="info-value">${data.age !== undefined && data.age !== null ? String(data.age) : "Not provided"}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Registration Date:</span>

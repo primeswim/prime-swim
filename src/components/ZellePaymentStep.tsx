@@ -1,3 +1,4 @@
+// components/ZellePaymentStep.tsx
 "use client"
 
 import type { SwimmerFormData, FirebaseUser } from "@/types"
@@ -11,7 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { doc, updateDoc, getDoc } from "firebase/firestore"
+import {
+  doc,
+  updateDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import {
   DollarSign,
@@ -27,13 +34,15 @@ import {
 } from "lucide-react"
 
 export default function ZellePaymentStep({
-//   formData,
   swimmerId,
-  user,
+  user,               // 注册/续费都能传
+  formData,           // 目前只在注册 Step8 会用到
+  paymentId,          // 续费路径以后可以用，现在可以为空
 }: {
-  formData: SwimmerFormData
   swimmerId: string
-  user: FirebaseUser
+  user?: FirebaseUser | null
+  formData?: SwimmerFormData
+  paymentId?: string
 }) {
   const router = useRouter()
 
@@ -65,29 +74,55 @@ export default function ZellePaymentStep({
       return
     }
 
-    console.log("1. start confirm ...")
     setIsSubmitting(true)
     setError("")
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      console.log("Submitting payment for swimmer ID:", swimmerId)
-      console.log("user.uid:", user?.uid)
-    console.log("swimmerId:", swimmerId)
+      const trimmedName = paymentData.paymentName.trim()
+      const trimmedMemo = paymentData.paymentMemo.trim()
 
-    const ref = doc(db, "swimmers", swimmerId)
-    const snapshot = await getDoc(ref)
-    console.log("ref data:", snapshot.data())
+      // 1) 创建或更新 payments 记录
+      // 需求：“不要一创建 payment 就当成已提交”
+      // 👉 我们现在只在点 “I've completed the payment” 的时候才创建 payment，
+      //    所以这里的 status = "pending" 就表示 “家长已经完成转账，等待我们确认”
+      let finalPaymentId = paymentId
+
+      if (finalPaymentId) {
+        // 续费时若已经有 paymentId，则只更新它
+        await updateDoc(doc(db, "payments", finalPaymentId), {
+          payerName: trimmedName,
+          payerMemo: trimmedMemo,
+          status: "pending",         // 明确标记为已提交、待人工确认
+          updatedAt: serverTimestamp(),
+        })
+      } else {
+        // 注册 or 直接从 swimmerId 进入的场景：这里首次创建 payment 文档
+        const paymentRef = await addDoc(collection(db, "payments"), {
+          swimmerId,
+          parentUID: user?.uid ?? null,
+          status: "pending",         // 家长刚刚点了 “I've completed the payment”
+          method: "zelle",
+          amountCents: 7500,         // TODO: 后面要改价格可以提到常量里
+          payerName: trimmedName,
+          payerMemo: trimmedMemo,
+          createdAt: serverTimestamp(),
+        })
+        finalPaymentId = paymentRef.id
+      }
+
+      // 2) 回写 swimmer：标记 paymentStatus=pending，并记录 lastPaymentId
       await updateDoc(doc(db, "swimmers", swimmerId), {
         paymentStatus: "pending",
-        paymentName: paymentData.paymentName.trim(),
-        paymentMemo: paymentData.paymentMemo.trim(),
+        paymentName: trimmedName,
+        paymentMemo: trimmedMemo,
+        lastPaymentId: finalPaymentId ?? null,
       })
+
       setSuccess("Payment confirmation submitted successfully! Redirecting to dashboard...")
 
       setTimeout(() => {
         router.push("/dashboard")
-      }, 2000)
+      }, 1200)
     } catch (err) {
       console.error("Payment update failed:", err)
       setError("Failed to submit payment confirmation. Please try again.")
@@ -97,7 +132,7 @@ export default function ZellePaymentStep({
   }
 
   if (!swimmerId) {
-    return <p className="text-center text-red-600 mt-10">Missing swimmer ID. Please retry registration.</p>
+    return <p className="text-center text-red-600 mt-10">Missing swimmer ID. Please retry.</p>
   }
 
   return (
@@ -170,7 +205,7 @@ export default function ZellePaymentStep({
             <DollarSign className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6 tracking-tight">
-            Complete Your Registration
+            Complete Your Payment
           </h1>
           <p className="text-xl md:text-2xl text-slate-600 mb-8 font-light">Secure Payment via Zelle</p>
         </div>
@@ -184,9 +219,9 @@ export default function ZellePaymentStep({
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CreditCard className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Registration Fee Payment</CardTitle>
+              <CardTitle className="text-2xl font-bold text-slate-800">Registration / Renewal Fee</CardTitle>
               <CardDescription className="text-slate-600">
-                Complete your swimmer registration with a secure Zelle payment
+                Complete your swimmer registration or renewal with a Zelle payment
               </CardDescription>
             </CardHeader>
 
@@ -194,7 +229,7 @@ export default function ZellePaymentStep({
               {/* Payment Amount */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg text-center">
                 <h3 className="text-3xl font-bold text-slate-800 mb-2">$75.00</h3>
-                <p className="text-slate-600">Annual Registration Fee</p>
+                <p className="text-slate-600">Annual Membership Fee</p>
               </div>
 
               <Separator />
@@ -249,18 +284,17 @@ export default function ZellePaymentStep({
               {/* Confirmation Form */}
               <div className="space-y-4">
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm mb-6">
-                    <p className="text-sm text-yellow-800 font-medium">
-                        ⚠️ After sending your Zelle payment, don’t forget to:
-                    </p>
-                    <ul className="list-disc list-inside text-sm text-yellow-800 mt-2 space-y-1">
-                        <li><strong>Fill in</strong> the <span className="underline">Name Used on Zelle Payment</span></li>
-                        <li><strong>Click</strong> the <em>“I’ve Completed the Payment”</em> button</li>
-                    </ul>
-                    <p className="text-xs text-yellow-700 mt-2">
-                        This helps us confirm and match your payment for review.
-                    </p>
+                  <p className="text-sm text-yellow-800 font-medium">
+                    ⚠️ After sending your Zelle payment, don’t forget to:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-yellow-800 mt-2 space-y-1">
+                    <li><strong>Fill in</strong> the <span className="underline">Name Used on Zelle Payment</span></li>
+                    <li><strong>Click</strong> the <em>“I’ve Completed the Payment”</em> button</li>
+                  </ul>
+                  <p className="text-xs text-yellow-700 mt-2">
+                    This helps us confirm and match your payment for review.
+                  </p>
                 </div>
-
 
                 <h4 className="text-lg font-semibold text-slate-800 mb-4">Payment Confirmation</h4>
 
@@ -281,8 +315,8 @@ export default function ZellePaymentStep({
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="paymentName" className="font-semibold text-red-600 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1 text-red-600" />
-                        Name Used on Zelle Payment (Required)
+                      <AlertCircle className="w-4 h-4 mr-1 text-red-600" />
+                      Name Used on Zelle Payment (Required)
                     </Label>
                     <Input
                       id="paymentName"
@@ -301,19 +335,6 @@ export default function ZellePaymentStep({
                       onChange={(e) => handleInputChange("paymentMemo", e.target.value)}
                       placeholder="Any memo or note included in the transfer"
                     />
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 p-4 rounded-lg">
-                  <div className="flex items-start">
-                    <AlertCircle className="w-5 h-5 text-amber-600 mr-3 mt-0.5" />
-                    <div className="text-sm text-amber-700">
-                      <p className="font-medium mb-1">Important:</p>
-                      <p>
-                        Please ensure you have completed the Zelle payment before clicking the confirmation button. Your
-                        registration will be processed once we receive and verify the payment.
-                      </p>
-                    </div>
                   </div>
                 </div>
 
@@ -387,16 +408,16 @@ export default function ZellePaymentStep({
               <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
               <div className="space-y-3 text-slate-300">
                 <div className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-3" />
+                  <span className="text-sm">Bellevue, Washington</span>
+                </div>
+                <div className="flex items-center">
                   <Phone className="w-4 h-4 mr-3" />
                   <span className="text-sm">(401) 402-0052</span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="w-4 h-4 mr-3" />
                   <span className="text-sm">prime.swim.us@gmail.com</span>
-                </div>
-                <div className="flex items-start">
-                  <MapPin className="w-4 h-4 mr-3 mt-1" />
-                  <span className="text-sm">Bellevue, Washington</span>
                 </div>
               </div>
             </div>

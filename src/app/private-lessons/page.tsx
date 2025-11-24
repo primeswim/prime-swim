@@ -77,9 +77,7 @@ export default function PrivateLessonCalendar() {
         const slot = doc.data();
         return {
           id: doc.id,
-          title: `Available - ${
-            coaches.find((c) => c.id === slot.coachId)?.name ?? "Coach"
-          }`,
+          title: "Available",
           start: slot.startTime.toDate(),
           end: slot.endTime.toDate(),
           coachId: slot.coachId,
@@ -133,10 +131,9 @@ export default function PrivateLessonCalendar() {
   
 
   const EventComponent = ({ event }: { event: SlotEvent }) => {
-    const coach = coaches.find((c) => c.id === event.coachId);
     return (
       <div className="text-xs">
-        <div className="font-medium">{coach?.name}</div>
+        <div className="font-medium">Available</div>
       </div>
     );
   };
