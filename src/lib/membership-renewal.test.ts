@@ -9,7 +9,6 @@ import {
   computeStatus,
   RENEWAL_WINDOW_DAYS,
   GRACE_DAYS,
-  type MembershipStatus,
 } from './membership'
 
 // Constants from admin/swimmers/page.tsx

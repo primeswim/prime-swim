@@ -130,7 +130,7 @@ export default function PrivateLessonCalendar() {
   };
   
 
-  const EventComponent = ({ event }: { event: SlotEvent }) => {
+  const EventComponent = () => {
     return (
       <div className="text-xs">
         <div className="font-medium">Available</div>
