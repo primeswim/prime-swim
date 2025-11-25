@@ -57,13 +57,17 @@ export async function GET(req: Request) {
         const evaluations = snap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
-        }))
+        })) as Array<{ id: string; evaluatedAt?: { toDate?: () => Date } | Date | string | null; [key: string]: unknown }>
         
         // 如果没有使用 orderBy，在内存中排序
         if (evaluations.length > 0 && evaluations[0].evaluatedAt) {
           evaluations.sort((a, b) => {
-            const aDate = a.evaluatedAt?.toDate ? a.evaluatedAt.toDate().getTime() : new Date(a.evaluatedAt || 0).getTime()
-            const bDate = b.evaluatedAt?.toDate ? b.evaluatedAt.toDate().getTime() : new Date(b.evaluatedAt || 0).getTime()
+            const aDate = a.evaluatedAt && typeof a.evaluatedAt === 'object' && 'toDate' in a.evaluatedAt && typeof a.evaluatedAt.toDate === 'function'
+              ? a.evaluatedAt.toDate().getTime()
+              : new Date(a.evaluatedAt as string | number | Date || 0).getTime()
+            const bDate = b.evaluatedAt && typeof b.evaluatedAt === 'object' && 'toDate' in b.evaluatedAt && typeof b.evaluatedAt.toDate === 'function'
+              ? b.evaluatedAt.toDate().getTime()
+              : new Date(b.evaluatedAt as string | number | Date || 0).getTime()
             return bDate - aDate // 降序
           })
         }
