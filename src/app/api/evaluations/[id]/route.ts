@@ -32,7 +32,7 @@ async function isInAdminsServer(email?: string | null, uid?: string | null) {
 // DELETE: 删除评估
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = req.headers.get("authorization") || ""
@@ -45,7 +45,7 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: "Not authorized" }, { status: 403 })
     }
 
-    const evaluationId = params.id
+    const { id: evaluationId } = await params
     if (!evaluationId) {
       return NextResponse.json({ ok: false, error: "Missing evaluation ID" }, { status: 400 })
     }
