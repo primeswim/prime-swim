@@ -75,7 +75,7 @@ export default function EvaluationTemplatesPage() {
     setExpandedCategories(prev => new Set([...prev, newCategory.id]))
   }
 
-  const handleUpdateCategory = (index: number, field: keyof EvaluationCategory, value: any) => {
+  const handleUpdateCategory = (index: number, field: keyof EvaluationCategory, value: string | EvaluationSubcategory[]) => {
     const newCategories = [...(formData.categories || [])]
     newCategories[index] = { ...newCategories[index], [field]: value }
     setFormData({ ...formData, categories: newCategories })
@@ -108,7 +108,7 @@ export default function EvaluationTemplatesPage() {
     categoryIndex: number,
     subcategoryIndex: number,
     field: keyof EvaluationSubcategory,
-    value: any
+    value: string | boolean
   ) => {
     const newCategories = [...(formData.categories || [])]
     newCategories[categoryIndex].subcategories[subcategoryIndex] = {

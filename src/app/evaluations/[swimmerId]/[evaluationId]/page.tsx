@@ -16,7 +16,6 @@ import {
 } from '@/types/evaluation'
 import { Award, ArrowLeft, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import Link from 'next/link'
 
 export default function EvaluationDetailPage() {
   const params = useParams()
@@ -28,10 +27,11 @@ export default function EvaluationDetailPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async () => {
       await fetchData()
     })
     return () => unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swimmerId, evaluationId])
 
   const fetchData = async () => {

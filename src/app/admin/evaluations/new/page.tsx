@@ -255,7 +255,6 @@ export default function NewEvaluationPage() {
   }
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
-  const selectedSwimmer = swimmers.find(s => s.id === selectedSwimmerId)
 
   if (!checkedAuth) return <div className="p-6">Checking access...</div>
   if (!isAdmin) return null

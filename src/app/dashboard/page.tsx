@@ -743,7 +743,7 @@ export default function DashboardPage() {
                         </Link>
                       </div>
                       <p className="text-xs text-slate-600 mt-2">
-                        Track your child's swimming skills and progress over time
+                        Track your child&apos;s swimming skills and progress over time
                       </p>
                     </div>
                   </CardContent>

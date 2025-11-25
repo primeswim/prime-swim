@@ -13,7 +13,7 @@ import {
   GrowthDataPoint,
   ratingToNumber,
 } from '@/types/evaluation'
-import { TrendingUp, Calendar, Award, ArrowRight } from 'lucide-react'
+import { Calendar, Award, ArrowRight } from 'lucide-react'
 
 export default function SwimmerEvaluationsPage() {
   const params = useParams()
@@ -29,6 +29,7 @@ export default function SwimmerEvaluationsPage() {
       await fetchData()
     })
     return () => unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swimmerId])
 
   const fetchData = async () => {
