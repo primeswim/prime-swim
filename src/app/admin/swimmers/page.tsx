@@ -70,7 +70,7 @@ export default function AdminSwimmerPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<MembershipStatus | 'pending' | 'frozen' | null>(null)
+  const [statusFilter, setStatusFilter] = useState<MembershipStatus | 'pending' | 'frozen' | null>('active')
   const [remindBusy, setRemindBusy] = useState(false)
   const [migrating, setMigrating] = useState(false)
 
