@@ -21,7 +21,7 @@ import {
 import { auth, db } from "@/lib/firebase"
 import { Swimmer } from "@/types"
 import Footer from "@/components/footer"
-import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2 } from "lucide-react"
+import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2, TrendingUp } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -727,6 +727,24 @@ export default function DashboardPage() {
                       ) : (
                         <div className="text-slate-500 text-sm">No make-up class announced yet.</div>
                       )}
+                    </div>
+
+                    {/* Evaluation History */}
+                    <div className="mt-4 p-3 rounded-lg border bg-gradient-to-br from-blue-50 to-indigo-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-blue-600" />
+                          <span className="text-sm font-medium text-slate-800">Evaluation History</span>
+                        </div>
+                        <Link href={`/evaluations/${swimmer.id}`}>
+                          <Button variant="outline" size="sm" className="rounded-full">
+                            View Progress
+                          </Button>
+                        </Link>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-2">
+                        Track your child's swimming skills and progress over time
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
