@@ -116,13 +116,10 @@ export default async function NewsDetailPage(props: unknown) {
               )}
 
               <div className="prose prose-lg prose-slate max-w-none">
-                <div className="text-slate-700 leading-relaxed text-lg space-y-6">
-                  {news.content?.split("\n\n").map((paragraph, index) => (
-                    <p key={index} className="mb-4">
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
+                <div 
+                  className="text-slate-700 leading-relaxed text-lg"
+                  dangerouslySetInnerHTML={{ __html: news.content || "" }}
+                />
               </div>
             </CardContent>
           </Card>
