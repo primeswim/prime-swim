@@ -13,7 +13,7 @@ import {
   GrowthDataPoint,
   ratingToNumber,
 } from '@/types/evaluation'
-import { Calendar, Award, ArrowRight } from 'lucide-react'
+import { Calendar, Award, ArrowRight, FileText } from 'lucide-react'
 
 export default function SwimmerEvaluationsPage() {
   const params = useParams()
@@ -432,13 +432,18 @@ export default function SwimmerEvaluationsPage() {
               </Card>
             )}
 
-            {/* Evaluation List */}
+            {/* Evaluation Details List */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Evaluation History
-                </CardTitle>
+                <div>
+                  <CardTitle className="flex items-center gap-2 mb-2">
+                    <Calendar className="w-5 h-5" />
+                    Evaluation Details
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Click on any evaluation below to view detailed comments and feedback from your coach
+                  </p>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -457,30 +462,42 @@ export default function SwimmerEvaluationsPage() {
                     return (
                       <div
                         key={evaluation.id}
-                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                        className="border-2 border-blue-200 rounded-lg p-5 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-r from-blue-50/50 to-white"
                         onClick={() => router.push(`/evaluations/${swimmerId}/${evaluation.id}`)}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold">
+                            <div className="flex items-center gap-3 mb-3">
+                              <h3 className="text-xl font-bold text-slate-800">
                                 {formatDate(evaluation.evaluatedAt)}
                               </h3>
                               {evaluation.coachRecommendation.levelUp && (
-                                <span className="flex items-center gap-1 text-green-600 text-sm">
+                                <span className="flex items-center gap-1 text-green-600 text-sm font-semibold bg-green-50 px-2 py-1 rounded-full">
                                   <Award className="w-4 h-4" />
                                   Level Up Recommended
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              Level: {evaluation.level} • Evaluated by: {evaluation.evaluatedBy}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Average Rating: <span className="font-medium">{avgRating.toFixed(1)}/4.0</span>
-                            </p>
+                            <div className="space-y-2 mb-3">
+                              <p className="text-sm text-slate-600">
+                                <span className="font-semibold">Level:</span> {evaluation.level} • <span className="font-semibold">Evaluated by:</span> {evaluation.evaluatedBy}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                <span className="font-semibold">Average Rating:</span> <span className="font-bold text-blue-600">{avgRating.toFixed(1)}/4.0</span>
+                              </p>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-blue-200">
+                              <p className="text-sm font-semibold text-blue-700 flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                View detailed comments and feedback →
+                              </p>
+                            </div>
                           </div>
-                          <ArrowRight className="w-5 h-5 text-muted-foreground" />
+                          <div className="flex-shrink-0">
+                            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
+                              <ArrowRight className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )
