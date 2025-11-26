@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Clock, Trophy, Users, Waves } from "lucide-react"
 import Header from "@/components/header";
 import LatestNewsSection from "@/components/latest-news-section"
+import UpcomingEventsSection from "@/components/upcoming-events-section"
 import Footer from "@/components/footer";
 
 export default function Home() {
@@ -223,6 +224,8 @@ export default function Home() {
           </Card>
         </div>
       </section>
+
+      <UpcomingEventsSection />
 
       <LatestNewsSection />
       

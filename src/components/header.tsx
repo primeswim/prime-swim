@@ -108,6 +108,9 @@ export default function Header() {
           <Link href="/safesport" className="hover:text-slate-800 transition-colors">
             Safe Sport
           </Link>
+          <Link href="/events" className="hover:text-slate-800 transition-colors">
+            Events
+          </Link>
           <Link href="/news" className="hover:text-slate-800 transition-colors">
             News
           </Link>
@@ -161,6 +164,7 @@ export default function Header() {
           </div>
 
           <Link href="/safesport" className="block">Safe Sport</Link>
+          <Link href="/events" className="block">Events</Link>
           <Link href="/news" className="block">News</Link>
           <Link href="/dashboard" className="block">Dashboard</Link>
         </div>
