@@ -139,8 +139,9 @@ export default function SwimmerEvaluationsPage() {
 
     const avgRating = count > 0 ? totalRating / count : 0
 
+    // evaluatedAt 已经在上面转换为 Date 了
     return {
-      date: new Date(evaluation.evaluatedAt),
+      date: evaluation.evaluatedAt as Date,
       evaluationId: evaluation.id,
       level: evaluation.level,
       averageRating: avgRating,
