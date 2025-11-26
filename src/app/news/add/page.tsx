@@ -35,7 +35,6 @@ export default function AddNewsPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const db = getFirestore(app);
   const router = useRouter();
@@ -46,7 +45,6 @@ export default function AddNewsPage() {
       if (!user) {
         router.push("/login");
       } else {
-        setCurrentUser(user);
         // 默认设置作者为Lara
         if (!author) {
           setAuthor("Lara");
@@ -54,6 +52,7 @@ export default function AddNewsPage() {
       }
     });
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, router]);
 
   // 设置默认发布日期为今天
@@ -62,6 +61,7 @@ export default function AddNewsPage() {
       const today = new Date().toISOString().split("T")[0];
       setPublishDate(today);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isAdmin = useIsAdminFromDB();
@@ -414,7 +414,7 @@ export default function AddNewsPage() {
                       >
                         Imgur
                       </a>
-                      , then copy the "Image Link" and paste it here.
+                      , then copy the &quot;Image Link&quot; and paste it here.
                     </p>
                   </div>
                 </div>
