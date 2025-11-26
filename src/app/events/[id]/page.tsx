@@ -27,11 +27,23 @@ export default function EventDetailPage() {
         const data = await res.json()
         
         if (data.ok && data.event) {
-          const eventData = data.event as Event & { startDate?: string | Date; endDate?: string | Date }
+          const eventData = data.event as Event & { startDate?: string | Date | { toDate?: () => Date }; endDate?: string | Date | { toDate?: () => Date } }
+          
+          // Helper to convert date to string
+          const dateToString = (date: string | Date | { toDate?: () => Date } | undefined): string => {
+            if (!date) return ''
+            if (typeof date === 'string') return date
+            if (date instanceof Date) return date.toISOString().split('T')[0]
+            if (typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+              return date.toDate().toISOString().split('T')[0]
+            }
+            return ''
+          }
+          
           setEvent({
             ...eventData,
-            startDate: typeof eventData.startDate === 'string' ? eventData.startDate : (eventData.startDate instanceof Date ? eventData.startDate.toISOString().split('T')[0] : ''),
-            endDate: eventData.endDate ? (typeof eventData.endDate === 'string' ? eventData.endDate : (eventData.endDate instanceof Date ? eventData.endDate.toISOString().split('T')[0] : '')) : undefined,
+            startDate: dateToString(eventData.startDate),
+            endDate: eventData.endDate ? dateToString(eventData.endDate) : undefined,
           } as Event)
         } else {
           setError('Event not found')

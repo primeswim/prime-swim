@@ -20,10 +20,21 @@ export default function UpcomingEventsSection() {
         const data = await res.json();
         
         if (data.ok) {
-          const eventsList = data.events.map((e: Event & { startDate?: string | Date; endDate?: string | Date }) => ({
+          // Helper to convert date to string
+          const dateToString = (date: string | Date | { toDate?: () => Date } | undefined): string => {
+            if (!date) return ''
+            if (typeof date === 'string') return date
+            if (date instanceof Date) return date.toISOString().split('T')[0]
+            if (typeof date === 'object' && date !== null && 'toDate' in date && typeof date.toDate === 'function') {
+              return date.toDate().toISOString().split('T')[0]
+            }
+            return ''
+          }
+          
+          const eventsList = data.events.map((e: Event & { startDate?: string | Date | { toDate?: () => Date }; endDate?: string | Date | { toDate?: () => Date } }) => ({
             ...e,
-            startDate: typeof e.startDate === 'string' ? e.startDate : (e.startDate instanceof Date ? e.startDate.toISOString().split('T')[0] : ''),
-            endDate: e.endDate ? (typeof e.endDate === 'string' ? e.endDate : (e.endDate instanceof Date ? e.endDate.toISOString().split('T')[0] : '')) : undefined,
+            startDate: dateToString(e.startDate),
+            endDate: e.endDate ? dateToString(e.endDate) : undefined,
           }))
           
           // Sort by date and take first 3

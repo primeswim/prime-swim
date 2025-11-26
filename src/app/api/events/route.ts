@@ -40,12 +40,12 @@ export async function GET(req: Request) {
     const publishedOnly = searchParams.get("publishedOnly") === "true"
 
     const eventsRef = adminDb.collection("events")
-    let query = eventsRef
+    let query: FirebaseFirestore.Query = eventsRef
 
     // 如果只获取已发布的，需要admin权限验证
     if (publishedOnly) {
       // 公开访问，只返回已发布且未归档的事件
-      query = query.where("isPublished", "==", true).where("isArchived", "==", false)
+      query = eventsRef.where("isPublished", "==", true).where("isArchived", "==", false)
     } else {
       // 获取所有事件需要admin权限
       const authHeader = req.headers.get("authorization") || ""
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
 
     // 按类别筛选
     if (category) {
-      query = query.where("category", "==", category)
+      query = query.where("category", "==", category) as FirebaseFirestore.Query
     }
 
     // 获取数据

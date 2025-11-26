@@ -47,10 +47,11 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Event not found" }, { status: 404 })
     }
 
+    const eventData = eventDoc.data()
     const event = {
       id: eventDoc.id,
-      ...eventDoc.data(),
-    }
+      ...eventData,
+    } as Event & { isPublished?: boolean }
 
     // 如果只获取已发布的事件，且事件未发布，返回404
     if (publishedOnly && !event.isPublished) {
