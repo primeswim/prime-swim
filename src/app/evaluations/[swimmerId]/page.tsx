@@ -54,7 +54,7 @@ export default function SwimmerEvaluationsPage() {
             evaluatedAt = e.evaluatedAt.toDate()
           } else if (e.evaluatedAt instanceof Date) {
             evaluatedAt = e.evaluatedAt
-          } else if (e.evaluatedAt) {
+          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
             evaluatedAt = new Date(e.evaluatedAt)
           } else {
             evaluatedAt = new Date()
@@ -65,7 +65,7 @@ export default function SwimmerEvaluationsPage() {
             createdAt = e.createdAt.toDate()
           } else if (e.createdAt instanceof Date) {
             createdAt = e.createdAt
-          } else if (e.createdAt) {
+          } else if (e.createdAt && (typeof e.createdAt === 'string' || typeof e.createdAt === 'number')) {
             createdAt = new Date(e.createdAt)
           } else {
             createdAt = new Date()
