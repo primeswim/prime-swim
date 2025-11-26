@@ -194,7 +194,7 @@ export default function SwimmerEvaluationsPage() {
     })
   }
 
-  // 简单的折线图组件
+  // 优化的折线图组件
   const SimpleLineChart = ({
     data,
     subcategoryId,
@@ -213,8 +213,8 @@ export default function SwimmerEvaluationsPage() {
     const max = Math.max(...values, 4)
     const range = max - min || 1
     const width = 600
-    const height = 200
-    const padding = 40
+    const height = 220
+    const padding = 50
 
     const points = data.map((d, i) => {
       const x = padding + (i / (data.length - 1 || 1)) * (width - 2 * padding)
@@ -222,49 +222,114 @@ export default function SwimmerEvaluationsPage() {
       return { x, y, value: values[i], date: d.date }
     })
 
+    // 根据值获取颜色
+    const getColorForValue = (val: number) => {
+      if (val >= 3.5) return '#10b981' // green for excellent
+      if (val >= 2.5) return '#3b82f6' // blue for good
+      if (val >= 1.5) return '#f59e0b' // yellow for developing
+      return '#ef4444' // red for needs improvement
+    }
+
     return (
-      <div className="w-full overflow-x-auto">
-        {title && <h3 className="font-medium mb-2">{title}</h3>}
-        <svg width={width} height={height} className="border rounded-lg bg-white">
-          {[0, 1, 2, 3, 4].map(val => {
-            const y = height - padding - ((val - min) / range) * (height - 2 * padding)
-            return (
-              <g key={val}>
-                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#e2e8f0" strokeWidth="1" />
-                <text x={padding - 10} y={y + 4} textAnchor="end" fontSize="12" fill="#64748b">
-                  {val}
-                </text>
-              </g>
-            )
-          })}
+      <div className="w-full">
+        {title && <h4 className="font-semibold text-base mb-3 text-slate-700">{title}</h4>}
+        <div className="w-full overflow-x-auto">
+          <svg width={width} height={height} className="rounded-lg">
+            {/* 背景渐变 */}
+            <defs>
+              <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#f0f9ff" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#f0f9ff" stopOpacity="0" />
+              </linearGradient>
+            </defs>
 
-          <polyline
-            points={points.map(p => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth="2"
-          />
+            {/* 网格线 */}
+            {[0, 1, 2, 3, 4].map(val => {
+              const y = height - padding - ((val - min) / range) * (height - 2 * padding)
+              const isMainLine = val === 1 || val === 2 || val === 3 || val === 4
+              return (
+                <g key={val}>
+                  <line 
+                    x1={padding} 
+                    y1={y} 
+                    x2={width - padding} 
+                    y2={y} 
+                    stroke={isMainLine ? "#cbd5e1" : "#f1f5f9"} 
+                    strokeWidth={isMainLine ? "1.5" : "1"}
+                    strokeDasharray={isMainLine ? "0" : "4,4"}
+                  />
+                  <text 
+                    x={padding - 15} 
+                    y={y + 5} 
+                    textAnchor="end" 
+                    fontSize="11" 
+                    fill="#64748b"
+                    fontWeight={isMainLine ? "600" : "400"}
+                  >
+                    {val}
+                  </text>
+                </g>
+              )
+            })}
 
-          {points.map((p, i) => (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r="4" fill="#3b82f6" />
-              <title>{`${formatDate(p.date)}: ${p.value.toFixed(1)}`}</title>
-            </g>
-          ))}
+            {/* 填充区域 */}
+            {points.length > 1 && (
+              <polygon
+                points={`${points[0].x},${height - padding} ${points.map(p => `${p.x},${p.y}`).join(' ')} ${points[points.length - 1].x},${height - padding}`}
+                fill="url(#gradient)"
+              />
+            )}
 
-          {points.map((p, i) => (
-            <text
-              key={i}
-              x={p.x}
-              y={height - padding + 20}
-              textAnchor="middle"
-              fontSize="10"
-              fill="#64748b"
-            >
-              {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </text>
-          ))}
-        </svg>
+            {/* 折线 */}
+            <polyline
+              points={points.map(p => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {/* 数据点 */}
+            {points.map((p, i) => {
+              const color = getColorForValue(p.value)
+              return (
+                <g key={i}>
+                  <circle 
+                    cx={p.x} 
+                    cy={p.y} 
+                    r="6" 
+                    fill="white" 
+                    stroke={color}
+                    strokeWidth="2.5"
+                  />
+                  <circle 
+                    cx={p.x} 
+                    cy={p.y} 
+                    r="3" 
+                    fill={color}
+                  />
+                  <title>{`${formatDate(p.date)}: ${p.value.toFixed(1)} (${p.value >= 3.5 ? 'Excellent' : p.value >= 2.5 ? 'Good' : p.value >= 1.5 ? 'Developing' : 'Needs Improvement'})`}</title>
+                </g>
+              )
+            })}
+
+            {/* X轴日期标签 */}
+            {points.map((p, i) => (
+              <text
+                key={i}
+                x={p.x}
+                y={height - padding + 18}
+                textAnchor="middle"
+                fontSize="10"
+                fill="#64748b"
+                fontWeight="500"
+              >
+                {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </text>
+            ))}
+          </svg>
+        </div>
       </div>
     )
   }
@@ -305,63 +370,63 @@ export default function SwimmerEvaluationsPage() {
             <Card className="mb-6">
               <CardContent className="pt-6">
                 <SimpleLineChart data={growthData} />
-                <p className="text-sm text-muted-foreground mt-4 text-center">
-                  Average rating across all skills over time (1=Needs Improvement, 4=Excellent)
-                </p>
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-medium text-center mb-2">Average Rating Across All Skills Over Time</p>
+                  <div className="flex items-center justify-center gap-4 text-xs">
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">1:</span>
+                      <span className="text-red-600">Needs Improvement</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">2:</span>
+                      <span className="text-yellow-600">Developing</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">3:</span>
+                      <span className="text-blue-600">Good</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">4:</span>
+                      <span className="text-green-600">Excellent</span>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-
-            {/* Category Progress Charts */}
-            {Object.keys(categoryInfo).length > 0 && (
-              <Card className="mb-6">
-                <CardContent className="pt-6">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {Object.entries(categoryInfo).map(([categoryId, category]) => {
-                      const hasData = growthData.some(d => d.categoryRatings[categoryId] !== undefined)
-                      if (!hasData) return null
-                      return (
-                        <div key={categoryId} className="space-y-2">
-                          <h3 className="font-semibold text-lg">{category.name}</h3>
-                          <SimpleLineChart
-                            data={growthData.map(d => ({
-                              ...d,
-                              averageRating: d.categoryRatings[categoryId] || 0,
-                            }))}
-                            title=""
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Subcategory Progress Charts */}
             {Object.keys(categoryInfo).length > 0 && (
               <Card className="mb-6">
                 <CardContent className="pt-6">
-                  <div className="space-y-6">
-                    {Object.entries(categoryInfo).map(([categoryId, category]) => (
-                      <div key={categoryId} className="space-y-4">
-                        <h3 className="font-semibold text-lg">{category.name}</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          {Object.entries(category.subcategories).map(([subcategoryId, subcategory]) => {
-                            const hasData = growthData.some(d => d.subcategoryRatings[subcategoryId] !== undefined)
-                            if (!hasData) return null
-                            return (
-                              <div key={subcategoryId} className="space-y-2">
-                                <SimpleLineChart
-                                  data={growthData}
-                                  subcategoryId={subcategoryId}
-                                  title={subcategory.name}
-                                />
-                              </div>
-                            )
-                          })}
+                  <div className="space-y-8">
+                    {Object.entries(categoryInfo).map(([categoryId, category]) => {
+                      // 检查这个类别下是否有数据
+                      const hasSubcategoryData = Object.keys(category.subcategories).some(subcategoryId =>
+                        growthData.some(d => d.subcategoryRatings[subcategoryId] !== undefined)
+                      )
+                      if (!hasSubcategoryData) return null
+
+                      return (
+                        <div key={categoryId} className="space-y-4">
+                          <h3 className="text-xl font-semibold text-slate-800 border-b pb-2">{category.name}</h3>
+                          <div className="grid md:grid-cols-2 gap-6">
+                            {Object.entries(category.subcategories).map(([subcategoryId, subcategory]) => {
+                              const hasData = growthData.some(d => d.subcategoryRatings[subcategoryId] !== undefined)
+                              if (!hasData) return null
+                              return (
+                                <div key={subcategoryId} className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:shadow-md transition-shadow">
+                                  <SimpleLineChart
+                                    data={growthData}
+                                    subcategoryId={subcategoryId}
+                                    title={subcategory.name}
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
