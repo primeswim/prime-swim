@@ -87,6 +87,17 @@ const policies = [
     ],
   },
   {
+    id: "physical-contact",
+    title: "Physical Contact Policy",
+    icon: Shield,
+    content: [
+      "Swimmers are not permitted to engage in any physical contact with other swimmers during classes, including but not limited to pushing, grabbing, hitting, or any other form of physical interaction.",
+      "This policy is in place to ensure the safety and comfort of all participants and to maintain a respectful learning environment.",
+      "Any violation of this policy may result in disciplinary action, including suspension or expulsion without refund.",
+      "If a swimmer needs assistance, they should ask a coach or staff member for help rather than seeking help from other swimmers.",
+    ],
+  },
+  {
     id: "safety-health",
     title: "Safety & Health Policy",
     icon: Heart,
