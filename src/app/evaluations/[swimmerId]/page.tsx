@@ -172,8 +172,20 @@ export default function SwimmerEvaluationsPage() {
     return info
   }, [templates])
 
-  const formatDate = (date: Date | string) => {
-    const d = typeof date === 'string' ? new Date(date) : date
+  const formatDate = (date: Date | string | { toDate?: () => Date } | null | undefined) => {
+    if (!date) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    
+    let d: Date
+    if (typeof date === 'string') {
+      d = new Date(date)
+    } else if (date instanceof Date) {
+      d = date
+    } else if (typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+      d = date.toDate()
+    } else {
+      d = new Date()
+    }
+    
     if (isNaN(d.getTime())) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     return d.toLocaleDateString('en-US', {
       year: 'numeric',
