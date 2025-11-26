@@ -909,10 +909,10 @@ export default function AdminSwimmerPage() {
 
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select
-                      value={s.level || ''}
+                      value={s.level || '__none__'}
                       onValueChange={async (value) => {
                         await updateDoc(doc(db, 'swimmers', s.id), {
-                          level: value || null
+                          level: value === '__none__' ? null : value
                         })
                         await fetchSwimmers()
                       }}
@@ -921,7 +921,7 @@ export default function AdminSwimmerPage() {
                         <SelectValue placeholder="Not set" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Not set</SelectItem>
+                        <SelectItem value="__none__">Not set</SelectItem>
                         {SWIMMER_LEVELS.map((level) => (
                           <SelectItem key={level} value={level}>
                             {level}

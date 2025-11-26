@@ -185,6 +185,7 @@ export default function DashboardPage() {
             childDateOfBirth: data.childDateOfBirth,
             createdAt: data.createdAt,
             paymentStatus: data.paymentStatus || null, // ✅ 读取 swimmers.paymentStatus
+            level: data.level || undefined, // ✅ 读取 swimmers.level
 
             nextMakeupText: data.nextMakeupText,
             nextMakeupId: data.nextMakeupId,
