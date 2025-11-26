@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Event, EVENT_CATEGORY_LABELS, EVENT_CATEGORY_COLORS, getEventStatus } from '@/types/event'
-import { Plus, ExternalLink, Search, Trash2, Edit, Calendar, MapPin, Clock } from 'lucide-react'
+import { Plus, Search, Trash2, Edit, Calendar, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import {
   Dialog,
@@ -150,13 +150,6 @@ export default function AdminEventsPage() {
 
     setFilteredEvents(filtered)
   }, [searchTerm, categoryFilter, statusFilter, events])
-
-  const formatDate = (date: string | Date | null | undefined) => {
-    if (!date) return 'N/A'
-    const d = typeof date === 'string' ? new Date(date) : date
-    if (isNaN(d.getTime())) return 'Invalid Date'
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  }
 
   const formatDateTime = (date: string | Date | null | undefined, time?: string) => {
     if (!date) return 'N/A'

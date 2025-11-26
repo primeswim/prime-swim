@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { auth } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/header'
 import { Button } from '@/components/ui/button'
@@ -15,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Event, EventCategory, EVENT_CATEGORY_LABELS, EventDocument } from '@/types/event'
-import { Calendar, MapPin, Clock, Link as LinkIcon, FileText, Plus, X, AlertCircle, CheckCircle2, Upload } from 'lucide-react'
+import { Calendar, MapPin, Clock, Link as LinkIcon, FileText, Plus, X, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useIsAdminFromDB } from '@/hooks/useIsAdminFromDB'
 
 export default function NewEventPage() {
@@ -66,6 +65,7 @@ export default function NewEventPage() {
       const today = new Date().toISOString().split('T')[0]
       setStartDate(today)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const addDocument = () => {

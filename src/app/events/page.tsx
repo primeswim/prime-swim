@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Event, EVENT_CATEGORY_LABELS, EVENT_CATEGORY_COLORS, getEventStatus } from '@/types/event'
-import { Calendar, MapPin, Clock, ExternalLink, FileText } from 'lucide-react'
+import { Calendar, MapPin, Clock, ExternalLink } from 'lucide-react'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([])
