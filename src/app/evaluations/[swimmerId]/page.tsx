@@ -80,9 +80,12 @@ export default function SwimmerEvaluationsPage() {
             createdAt,
           }
         })
-        setEvaluations(evals.sort((a: Evaluation, b: Evaluation) =>
-          new Date(b.evaluatedAt).getTime() - new Date(a.evaluatedAt).getTime()
-        ))
+        setEvaluations(evals.sort((a, b) => {
+          // evaluatedAt 已经在上面转换为 Date 了
+          const aDate = (a.evaluatedAt as Date).getTime()
+          const bDate = (b.evaluatedAt as Date).getTime()
+          return bDate - aDate
+        }))
         if (evals.length > 0) {
           setSwimmerName(evals[0].swimmerName)
         } else {
