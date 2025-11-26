@@ -18,6 +18,8 @@ import {
 } from '@/lib/membership'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
+import { SWIMMER_LEVELS, type SwimmerLevel } from '@/lib/swimmer-levels'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Swimmer {
   id: string
@@ -52,6 +54,7 @@ interface Swimmer {
   medications?: string
   emergencyContactName?: string
   emergencyContactPhone?: string
+  level?: SwimmerLevel
 }
 
 type Row = Swimmer & {
@@ -861,6 +864,7 @@ export default function AdminSwimmerPage() {
               </div>
             </TableHead>
             <TableHead>Name</TableHead>
+            <TableHead>Level</TableHead>
             <TableHead>Parent</TableHead>
             <TableHead>Coverage</TableHead>
             <TableHead>Next Due</TableHead>
@@ -903,6 +907,30 @@ export default function AdminSwimmerPage() {
                     <div className="text-xs text-slate-500">{s.childGender ?? '-'}</div>
                   </TableCell>
 
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={s.level || ''}
+                      onValueChange={async (value) => {
+                        await updateDoc(doc(db, 'swimmers', s.id), {
+                          level: value || null
+                        })
+                        await fetchSwimmers()
+                      }}
+                    >
+                      <SelectTrigger className="w-40 h-8 text-xs">
+                        <SelectValue placeholder="Not set" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Not set</SelectItem>
+                        {SWIMMER_LEVELS.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+
                   <TableCell>
                     <div>{(s.parentFirstName || s.parentLastName) ? `${s.parentFirstName ?? ''} ${s.parentLastName ?? ''}`.trim() : '-'}</div>
                     <div className="text-xs text-slate-500">{s.parentEmail ?? '-'}</div>
@@ -919,7 +947,7 @@ export default function AdminSwimmerPage() {
 
                 {isExpanded && (
                   <TableRow key={`${s.id}-details`}>
-                    <TableCell colSpan={8} className="bg-slate-50">
+                    <TableCell colSpan={9} className="bg-slate-50">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         {/* Family Doctor */}
                         <div className="p-3 rounded-lg border bg-white">

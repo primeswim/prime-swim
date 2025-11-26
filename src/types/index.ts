@@ -1,11 +1,14 @@
 import { Timestamp } from "firebase/firestore"
 
+import { SwimmerLevel } from "@/lib/swimmer-levels"
+
 export interface Swimmer {
   id: string
   childFirstName: string
   childLastName: string
   childDateOfBirth: string
   paymentStatus?: string
+  level?: SwimmerLevel
   createdAt: Timestamp
 }
 

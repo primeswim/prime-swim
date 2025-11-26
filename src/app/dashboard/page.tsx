@@ -588,6 +588,11 @@ export default function DashboardPage() {
                           </CardTitle>
                           <CardDescription className="text-slate-600">
                             Age {calculateAge(swimmer.childDateOfBirth)}
+                            {swimmer.level && (
+                              <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                {swimmer.level}
+                              </span>
+                            )}
                           </CardDescription>
                           <p className="text-sm text-slate-500 mt-1">
                             Registered on: {new Date(swimmer.createdAt?.seconds * 1000).toLocaleDateString()}
