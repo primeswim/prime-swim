@@ -80,10 +80,10 @@ export default function SwimmerEvaluationsPage() {
             createdAt,
           }
         })
-        setEvaluations(evals.sort((a, b) => {
+        setEvaluations(evals.sort((a: Evaluation & { evaluatedAt: Date; createdAt: Date }, b: Evaluation & { evaluatedAt: Date; createdAt: Date }) => {
           // evaluatedAt 已经在上面转换为 Date 了
-          const aDate = (a.evaluatedAt as Date).getTime()
-          const bDate = (b.evaluatedAt as Date).getTime()
+          const aDate = a.evaluatedAt.getTime()
+          const bDate = b.evaluatedAt.getTime()
           return bDate - aDate
         }))
         if (evals.length > 0) {
