@@ -251,7 +251,7 @@ export default function TuitionPage() {
             <DollarSign className="w-8 h-8 text-blue-600" />
             Send Tuition & Training Schedule Email
           </h1>
-          <p className="text-slate-600">Send next month's tuition and training schedule information to parents</p>
+          <p className="text-slate-600">Send next month&apos;s tuition and training schedule information to parents</p>
         </div>
 
         {status && (
