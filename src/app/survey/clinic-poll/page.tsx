@@ -3,7 +3,10 @@
 
 import type React from "react"
 import Image from "next/image"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
+import { onAuthStateChanged } from "firebase/auth"
+import { collection, query, where, getDocs } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -13,26 +16,29 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, MapPin, User, AlertTriangle, CheckCircle2, Phone } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Calendar, MapPin, User, AlertTriangle, CheckCircle2, Phone, Loader2 } from "lucide-react"
 
 /** Clinic slot model */
 interface ClinicSlot {
   date: string
   label: string
+  time?: string
 }
 
-type LocationName =
-  | "Mary Wayte Pool (Mercer Island)"
-  | "Bellevue Aquatic Center (Bellevue)"
-  | "Julius Boehm Pool (Issaquah)"
+interface ClinicLocation {
+  name: string
+  slots: ClinicSlot[]
+}
 
-const CLINIC_OPTIONS: Partial<Record<LocationName, ClinicSlot[]>> = {
-  "Bellevue Aquatic Center (Bellevue)": [
-    { date: "2025-12-23", label: "Tue Dec 23 — 1:00–3:00pm" },
-    { date: "2025-12-26", label: "Fri Dec 26 — 1:00–3:00pm" },
-    { date: "2025-12-30", label: "Tue Dec 30 — 1:00–3:00pm" },
-    { date: "2026-01-02", label: "Fri Jan 2 — 1:00–3:00pm" },
-  ],
+interface ClinicConfig {
+  id?: string
+  season: string
+  title: string
+  description?: string
+  locations: ClinicLocation[]
+  levels?: string[]
+  active: boolean
 }
 
 type Level =
@@ -42,7 +48,7 @@ type Level =
   | "advanced-legal-4-strokes"
 
 interface Preference {
-  location: LocationName
+  location: string
   selections: string[]
 }
 
@@ -54,11 +60,27 @@ interface FormState {
   preferences: Preference[]
 }
 
+interface SwimmerInfo {
+  id: string
+  childFirstName: string
+  childLastName: string
+  parentFirstName?: string
+  parentLastName?: string
+  parentEmail?: string
+  parentPhone?: string
+  level?: string
+}
+
 type SubmitResponse = { error?: string }
 
 const MIN_SUGGESTED_CHOICES = 2
 
 export default function ClinicSurveyPage() {
+  const [config, setConfig] = useState<ClinicConfig | null>(null)
+  const [loadingConfig, setLoadingConfig] = useState(true)
+  const [user, setUser] = useState<{ uid: string; email: string | null } | null>(null)
+  const [swimmers, setSwimmers] = useState<SwimmerInfo[]>([])
+  const [selectedSwimmerId, setSelectedSwimmerId] = useState<string>("")
   const [form, setForm] = useState<FormState>({
     parentEmail: "",
     parentPhone: "",
@@ -68,6 +90,100 @@ export default function ClinicSurveyPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [honeypot, setHoneypot] = useState("")
+  const [autoFilled, setAutoFilled] = useState(false)
+
+  // Load active clinic config
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await fetch("/api/clinic/config/active")
+        if (!res.ok) throw new Error("Failed to load clinic config")
+        const data = await res.json()
+        if (data.config) {
+          setConfig(data.config)
+        }
+      } catch (err) {
+        console.error("Load config error:", err)
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+    loadConfig()
+  }, [])
+
+  // Load user and swimmers if logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUser({ uid: u.uid, email: u.email })
+        // Load swimmers
+        try {
+          const swimmerQuery = query(collection(db, "swimmers"), where("parentUID", "==", u.uid))
+          const snapshot = await getDocs(swimmerQuery)
+          const swimmerData: SwimmerInfo[] = []
+          snapshot.forEach((doc) => {
+            const data = doc.data()
+            swimmerData.push({
+              id: doc.id,
+              childFirstName: data.childFirstName || "",
+              childLastName: data.childLastName || "",
+              parentFirstName: data.parentFirstName || "",
+              parentLastName: data.parentLastName || "",
+              parentEmail: data.parentEmail || u.email || "",
+              parentPhone: data.parentPhone || "",
+              level: data.level || "",
+            })
+          })
+          setSwimmers(swimmerData)
+          if (swimmerData.length === 1) {
+            // Auto-select if only one swimmer
+            setSelectedSwimmerId(swimmerData[0].id)
+          }
+        } catch (err) {
+          console.error("Load swimmers error:", err)
+        }
+      } else {
+        setUser(null)
+        setSwimmers([])
+      }
+    })
+    return () => unsubscribe()
+  }, [])
+
+  // Auto-fill form when swimmer is selected
+  useEffect(() => {
+    if (selectedSwimmerId && swimmers.length > 0 && !autoFilled) {
+      const swimmer = swimmers.find((s) => s.id === selectedSwimmerId)
+      if (swimmer) {
+        const swimmerName = [swimmer.childFirstName, swimmer.childLastName].filter(Boolean).join(" ").trim()
+        
+        // Map swimmer level to clinic level if needed
+        let clinicLevel: Level | "" = ""
+        if (swimmer.level) {
+          // Try to map to clinic level format
+          const levelLower = swimmer.level.toLowerCase()
+          if (levelLower.includes("bronze") || levelLower.includes("beginner")) {
+            clinicLevel = "beginner-kicks-bubbles"
+          } else if (levelLower.includes("silver") || levelLower.includes("novice")) {
+            clinicLevel = "novice-25y-freestyle"
+          } else if (levelLower.includes("gold") || levelLower.includes("intermediate")) {
+            clinicLevel = "intermediate-4-strokes-basic"
+          } else if (levelLower.includes("platinum") || levelLower.includes("advanced")) {
+            clinicLevel = "advanced-legal-4-strokes"
+          }
+        }
+
+        setForm({
+          parentEmail: swimmer.parentEmail || user?.email || "",
+          parentPhone: swimmer.parentPhone || "",
+          swimmerName: swimmerName || "",
+          level: clinicLevel,
+          preferences: [],
+        })
+        setAutoFilled(true)
+      }
+    }
+  }, [selectedSwimmerId, swimmers, user, autoFilled])
 
   const totalSelected = useMemo(
     () => form.preferences.reduce((sum, p) => sum + p.selections.length, 0),
@@ -79,7 +195,7 @@ export default function ClinicSurveyPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  const toggleSelection = (location: LocationName, slotLabel: string) => {
+  const toggleSelection = (location: string, slotLabel: string) => {
     setForm((prev) => {
       const existing = prev.preferences.find((p) => p.location === location)
       if (!existing) {
@@ -98,9 +214,10 @@ export default function ClinicSurveyPage() {
     })
   }
 
-  const selectAllForLocation = (location: LocationName) => {
-    const slots = CLINIC_OPTIONS[location] ?? []
-    const allLabels = slots.map((s) => s.label)
+  const selectAllForLocation = (location: string) => {
+    const locationData = config?.locations.find((l) => l.name === location)
+    if (!locationData) return
+    const allLabels = locationData.slots.map((s) => s.label)
     setForm((prev) => {
       const exists = prev.preferences.find((p) => p.location === location)
       if (!exists) {
@@ -115,7 +232,7 @@ export default function ClinicSurveyPage() {
     })
   }
 
-  const clearLocation = (location: LocationName) => {
+  const clearLocation = (location: string) => {
     setForm((prev) => ({
       ...prev,
       preferences: prev.preferences.map((p) =>
@@ -145,8 +262,9 @@ export default function ClinicSurveyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          season: "Winter Break 2025–26",
+          season: config?.season || "Winter Break 2025–26",
           website: honeypot,
+          swimmerId: selectedSwimmerId || undefined,
         }),
       })
       const json = (await res.json()) as SubmitResponse
@@ -155,6 +273,8 @@ export default function ClinicSurveyPage() {
       alert("Thanks! Your clinic preferences have been submitted.")
       setForm({ parentEmail: "", parentPhone: "", swimmerName: "", level: "", preferences: [] })
       setHoneypot("")
+      setAutoFilled(false)
+      setSelectedSwimmerId("")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to submit. Please try again."
       alert(message)
@@ -163,8 +283,35 @@ export default function ClinicSurveyPage() {
     }
   }
 
-  // 为 map 渲染获得更明确的键类型
-  const LOCATION_KEYS = Object.keys(CLINIC_OPTIONS) as LocationName[]
+  if (loadingConfig) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-slate-600">Loading clinic information...</p>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (!config) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              No active clinic is currently available. Please check back later.
+            </AlertDescription>
+          </Alert>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -183,11 +330,14 @@ export default function ClinicSurveyPage() {
             />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">
-            Winter Break Clinic Preferences
+            {config.title}
           </h1>
           <p className="text-xl md:text-2xl text-slate-600 mb-2 font-light">
-            Tell us which clinic days/times work during Winter Break 2025–26
+            Tell us which clinic days/times work during {config.season}
           </p>
+          {config.description && (
+            <p className="text-lg text-slate-500 mt-4">{config.description}</p>
+          )}
           <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3 text-blue-800 shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mt-0.5 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 5a7 7 0 110 14a7 7 0 010-14z" />
@@ -211,7 +361,7 @@ export default function ClinicSurveyPage() {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-slate-800 text-center flex items-center justify-center">
                   <Calendar className="w-6 h-6 mr-2" />
-                  Winter Clinic — Interest Survey
+                  {config.title} — Interest Survey
                 </CardTitle>
                 <CardDescription className="text-center text-slate-600">
                   Parent email, phone, swimmer info, location & time preferences
@@ -220,6 +370,28 @@ export default function ClinicSurveyPage() {
 
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-10">
+                  {/* Swimmer Selection (if logged in and has multiple swimmers) */}
+                  {user && swimmers.length > 1 && (
+                    <div className="space-y-2">
+                      <Label htmlFor="swimmerSelect">Select Swimmer *</Label>
+                      <Select value={selectedSwimmerId} onValueChange={(v) => {
+                        setSelectedSwimmerId(v)
+                        setAutoFilled(false)
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a swimmer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {swimmers.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {[s.childFirstName, s.childLastName].filter(Boolean).join(" ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   {/* 1. Parent & Swimmer */}
                   <div className="space-y-6">
                     <div className="flex items-center space-x-2">
@@ -231,6 +403,15 @@ export default function ClinicSurveyPage() {
                         Parent & Swimmer
                       </h3>
                     </div>
+
+                    {user && swimmers.length > 0 && (
+                      <Alert className="bg-blue-50 border-blue-200">
+                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                        <AlertDescription className="text-blue-800">
+                          Your information has been auto-filled from your account. You can edit if needed.
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                     <div className="grid md:grid-cols-3 gap-6">
                       <div className="space-y-2">
@@ -328,11 +509,12 @@ export default function ClinicSurveyPage() {
 
                     <p className="text-slate-600">
                       <strong>We encourage daily attendance if your schedule allows.</strong>{" "}
-                      Select <em>all</em> dates that work (use “Select all” per location for convenience).
+                      Select <em>all</em> dates that work (use &quot;Select all&quot; per location for convenience).
                     </p>
 
-                    {LOCATION_KEYS.map((location) => {
-                      const slots = CLINIC_OPTIONS[location]
+                    {config.locations.map((locationData) => {
+                      const location = locationData.name
+                      const slots = locationData.slots
                       if (!slots?.length) return null
 
                       const chosen = form.preferences.find((p) => p.location === location)?.selections ?? []

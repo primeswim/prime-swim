@@ -34,6 +34,7 @@ interface ClinicPayload {
   preferences?: Preference[];
   season?: string;
   website?: string;                     // honeypot
+  swimmerId?: string;                   // Optional: ID of registered swimmer
 }
 
 /** --------- 小工具 --------- */
@@ -123,18 +124,25 @@ export async function POST(request: Request) {
         : [],
     }));
 
-    // 5) 幂等写库（✅ 保存 parentPhone）
+    // 5) 幂等写库（✅ 保存 parentPhone 和 swimmerId）
     const docId = deterministicId(season, parentEmail, swimmerName);
+    const submissionData: Record<string, unknown> = {
+      parentEmail,
+      parentPhone: parentPhoneRaw,    // ✅ 关键：写入 phone 字段
+      swimmerName,
+      level,
+      preferences: safePrefs,
+      season,
+      submittedAt: Timestamp.now(),
+    };
+    
+    // Add swimmerId if provided (for registered swimmers)
+    if (payload.swimmerId) {
+      submissionData.swimmerId = payload.swimmerId;
+    }
+    
     await adminDb.collection("clinicSubmissions").doc(docId).set(
-      {
-        parentEmail,
-        parentPhone: parentPhoneRaw,    // ✅ 关键：写入 phone 字段
-        swimmerName,
-        level,
-        preferences: safePrefs,
-        season,
-        submittedAt: Timestamp.now(),
-      },
+      submissionData,
       { merge: true }
     );
 
