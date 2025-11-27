@@ -5,6 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useIsAdminFromDB } from "../../../hooks/useIsAdminFromDB";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import Header from "@/components/header";
+import { DollarSign, Calendar, Mail, User, Users, Search, CheckCircle2, AlertCircle, CreditCard } from "lucide-react";
 
 type SwimmerDoc = {
   id: string;
@@ -29,17 +39,19 @@ type SwimmerFS = {
 
 type SendResp = { ok: boolean; data?: unknown; error?: string };
 
-const monthsChoices = (() => {
+// Function to generate months list based on current date
+const generateMonthsChoices = (): string[] => {
   const now = new Date();
   const list: string[] = [];
-  for (let i = -1; i < 12; i++) {
+  // Generate months from -1 (last month) to 24 months ahead
+  for (let i = -1; i < 24; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     list.push(d.toLocaleString("en-US", { month: "long", year: "numeric" }));
   }
   return list;
-})();
+};
 
-const QR_IMG =
+const DEFAULT_QR_IMG =
   process.env.NEXT_PUBLIC_QR_IMAGE_URL ||
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
 
@@ -63,6 +75,8 @@ export default function TuitionPage() {
   const [extraNote, setExtraNote] = useState("");
 
   const [status, setStatus] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // 加载 swimmers（映射到兼容字段）
   useEffect(() => {
@@ -104,6 +118,21 @@ export default function TuitionPage() {
     })();
   }, []);
 
+  // Generate months choices dynamically based on current date
+  const monthsChoices = useMemo(() => generateMonthsChoices(), []);
+
+  // Filter swimmers by search term
+  const filteredSwimmers = useMemo(() => {
+    if (!searchTerm.trim()) return swimmers;
+    const term = searchTerm.toLowerCase();
+    return swimmers.filter(
+      (s) =>
+        s.swimmerName.toLowerCase().includes(term) ||
+        s.parentName?.toLowerCase().includes(term) ||
+        s.parentEmail.toLowerCase().includes(term)
+    );
+  }, [swimmers, searchTerm]);
+
   // 切换学生 → 自动回填
   useEffect(() => {
     const s = swimmers.find((x) => x.id === selectedId);
@@ -117,6 +146,7 @@ export default function TuitionPage() {
       setSwimmerName("");
     }
   }, [selectedId, swimmers]);
+
 
   const subjectPreview = useMemo(() => {
     const m = months.length
@@ -134,17 +164,33 @@ export default function TuitionPage() {
     return `Prime Swim Academy — Tuition for ${m} (Due ${due})`;
   }, [months, dueDate]);
 
-  if (isAdmin === null) return <div className="p-6">Checking permission…</div>;
-  if (!isAdmin)
+  if (isAdmin === null) {
     return (
-      <div className="p-6 text-red-600 font-semibold">
-        Not authorized (admin only).
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="container mx-auto px-4 py-10">
+          <p className="text-center">Checking permission…</p>
+        </div>
       </div>
     );
+  }
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="container mx-auto px-4 py-10">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Not authorized (admin only).</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
 
   const handleSend = async () => {
     try {
-      setStatus("Sending…");
+      setStatus("Sending email…");
       const u = auth.currentUser;
       if (!u) throw new Error("Not signed in");
       const idToken = await u.getIdToken(true);
@@ -170,165 +216,308 @@ export default function TuitionPage() {
 
       const j: SendResp = await res.json();
       if (!res.ok || !j.ok) throw new Error(j.error || "Send failed");
-      setStatus("✅ Sent!");
+      
+      setStatus(`✅ Tuition & training schedule email sent successfully to ${parentEmail}`);
+      setSuccess(true);
+      
+      // Reset form after successful send
+      setTimeout(() => {
+        setStatus("");
+        setSuccess(false);
+        setSelectedId("");
+        setParentEmail("");
+        setParentName("");
+        setSwimmerName("");
+        setMonths([]);
+        setPracticeText("");
+        setDueDate("");
+        setAmount(0);
+        setExtraNote("");
+        setSearchTerm("");
+      }, 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setStatus("❌ " + msg);
+      setSuccess(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Send Tuition Email</h1>
-
-      <div className="grid gap-4">
-        {/* 学生选择 */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Student</span>
-          <select
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="border rounded-lg p-2"
-          >
-            <option value="">Select a student…</option>
-            {swimmers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.swimmerName}
-                {s.parentName ? ` — ${s.parentName}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {/* 新增：学生名字可编辑输入框（放在 Parent name 上方） */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Student name</span>
-          <input
-            className="border rounded-lg p-2"
-            value={swimmerName}
-            onChange={(e) => setSwimmerName(e.target.value)}
-            placeholder="Type or edit the swimmer's name"
-          />
-        </label>
-
-        {/* 家长信息 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Parent name</span>
-            <input
-              className="border rounded-lg p-2"
-              value={parentName}
-              onChange={(e) => setParentName(e.target.value)}
-            />
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Parent email</span>
-            <input
-              className="border rounded-lg p-2"
-              value={parentEmail}
-              onChange={(e) => setParentEmail(e.target.value)}
-            />
-          </label>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+      <Header />
+      <div className="container mx-auto px-4 py-10 max-w-5xl">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-slate-800 mb-2 flex items-center gap-3">
+            <DollarSign className="w-8 h-8 text-blue-600" />
+            Send Tuition & Training Schedule Email
+          </h1>
+          <p className="text-slate-600">Send next month's tuition and training schedule information to parents</p>
         </div>
 
-        {/* 选择月份 */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Months (multi-select)</span>
-          <select
-            multiple
-            className="border rounded-lg p-2 h-32"
-            value={months}
-            onChange={(e) =>
-              setMonths(Array.from(e.target.selectedOptions).map((o) => o.value))
-            }
+        {status && (
+          <Alert 
+            variant={success ? "default" : "destructive"}
+            className={`mb-6 ${success ? "border-green-200 bg-green-50" : ""}`}
           >
-            {monthsChoices.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-slate-500">
-            Hold Cmd/Ctrl to select multiple
-          </span>
-        </label>
+            {success ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            )}
+            <AlertDescription className={success ? "text-green-800" : ""}>
+              {status}
+            </AlertDescription>
+          </Alert>
+        )}
 
-        {/* 训练安排描述 */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Practice details</span>
-          <textarea
-            className="border rounded-lg p-2"
-            placeholder="e.g., Mon/Wed 7:00–8:00 PM at Mary Wayte Pool"
-            value={practiceText}
-            onChange={(e) => setPracticeText(e.target.value)}
-          />
-        </label>
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Left: Student & Parent Info */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Student & Parent Information
+                </CardTitle>
+                <CardDescription>Select a student and review their information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Search swimmers, parents, or emails..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
 
-        {/* 学费到期与金额 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Tuition due date</span>
-            <input
-              type="date"
-              className="border rounded-lg p-2"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">Amount (USD)</span>
-            <input
-              type="number"
-              min={0}
-              step={1}
-              className="border rounded-lg p-2"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value || 0))}
-            />
-          </label>
-        </div>
+                {/* Student Selection */}
+                <div className="space-y-2">
+                  <Label>Student</Label>
+                  <Select value={selectedId} onValueChange={setSelectedId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a student…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredSwimmers.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-slate-500">No swimmers found</div>
+                      ) : (
+                        filteredSwimmers.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.swimmerName}
+                            {s.parentName ? ` — ${s.parentName}` : ""}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-        {/* 新增：额外文本框（将插入到 late fee 句子后） */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">
-            Extra note (appended after the late-fee sentence)
-          </span>
-          <textarea
-            className="border rounded-lg p-2"
-            placeholder="This note will appear right after: “A $35 late fee will be applied …”."
-            value={extraNote}
-            onChange={(e) => setExtraNote(e.target.value)}
-          />
-          <span className="text-xs text-slate-500">
-            Style: plain black text. Leave empty if not needed.
-          </span>
-        </label>
+                {/* Student Name (Editable) */}
+                <div className="space-y-2">
+                  <Label htmlFor="swimmerName">Student Name</Label>
+                  <Input
+                    id="swimmerName"
+                    value={swimmerName}
+                    onChange={(e) => setSwimmerName(e.target.value)}
+                    placeholder="Type or edit the swimmer's name"
+                  />
+                </div>
 
-        {/* 二维码预览 */}
-        <div className="grid gap-2">
-          <span className="text-sm font-medium">QR Preview</span>
-          <div className="border rounded-lg p-4 flex items-center justify-center min-h-48 bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={QR_IMG} alt="Payment QR" className="max-h-48" />
+                {/* Parent Information */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="parentName">Parent Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        id="parentName"
+                        value={parentName}
+                        onChange={(e) => setParentName(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parentEmail">Parent Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        id="parentEmail"
+                        type="email"
+                        value={parentEmail}
+                        onChange={(e) => setParentEmail(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* QR Code Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Payment QR Code
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg p-4 flex items-center justify-center min-h-48 bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={DEFAULT_QR_IMG} alt="Payment QR" className="max-h-48 max-w-full object-contain" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Invoice Details */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Tuition & Schedule Details
+                </CardTitle>
+                <CardDescription>Enter tuition and training schedule information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Months Selection */}
+                <div className="space-y-2">
+                  <Label>Months (Select training months)</Label>
+                  <div className="border rounded-lg p-4 max-h-80 overflow-y-auto bg-slate-50">
+                    <div className="grid grid-cols-2 gap-3">
+                      {monthsChoices.map((m) => {
+                        const isSelected = months.includes(m);
+                        return (
+                          <div key={m} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`month-${m}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setMonths([...months, m]);
+                                } else {
+                                  setMonths(months.filter((month) => month !== m));
+                                }
+                              }}
+                            />
+                            <Label
+                              htmlFor={`month-${m}`}
+                              className="text-sm font-normal cursor-pointer flex-1"
+                            >
+                              {m}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{months.length} month(s) selected</span>
+                    <button
+                      type="button"
+                      onClick={() => setMonths(months.length === monthsChoices.length ? [] : [...monthsChoices])}
+                      className="text-blue-600 hover:text-blue-700 underline"
+                    >
+                      {months.length === monthsChoices.length ? "Deselect All" : "Select All"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Practice Details */}
+                <div className="space-y-2">
+                  <Label htmlFor="practiceText">Practice Details</Label>
+                  <Textarea
+                    id="practiceText"
+                    placeholder="e.g., Mon/Wed 7:00–8:00 PM at Mary Wayte Pool"
+                    value={practiceText}
+                    onChange={(e) => setPracticeText(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+
+                {/* Due Date & Amount */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dueDate">Tuition Due Date</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        id="dueDate"
+                        type="date"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount (USD)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        id="amount"
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={amount || ""}
+                        onChange={(e) => setAmount(Number(e.target.value || 0))}
+                        className="pl-10"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extra Note */}
+                <div className="space-y-2">
+                  <Label htmlFor="extraNote">Extra Note (Optional)</Label>
+                  <Textarea
+                    id="extraNote"
+                    placeholder='This note will appear right after: "A $35 late fee will be applied …".'
+                    value={extraNote}
+                    onChange={(e) => setExtraNote(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Style: plain black text. Leave empty if not needed.
+                  </p>
+                </div>
+
+                {/* Subject Preview */}
+                <div className="space-y-2">
+                  <Label>Email Subject Preview</Label>
+                  <div className="border rounded-lg p-3 bg-blue-50 border-blue-200">
+                    <p className="text-sm font-medium text-blue-900">{subjectPreview}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Send Button */}
+            <Button
+              onClick={handleSend}
+              size="lg"
+              className="w-full"
+              disabled={!selectedId || !parentEmail || !swimmerName || months.length === 0 || !dueDate || amount <= 0 || status.includes("Sending")}
+            >
+              {status.includes("Sending") ? (
+                "Sending..."
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Tuition & Schedule Email
+                </>
+              )}
+            </Button>
           </div>
         </div>
-
-        {/* 主题预览 */}
-        <div className="grid gap-1">
-          <span className="text-sm font-medium">Subject Preview</span>
-          <div className="border rounded-lg p-2 bg-slate-50">{subjectPreview}</div>
-        </div>
-
-        {/* 发送按钮 */}
-        <button
-          onClick={handleSend}
-          className="rounded-2xl px-5 py-3 font-semibold shadow bg-black text-white hover:opacity-90"
-        >
-          Send Email
-        </button>
-
-        {/* 状态 */}
-        <div className="text-sm">{status}</div>
       </div>
     </div>
   );

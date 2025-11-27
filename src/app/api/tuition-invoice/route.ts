@@ -6,7 +6,7 @@ import { adminDb } from "@/lib/firebaseAdmin"; // Admin SDK (server) with Firest
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Absolute URL to your QR image
+// QR image URL
 const QR_IMG: string =
   process.env.NEXT_PUBLIC_QR_IMAGE_URL ||
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
