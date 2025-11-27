@@ -74,6 +74,7 @@ export default function AdminSwimmerPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<MembershipStatus | 'pending' | 'frozen' | null>('active')
+  const [levelFilter, setLevelFilter] = useState<SwimmerLevel | 'all' | null>(null)
   const [remindBusy, setRemindBusy] = useState(false)
   const [migrating, setMigrating] = useState(false)
 
@@ -280,16 +281,22 @@ export default function AdminSwimmerPage() {
       })
   }, [swimmers, search])
 
-  // 基于 allRows 应用状态过滤
+  // 基于 allRows 应用状态和 level 过滤
   const rows: Row[] = useMemo(() => {
     return allRows.filter(r => {
       // 应用状态过滤
-      if (statusFilter === null) return true
-      if (statusFilter === 'pending') return r.paymentStatus === 'pending'
-      if (statusFilter === 'frozen') return r.isFrozen === true
-      return r._status === statusFilter
+      if (statusFilter !== null) {
+        if (statusFilter === 'pending' && r.paymentStatus !== 'pending') return false
+        if (statusFilter === 'frozen' && r.isFrozen !== true) return false
+        if (statusFilter !== 'pending' && statusFilter !== 'frozen' && r._status !== statusFilter) return false
+      }
+      // 应用 level 过滤
+      if (levelFilter !== null && levelFilter !== 'all') {
+        if (r.level !== levelFilter) return false
+      }
+      return true
     })
-  }, [allRows, statusFilter])
+  }, [allRows, statusFilter, levelFilter])
 
   // 基于 allRows 计算 KPI（不受过滤影响）
   const kpi = useMemo(() => {
@@ -782,6 +789,25 @@ export default function AdminSwimmerPage() {
           placeholder="Search swimmers / parents / email / phone"
           className="w-80"
         />
+        <Select
+          value={levelFilter || 'all'}
+          onValueChange={(value) => {
+            setLevelFilter(value === 'all' ? null : (value as SwimmerLevel))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by level" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            {SWIMMER_LEVELS.map((level) => (
+              <SelectItem key={level} value={level}>
+                {level}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button 
             variant="outline" 

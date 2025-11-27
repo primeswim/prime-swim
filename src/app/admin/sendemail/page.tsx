@@ -13,13 +13,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Header from "@/components/header";
-import { Mail, Users, CheckCircle2, AlertCircle, FileText, Eye } from "lucide-react";
+import { Mail, Users, CheckCircle2, AlertCircle, FileText, Eye, Filter } from "lucide-react";
+import { type SwimmerLevel, LEVEL_GROUPS } from "@/lib/swimmer-levels";
 
 type SwimmerDoc = {
   id: string;
   swimmerName: string;
   parentName?: string;
   parentEmail: string;
+  level?: SwimmerLevel;
 };
 
 type SwimmerFS = {
@@ -33,6 +35,7 @@ type SwimmerFS = {
   parentName?: string;
   parentEmail?: string;
   parentEmails?: string[];
+  level?: SwimmerLevel;
 };
 
 type SendResp = { ok: boolean; data?: unknown; error?: string };
@@ -180,6 +183,7 @@ export default function SendEmailAdminPage() {
 
   const [swimmers, setSwimmers] = useState<SwimmerDoc[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedLevels, setSelectedLevels] = useState<SwimmerLevel[]>([]);
 
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
@@ -217,8 +221,9 @@ export default function SendEmailAdminPage() {
           "";
         const pEmail =
           x.parentEmail || (Array.isArray(x.parentEmails) ? x.parentEmails[0] : "") || "";
+        const level = x.level as SwimmerLevel | undefined;
         if (sName) {
-          arr.push({ id: d.id, swimmerName: sName, parentName: pName, parentEmail: pEmail });
+          arr.push({ id: d.id, swimmerName: sName, parentName: pName, parentEmail: pEmail, level });
         }
       });
       setSwimmers(arr.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName)));
@@ -227,12 +232,23 @@ export default function SendEmailAdminPage() {
 
   /** 基于选择推导出的默认邮箱集合（去重） */
   const recipientsDefault = useMemo(() => {
-    return selectedIds
+    // Get emails from selected IDs
+    const fromIds = selectedIds
       .map((id) => swimmers.find((s) => s.id === id))
       .filter((s): s is SwimmerDoc => !!s && !!s.parentEmail)
-      .map((s) => s.parentEmail.toLowerCase())
-      .filter((email, idx, self) => self.indexOf(email) === idx);
-  }, [selectedIds, swimmers]);
+      .map((s) => s.parentEmail.toLowerCase());
+    
+    // Get emails from selected levels
+    const fromLevels = selectedLevels.length > 0
+      ? swimmers
+          .filter((s) => s.level && selectedLevels.includes(s.level) && s.parentEmail)
+          .map((s) => s.parentEmail.toLowerCase())
+      : [];
+    
+    // Combine and deduplicate
+    const allEmails = [...fromIds, ...fromLevels];
+    return allEmails.filter((email, idx, self) => self.indexOf(email) === idx);
+  }, [selectedIds, selectedLevels, swimmers]);
 
   /** 当选择变化时，如果用户尚未手动改动过收件人，就同步默认值到可编辑文本 */
   useEffect(() => {
@@ -381,6 +397,61 @@ export default function SendEmailAdminPage() {
                 <CardDescription>Choose students or enter email addresses directly</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Filter by Level */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    Filter by Level (multi-select)
+                  </Label>
+                  <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-slate-50">
+                    <div className="space-y-2">
+                      {Object.entries(LEVEL_GROUPS).map(([group, levels]) => (
+                        <div key={group} className="space-y-1">
+                          <p className="text-xs font-semibold text-slate-700 uppercase">{group}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {levels.map((level) => {
+                              const isSelected = selectedLevels.includes(level);
+                              return (
+                                <div key={level} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`level-${level}`}
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedLevels([...selectedLevels, level]);
+                                      } else {
+                                        setSelectedLevels(selectedLevels.filter((l) => l !== level));
+                                      }
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`level-${level}`}
+                                    className="text-sm font-normal cursor-pointer flex-1"
+                                  >
+                                    {level.replace(`${group} `, "")}
+                                  </Label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{selectedLevels.length} level(s) selected</span>
+                    {selectedLevels.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLevels([])}
+                        className="text-blue-600 hover:text-blue-700 underline"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Multi-select students */}
                 <div className="space-y-2">
                   <Label>Students (multi-select)</Label>
@@ -392,15 +463,29 @@ export default function SendEmailAdminPage() {
                       setSelectedIds(Array.from(e.target.selectedOptions).map((o) => o.value))
                     }
                   >
-                    {swimmers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.swimmerName}
-                        {s.parentName ? ` — ${s.parentName}` : ""}
-                        {s.parentEmail ? `  <${s.parentEmail}>` : ""}
-                      </option>
-                    ))}
+                    {swimmers
+                      .filter((s) => {
+                        // If levels are selected, only show swimmers matching those levels
+                        if (selectedLevels.length > 0) {
+                          return s.level && selectedLevels.includes(s.level);
+                        }
+                        return true;
+                      })
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.swimmerName}
+                          {s.level ? ` [${s.level}]` : ""}
+                          {s.parentName ? ` — ${s.parentName}` : ""}
+                          {s.parentEmail ? `  <${s.parentEmail}>` : ""}
+                        </option>
+                      ))}
                   </select>
                   <p className="text-xs text-slate-500">Hold Cmd/Ctrl to select multiple</p>
+                  {selectedLevels.length > 0 && (
+                    <p className="text-xs text-blue-600">
+                      Showing only {selectedLevels.join(", ")} swimmers
+                    </p>
+                  )}
                 </div>
 
                 {/* Recipients (editable) */}
