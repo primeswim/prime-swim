@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -403,7 +403,9 @@ export default function ArrangementPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checked, setChecked] = useState(false);
   const [data, setData] = useState<AggregatePayload | null>(null);
-  const [season, setSeason] = useState<string>("Winter Break 2025–26");
+  const searchParams = useSearchParams();
+  const initialSeason = searchParams.get("season") || "Winter Break 2025–26";
+  const [season, setSeason] = useState<string>(initialSeason);
 
   const router = useRouter();
 
@@ -438,6 +440,14 @@ export default function ArrangementPage() {
 
     return () => unsub();
   }, [router, season]);
+
+  // Update season when URL param changes
+  useEffect(() => {
+    const urlSeason = searchParams.get("season");
+    if (urlSeason && urlSeason !== season) {
+      setSeason(urlSeason);
+    }
+  }, [searchParams, season]);
 
   if (!checked) return <p className="text-center mt-10">Checking admin access…</p>;
   if (!isAdmin) return null;

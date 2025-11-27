@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Header from "@/components/header";
-import { Calendar, MapPin, Plus, Trash2, Edit, Save, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, Plus, Trash2, Edit, Save, X, CheckCircle2, AlertCircle, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface ClinicSlot {
   date: string;
@@ -37,6 +38,7 @@ interface ClinicConfig {
 
 export default function ClinicAdminPage() {
   const isAdmin = useIsAdminFromDB();
+  const router = useRouter();
   const [configs, setConfigs] = useState<ClinicConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -437,6 +439,15 @@ export default function ClinicAdminPage() {
                       <CardDescription>{config.season}</CardDescription>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => router.push(`/survey/clinic-result?season=${encodeURIComponent(config.season)}`)}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Submissions
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(config)}>
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
