@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Header from "@/components/header";
-import { Mail, Users, Search, CheckCircle2, AlertCircle, FileText, Eye } from "lucide-react";
+import { Mail, Users, CheckCircle2, AlertCircle, FileText, Eye } from "lucide-react";
 
 type SwimmerDoc = {
   id: string;

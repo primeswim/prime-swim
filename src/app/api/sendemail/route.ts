@@ -199,14 +199,12 @@ export async function POST(req: Request) {
       content,
       contentType = "text",
       bccAdmin = false,
-      useTemplate = true, // Always use template by default
     }: {
       toEmails: string[];
       subject: string;
       content: string;
       contentType?: "text" | "html";
       bccAdmin?: boolean;
-      useTemplate?: boolean;
     } = body || {};
 
     if (!toEmails?.length || !subject || !content) {
