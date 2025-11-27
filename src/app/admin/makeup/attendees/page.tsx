@@ -345,11 +345,11 @@ export default function MakeupAttendeesAdminPage() {
                 )}
               </SelectContent>
             </Select>
-            {currentEvent && (currentEvent.date || currentEvent.time || currentEvent.location) && (
+            {currentEvent && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm font-medium text-blue-900 mb-2">Event Details:</div>
                 <div className="space-y-1 text-sm text-blue-800">
-                  {currentEvent.date && (
+                  {currentEvent.date ? (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       <span>
@@ -372,26 +372,44 @@ export default function MakeupAttendeesAdminPage() {
                         })()}
                       </span>
                     </div>
-                  )}
-                  {currentEvent.time && (
+                  ) : null}
+                  {currentEvent.time ? (
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       <span>
                         {(() => {
-                          const [hours, minutes] = currentEvent.time!.split(":");
-                          const hour = parseInt(hours);
-                          const ampm = hour >= 12 ? "PM" : "AM";
-                          const hour12 = hour % 12 || 12;
-                          return `${hour12}:${minutes} ${ampm}`;
+                          try {
+                            const [hours, minutes] = currentEvent.time.split(":");
+                            const hour = parseInt(hours);
+                            if (isNaN(hour)) return currentEvent.time;
+                            const ampm = hour >= 12 ? "PM" : "AM";
+                            const hour12 = hour % 12 || 12;
+                            let timeStr = `${hour12}:${minutes || "00"} ${ampm}`;
+                            if (currentEvent.endTime) {
+                              const [endHours, endMinutes] = currentEvent.endTime.split(":");
+                              const endHour = parseInt(endHours);
+                              if (!isNaN(endHour)) {
+                                const endAmpm = endHour >= 12 ? "PM" : "AM";
+                                const endHour12 = endHour % 12 || 12;
+                                timeStr += ` - ${endHour12}:${endMinutes || "00"} ${endAmpm}`;
+                              }
+                            }
+                            return timeStr;
+                          } catch {
+                            return currentEvent.time;
+                          }
                         })()}
                       </span>
                     </div>
-                  )}
-                  {currentEvent.location && (
+                  ) : null}
+                  {currentEvent.location ? (
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       <span>{currentEvent.location}</span>
                     </div>
+                  ) : null}
+                  {!currentEvent.date && !currentEvent.time && !currentEvent.location && currentEvent.text && (
+                    <div className="text-blue-700 italic">{currentEvent.text}</div>
                   )}
                 </div>
               </div>
