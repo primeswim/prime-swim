@@ -1,7 +1,7 @@
 // ./src/app/survey/clinic-result/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -12,13 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, CheckCircle2, BarChart3, Phone, Mail, ListChecks } from "lucide-react";
-
-type Level =
-  | "beginner-kicks-bubbles"
-  | "novice-25y-freestyle"
-  | "intermediate-4-strokes-basic"
-  | "advanced-legal-4-strokes";
+import { Phone, Mail, ListChecks, Download, Users, Calendar, MapPin, RefreshCw } from "lucide-react";
+import { SwimmerLevel, getLevelGroup } from "@/lib/swimmer-levels";
+import Header from "@/components/header";
 
 interface DemandRow {
   location: string;
@@ -29,7 +25,7 @@ interface DemandRow {
     swimmerName: string;
     parentEmail: string;
     parentPhone: string;
-    level: Level;
+    level: SwimmerLevel | string;
   }[];
 }
 
@@ -73,7 +69,6 @@ function exportLocationCSV(location: string, sessions: DemandRow[]) {
   URL.revokeObjectURL(url);
 }
 
-/** 导出人数统计（所有场馆/时段） */
 function exportHeadcountCSV(rows: DemandRow[]) {
   const header = ["Location", "Date/Time", "Headcount"];
   const lines = [header.join(",")];
@@ -96,151 +91,55 @@ function exportHeadcountCSV(rows: DemandRow[]) {
   URL.revokeObjectURL(url);
 }
 
-/* ---------- 模拟器 (保留) ---------- */
-function Simulator({ rows }: { rows: DemandRow[] }) {
-  const [capPerLane, setCapPerLane] = useState<number>(4);
-  const [lanesByLocation, setLanesByLocation] = useState<Record<string, number>>(() => {
-    const locs = Array.from(new Set(rows.map((r) => r.location)));
-    const o: Record<string, number> = {};
-    locs.forEach((l) => (o[l] = 4));
-    return o;
-  });
-
-  const perSession = useMemo(() => {
-    return rows.map((r) => {
-      const cap = (lanesByLocation[r.location] || 0) * capPerLane;
-      const demand = r.swimmers.length;
-      return { ...r, capacity: cap, demand, delta: demand - cap };
+/* ---------- 级别统计（改进版） ---------- */
+function LevelDistribution({ byLevel }: { byLevel: Record<string, number> }) {
+  // Group levels by group (Bronze, Silver, etc.)
+  const grouped = useMemo(() => {
+    const groups: Record<string, { total: number; levels: Array<{ level: string; count: number }> }> = {};
+    
+    Object.entries(byLevel).forEach(([level, count]) => {
+      const group = getLevelGroup(level as SwimmerLevel);
+      if (!groups[group]) {
+        groups[group] = { total: 0, levels: [] };
+      }
+      groups[group].total += count;
+      groups[group].levels.push({ level, count });
     });
-  }, [rows, lanesByLocation, capPerLane]);
-
-  function updateLane(location: string, v: number) {
-    setLanesByLocation((prev) => ({ ...prev, [location]: Math.max(0, Math.min(16, Math.floor(v))) }));
-  }
-
-  function downloadCSV() {
-    const header = ["Location", "Date/Time", "Demand", "Capacity", "Over(+)/Under(-)"];
-    const lines = [header.join(",")];
-    perSession.forEach((s) => {
-      lines.push(
-        [s.location, s.label, String(s.demand), String(s.capacity), String(s.delta)]
-          .map((x) => `"${x.replaceAll('"', '""')}"`)
-          .join(",")
-      );
-    });
-    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "clinic-arrangement.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+    
+    return groups;
+  }, [byLevel]);
 
   return (
-    <div className="space-y-8">
-      <Card className="border-0 shadow-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" /> Arrangement Simulator
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <Label>Capacity per lane</Label>
-              <Input
-                type="number"
-                min={1}
-                max={20}
-                value={capPerLane}
-                onChange={(e) => setCapPerLane(Number(e.target.value || 0))}
-              />
-              <p className="text-xs text-slate-500 mt-1">Typical 3–6 depending on level/age.</p>
+    <Card className="border-0 shadow-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Users className="w-5 h-5" />
+          Level Distribution
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Object.entries(grouped).map(([group, data]) => (
+            <div key={group} className="border rounded-lg p-4 bg-gradient-to-br from-slate-50 to-white">
+              <div className="font-bold text-lg text-slate-800 mb-2">{group}</div>
+              <div className="text-2xl font-bold text-blue-600 mb-3">{data.total}</div>
+              <div className="space-y-1 text-sm">
+                {data.levels.map(({ level, count }) => (
+                  <div key={level} className="flex justify-between text-slate-600">
+                    <span>{level.replace(`${group} `, "")}</span>
+                    <span className="font-medium">{count}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            {Object.keys(lanesByLocation).map((loc) => (
-              <div key={loc}>
-                <Label>{loc} — Lanes</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={16}
-                  value={lanesByLocation[loc]}
-                  onChange={(e) => updateLane(loc, Number(e.target.value || 0))}
-                />
-              </div>
-            ))}
-          </div>
-          <Separator className="my-4" />
-          <div className="flex items-center gap-3">
-            <Button onClick={downloadCSV}>Export CSV (Summary)</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary by location */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {Object.entries(
-          rowsToPerSession(rows).reduce(
-            (acc, s) => {
-              const b =
-                (acc[s.location] ||= {
-                  sessions: 0,
-                  demand: 0,
-                  capacity: 0,
-                  over: 0,
-                  under: 0,
-                });
-              b.sessions += 1;
-              b.demand += s.demand;
-              b.capacity += s.capacity;
-              b.over += Math.max(0, s.delta);
-              b.under += Math.max(0, -s.delta);
-              return acc;
-            },
-            {} as Record<
-              string,
-              { sessions: number; demand: number; capacity: number; over: number; under: number }
-            >
-          )
-        ).map(([loc, t]) => (
-          <Card key={loc} className="border-0 shadow-md">
-            <CardHeader>
-              <CardTitle>{loc}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-slate-600">
-                Sessions: {t.sessions} · Demand: {t.demand} · Capacity: {t.capacity}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                {t.over > 0 ? (
-                  <div className="flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 text-xs">
-                    <AlertTriangle className="w-4 h-4" /> Over by {t.over}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1 text-xs">
-                    <CheckCircle2 className="w-4 h-4" /> Under by {t.under}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
-
-  // 将 rows 转换为含 capacity 的结构（复用上面的 perSession 形状）
-  function rowsToPerSession(rows0: DemandRow[]) {
-    return rows0.map((r) => {
-      const cap = (lanesByLocation[r.location] || 0) * capPerLane;
-      const demand = r.swimmers.length;
-      return { ...r, capacity: cap, demand, delta: demand - cap };
-    });
-  }
 }
 
-/* ---------- 人数统计（新增） ---------- */
+/* ---------- 人数统计（改进版） ---------- */
 function HeadcountStats({ rows }: { rows: DemandRow[] }) {
   const byLoc = useMemo(() => {
     const base: Record<string, { sessions: number; headcount: number }> = {};
@@ -262,130 +161,173 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
   return (
     <Card className="border-0 shadow-md">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ListChecks className="w-5 h-5" /> Headcount（人数统计）
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <ListChecks className="w-5 h-5" />
+            Headcount by Location & Time
+          </CardTitle>
+          <Button size="sm" variant="outline" onClick={() => exportHeadcountCSV(rows)}>
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* 总览（按场馆） */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-600">
-                <th className="p-2">Location</th>
-                <th className="p-2">Sessions</th>
-                <th className="p-2">Total Headcount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byLoc.map(([loc, v]) => (
-                <tr key={loc} className="border-t">
-                  <td className="p-2 whitespace-nowrap">{loc}</td>
-                  <td className="p-2">{v.sessions}</td>
-                  <td className="p-2">{v.headcount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Summary by location */}
+        <div>
+          <h3 className="font-semibold text-slate-800 mb-3">Summary by Location</h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            {byLoc.map(([loc, v]) => (
+              <div key={loc} className="border rounded-lg p-4 bg-slate-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="w-4 h-4 text-slate-600" />
+                  <span className="font-medium text-slate-800">{loc}</span>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <div>{v.sessions} session(s)</div>
+                  <div className="text-lg font-bold text-blue-600 mt-1">{v.headcount} swimmers</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <Separator />
 
-        {/* 明细（按场馆×时段） */}
-        <div className="flex items-center justify-between">
-          <div className="font-medium text-slate-800">Per Session</div>
-          <Button size="sm" onClick={() => exportHeadcountCSV(rows)}>
-            Export CSV (Headcount)
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-600">
-                <th className="p-2">Location</th>
-                <th className="p-2">Date/Time</th>
-                <th className="p-2">Headcount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {perSession.map((r) => (
-                <tr key={r.location + r.label} className="border-t">
-                  <td className="p-2 whitespace-nowrap">{r.location}</td>
-                  <td className="p-2">{r.label}</td>
-                  <td className="p-2">{r.headcount}</td>
+        {/* Per session table */}
+        <div>
+          <h3 className="font-semibold text-slate-800 mb-3">Per Session Details</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-600 border-b">
+                  <th className="p-3 font-semibold">Location</th>
+                  <th className="p-3 font-semibold">Date/Time</th>
+                  <th className="p-3 font-semibold text-center">Headcount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {perSession.map((r, idx) => (
+                  <tr key={r.location + r.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                    <td className="p-3 whitespace-nowrap">{r.location}</td>
+                    <td className="p-3">{r.label}</td>
+                    <td className="p-3 text-center">
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        r.headcount === 0 ? "bg-slate-100 text-slate-600" :
+                        r.headcount < 5 ? "bg-amber-100 text-amber-700" :
+                        r.headcount < 10 ? "bg-blue-100 text-blue-700" :
+                        "bg-green-100 text-green-700"
+                      }`}>
+                        {r.headcount}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-/* ---------- Roster（按场馆，含联系方式） ---------- */
+/* ---------- 详细名单（改进版） ---------- */
 function RosterByLocation({ rows }: { rows: DemandRow[] }) {
+  const grouped = groupByLocation(rows);
+
   return (
     <Card className="border-0 shadow-md">
       <CardHeader>
-        <CardTitle>Roster by Location (with Contacts)</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Users className="w-5 h-5" />
+          Detailed Roster by Location
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-8">
-        {Object.entries(groupByLocation(rows)).map(([loc, sessions]) => (
-          <div key={loc} className="border rounded-lg border-slate-200">
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50">
-              <div className="font-semibold">{loc}</div>
-              <Button size="sm" onClick={() => exportLocationCSV(loc, sessions)}>
-                Export {loc} CSV
+      <CardContent className="space-y-6">
+        {Object.entries(grouped).map(([loc, sessions]) => (
+          <div key={loc} className="border-2 rounded-lg border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-50 to-slate-50 border-b-2 border-slate-200">
+              <div className="flex items-center gap-3">
+                <MapPin className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-bold text-slate-800">{loc}</h3>
+                <span className="text-sm text-slate-600">
+                  ({sessions.reduce((sum, s) => sum + s.swimmers.length, 0)} total swimmers)
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => exportLocationCSV(loc, sessions)}>
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
               </Button>
             </div>
-            <div className="p-4 space-y-6">
+            <div className="p-5 space-y-4">
               {sessions.map((s) => (
-                <div key={s.label} className="border rounded-md border-slate-200">
-                  <div className="px-3 py-2 border-b bg-white font-medium">{s.label}</div>
-                  <div className="p-3 overflow-x-auto">
+                <div key={s.label} className="border rounded-lg border-slate-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-600" />
+                      <span className="font-semibold text-slate-800">{s.label}</span>
+                    </div>
+                    <span className="text-sm text-slate-600 font-medium">
+                      {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="p-4">
                     {s.swimmers.length === 0 ? (
-                      <div className="text-sm text-slate-500">No signups for this session.</div>
+                      <div className="text-center py-8 text-slate-500">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p>No signups for this session</p>
+                      </div>
                     ) : (
-                      <table className="min-w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-slate-600">
-                            <th className="p-2">Swimmer</th>
-                            <th className="p-2">Level</th>
-                            <th className="p-2">Parent Email</th>
-                            <th className="p-2">Parent Phone</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {s.swimmers
-                            .slice()
-                            .sort((a, b) => a.swimmerName.localeCompare(b.swimmerName))
-                            .map((w) => (
-                              <tr key={w.key} className="border-t">
-                                <td className="p-2">{w.swimmerName}</td>
-                                <td className="p-2">{w.level}</td>
-                                <td className="p-2">
-                                  <a
-                                    className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                                    href={`mailto:${w.parentEmail}`}
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                    {w.parentEmail}
-                                  </a>
-                                </td>
-                                <td className="p-2">
-                                  <a
-                                    className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                                    href={`tel:${w.parentPhone}`}
-                                  >
-                                    <Phone className="w-4 h-4" />
-                                    {w.parentPhone || "-"}
-                                  </a>
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-slate-600 border-b">
+                              <th className="p-3 font-semibold">Swimmer Name</th>
+                              <th className="p-3 font-semibold">Level</th>
+                              <th className="p-3 font-semibold">Parent Email</th>
+                              <th className="p-3 font-semibold">Parent Phone</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {s.swimmers
+                              .slice()
+                              .sort((a, b) => a.swimmerName.localeCompare(b.swimmerName))
+                              .map((w, idx) => (
+                                <tr key={w.key} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                  <td className="p-3 font-medium text-slate-800">{w.swimmerName}</td>
+                                  <td className="p-3">
+                                    <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                      {w.level}
+                                    </span>
+                                  </td>
+                                  <td className="p-3">
+                                    <a
+                                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline"
+                                      href={`mailto:${w.parentEmail}`}
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                      {w.parentEmail}
+                                    </a>
+                                  </td>
+                                  <td className="p-3">
+                                    {w.parentPhone ? (
+                                      <a
+                                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline"
+                                        href={`tel:${w.parentPhone}`}
+                                      >
+                                        <Phone className="w-4 h-4" />
+                                        {w.parentPhone}
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-400">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -398,16 +340,50 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
   );
 }
 
-/* ---------- 页面主体 ---------- */
-export default function ArrangementPage() {
+/* ---------- 页面主体（内部组件） ---------- */
+function ArrangementPageContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checked, setChecked] = useState(false);
   const [data, setData] = useState<AggregatePayload | null>(null);
   const searchParams = useSearchParams();
-  const initialSeason = searchParams.get("season") || "Winter Break 2025–26";
+  const initialSeason = searchParams.get("season") || "";
   const [season, setSeason] = useState<string>(initialSeason);
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+
+  const loadData = async (seasonValue: string) => {
+    if (!seasonValue.trim()) return;
+    
+    setLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      const idToken = await user.getIdToken(true);
+      const res = await fetch(`/api/clinic/admin/aggregate?season=${encodeURIComponent(seasonValue)}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          router.push("/not-authorized");
+          return;
+        }
+        throw new Error("Failed to load data");
+      }
+      
+      const json = (await res.json()) as AggregatePayload;
+      setData(json);
+    } catch (err) {
+      console.error("Load data error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -415,85 +391,192 @@ export default function ArrangementPage() {
         router.push("/login");
         return;
       }
-      // admin gate
+      
+      // Check admin
       const email = (user.email || "").toLowerCase();
       const adminSnap = await getDoc(doc(db, "admin", email));
       if (!adminSnap.exists()) {
         router.push("/not-authorized");
         return;
       }
+      
       setIsAdmin(true);
-
-      // call protected API
-      const idToken = await user.getIdToken(true);
-      const res = await fetch(`/api/clinic/admin/aggregate?season=${encodeURIComponent(season)}`, {
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
-      if (!res.ok) {
-        router.push("/not-authorized");
-        return;
-      }
-      const json = (await res.json()) as AggregatePayload;
-      setData(json);
       setChecked(true);
+      
+      // Load data if season is set
+      if (season) {
+        await loadData(season);
+      }
     });
 
     return () => unsub();
-  }, [router, season]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   // Update season when URL param changes
   useEffect(() => {
     const urlSeason = searchParams.get("season");
     if (urlSeason && urlSeason !== season) {
       setSeason(urlSeason);
+      if (isAdmin) {
+        loadData(urlSeason);
+      }
     }
-  }, [searchParams, season]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isAdmin]);
 
-  if (!checked) return <p className="text-center mt-10">Checking admin access…</p>;
+  const handleReload = () => {
+    if (season) {
+      loadData(season);
+    }
+  };
+
+  if (!checked) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <p className="text-slate-600">Checking admin access…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAdmin) return null;
-  if (!data) return <p className="mt-10 text-center">Loading data…</p>;
 
   return (
-    <div className="container mx-auto px-4 py-10">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">Clinic Submissions — Analysis & Arrangement</h1>
-          <p className="text-slate-600 mt-1">Total unique swimmers: {data.uniqueSwimmers}</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+      <Header />
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-slate-800 mb-2">Clinic Submissions</h1>
+          <p className="text-slate-600">View and analyze clinic preferences by location and time</p>
         </div>
-        <div className="flex items-end gap-2">
-          <div>
-            <Label className="block text-sm mb-1">Season</Label>
-            <Input value={season} onChange={(e) => setSeason(e.target.value)} className="w-[240px]" />
-          </div>
-          <Button onClick={() => setChecked(false /* reload */)}>Reload</Button>
-        </div>
-      </div>
 
-      {/* Level Distribution */}
-      <Card className="border-0 shadow-md mb-8">
-        <CardHeader>
-          <CardTitle>Level Distribution</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-4 gap-4 text-sm">
-            {Object.entries(data.byLevel).map(([lvl, n]) => (
-              <div key={lvl} className="p-3 rounded border bg-slate-50 border-slate-200">
-                <div className="font-medium">{lvl}</div>
-                <div className="text-slate-600">{n}</div>
+        {/* Season Selector */}
+        <Card className="mb-6 border-0 shadow-md">
+          <CardContent className="pt-6">
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <Label htmlFor="season" className="text-sm font-semibold text-slate-700 mb-2 block">
+                  Season
+                </Label>
+                <Input
+                  id="season"
+                  value={season}
+                  onChange={(e) => setSeason(e.target.value)}
+                  placeholder="e.g. Winter Break 2025–26"
+                  className="w-full"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && season) {
+                      loadData(season);
+                    }
+                  }}
+                />
               </div>
-            ))}
+              <Button 
+                onClick={handleReload} 
+                disabled={!season.trim() || loading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Load Data
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Display */}
+        {loading ? (
+          <div className="text-center py-20">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-slate-600">Loading data...</p>
           </div>
-        </CardContent>
-      </Card>
+        ) : !data ? (
+          <Card className="border-0 shadow-md">
+            <CardContent className="py-20 text-center">
+              <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-400" />
+              <p className="text-slate-600">Enter a season and click &quot;Load Data&quot; to view submissions</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Summary Stats */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-blue-100">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600 mb-1">Total Swimmers</p>
+                      <p className="text-3xl font-bold text-blue-700">{data.uniqueSwimmers}</p>
+                    </div>
+                    <Users className="w-10 h-10 text-blue-600 opacity-50" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md bg-gradient-to-br from-green-50 to-green-100">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600 mb-1">Total Sessions</p>
+                      <p className="text-3xl font-bold text-green-700">{data.rows.length}</p>
+                    </div>
+                    <Calendar className="w-10 h-10 text-green-600 opacity-50" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md bg-gradient-to-br from-purple-50 to-purple-100">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600 mb-1">Total Preferences</p>
+                      <p className="text-3xl font-bold text-purple-700">
+                        {data.rows.reduce((sum, r) => sum + r.swimmers.length, 0)}
+                      </p>
+                    </div>
+                    <ListChecks className="w-10 h-10 text-purple-600 opacity-50" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-      {/* ✅ 新增：人数统计（Headcount） */}
-      <HeadcountStats rows={data.rows} />
+            {/* Level Distribution */}
+            <LevelDistribution byLevel={data.byLevel} />
 
-      {/* 模拟器 + 按场馆名单 */}
-      <div className="mt-8 space-y-8">
-        <Simulator rows={data.rows} />
-        <RosterByLocation rows={data.rows} />
+            {/* Headcount Stats */}
+            <HeadcountStats rows={data.rows} />
+
+            {/* Detailed Roster */}
+            <RosterByLocation rows={data.rows} />
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+/* ---------- 页面主体（导出） ---------- */
+export default function ArrangementPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ArrangementPageContent />
+    </Suspense>
   );
 }

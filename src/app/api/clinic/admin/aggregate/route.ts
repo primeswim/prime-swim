@@ -4,18 +4,13 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getAuth } from "firebase-admin/auth";
-
-type Level =
-  | "beginner-kicks-bubbles"
-  | "novice-25y-freestyle"
-  | "intermediate-4-strokes-basic"
-  | "advanced-legal-4-strokes";
+import { SwimmerLevel } from "@/lib/swimmer-levels";
 
 interface Submission {
   parentEmail: string;
-  parentPhone?: string; // ✅ 新增
+  parentPhone?: string;
   swimmerName: string;
-  level: Level;
+  level: SwimmerLevel | string; // Support both new and old levels for backward compatibility
   preferences: { location: string; selections: string[] }[];
   season?: string;
   submittedAt?: unknown;
@@ -60,7 +55,7 @@ export async function GET(req: Request) {
           swimmerName: string;
           parentEmail: string;
           parentPhone: string; // ✅ 返回电话
-          level: Level;
+          level: SwimmerLevel | string;
         }[];
       }
     >();
@@ -68,7 +63,7 @@ export async function GET(req: Request) {
     const seen = new Set<string>();
 
     for (const s of submissions) {
-      const lvl = s.level || ("unknown" as Level);
+      const lvl = s.level || "Unknown";
       byLevel[lvl] = (byLevel[lvl] || 0) + 1;
 
       for (const pref of s.preferences || []) {

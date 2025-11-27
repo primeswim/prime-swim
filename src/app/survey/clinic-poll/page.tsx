@@ -18,6 +18,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Calendar, MapPin, User, AlertTriangle, CheckCircle2, Phone, Loader2 } from "lucide-react"
+import { SWIMMER_LEVELS, type SwimmerLevel, LEVEL_GROUPS } from "@/lib/swimmer-levels"
 
 /** Clinic slot model */
 interface ClinicSlot {
@@ -41,12 +42,6 @@ interface ClinicConfig {
   active: boolean
 }
 
-type Level =
-  | "beginner-kicks-bubbles"
-  | "novice-25y-freestyle"
-  | "intermediate-4-strokes-basic"
-  | "advanced-legal-4-strokes"
-
 interface Preference {
   location: string
   selections: string[]
@@ -56,7 +51,7 @@ interface FormState {
   parentEmail: string
   parentPhone: string
   swimmerName: string
-  level: Level | ""
+  level: SwimmerLevel | ""
   preferences: Preference[]
 }
 
@@ -157,20 +152,10 @@ export default function ClinicSurveyPage() {
       if (swimmer) {
         const swimmerName = [swimmer.childFirstName, swimmer.childLastName].filter(Boolean).join(" ").trim()
         
-        // Map swimmer level to clinic level if needed
-        let clinicLevel: Level | "" = ""
-        if (swimmer.level) {
-          // Try to map to clinic level format
-          const levelLower = swimmer.level.toLowerCase()
-          if (levelLower.includes("bronze") || levelLower.includes("beginner")) {
-            clinicLevel = "beginner-kicks-bubbles"
-          } else if (levelLower.includes("silver") || levelLower.includes("novice")) {
-            clinicLevel = "novice-25y-freestyle"
-          } else if (levelLower.includes("gold") || levelLower.includes("intermediate")) {
-            clinicLevel = "intermediate-4-strokes-basic"
-          } else if (levelLower.includes("platinum") || levelLower.includes("advanced")) {
-            clinicLevel = "advanced-legal-4-strokes"
-          }
+        // Use swimmer level directly if it's a valid SwimmerLevel
+        let clinicLevel: SwimmerLevel | "" = ""
+        if (swimmer.level && SWIMMER_LEVELS.includes(swimmer.level as SwimmerLevel)) {
+          clinicLevel = swimmer.level as SwimmerLevel
         }
 
         setForm({
@@ -461,24 +446,24 @@ export default function ClinicSurveyPage() {
                       <Label htmlFor="level">Swimmer Level *</Label>
                       <Select
                         value={form.level}
-                        onValueChange={(v) => handleChange("level", v as Level)}
+                        onValueChange={(v) => handleChange("level", v as SwimmerLevel)}
                       >
                         <SelectTrigger className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select level" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="beginner-kicks-bubbles">
-                            Beginner (know kicks & bubbles)
-                          </SelectItem>
-                          <SelectItem value="novice-25y-freestyle">
-                            Novice (25y freestyle unassisted)
-                          </SelectItem>
-                          <SelectItem value="intermediate-4-strokes-basic">
-                            Intermediate (basic 4 strokes)
-                          </SelectItem>
-                          <SelectItem value="advanced-legal-4-strokes">
-                            Advanced (legal 4 strokes & turns)
-                          </SelectItem>
+                          {Object.entries(LEVEL_GROUPS).map(([group, levels]) => (
+                            <div key={group}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase">
+                                {group}
+                              </div>
+                              {levels.map((level) => (
+                                <SelectItem key={level} value={level}>
+                                  {level}
+                                </SelectItem>
+                              ))}
+                            </div>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

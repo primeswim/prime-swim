@@ -16,13 +16,10 @@ const ORIGIN_ALLOWLIST = [
   "http://localhost:3000",
 ];
 
+import { SWIMMER_LEVELS, type SwimmerLevel } from "@/lib/swimmer-levels";
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LEVELS = new Set([
-  "beginner-kicks-bubbles",
-  "novice-25y-freestyle",
-  "intermediate-4-strokes-basic",
-  "advanced-legal-4-strokes",
-]);
+const LEVELS = new Set<SwimmerLevel>(SWIMMER_LEVELS);
 
 type Preference = { location: string; selections: string[] };
 
@@ -106,7 +103,7 @@ export async function POST(request: Request) {
     if (!parentPhoneRaw || parentPhoneRaw.length < 10 || parentPhoneRaw.length > 15) {
       return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
     }
-    if (!LEVELS.has(level)) {
+    if (!LEVELS.has(level as SwimmerLevel)) {
       return NextResponse.json({ error: "Invalid level" }, { status: 400 });
     }
     if (!swimmerName) {
