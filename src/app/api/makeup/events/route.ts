@@ -20,6 +20,10 @@ type MaybeDateish = Date | TimestampLike | string | null | undefined;
 
 type MakeupEventDoc = {
   text?: string;
+  date?: string | null;
+  time?: string | null;
+  endTime?: string | null;
+  location?: string | null;
   createdAt?: MaybeDateish;
   createdBy?: string;
   active?: boolean;
@@ -115,6 +119,10 @@ export async function GET(req: Request) {
       return {
         id: d.id,
         text: data.text ?? "",
+        date: data.date ?? null,
+        time: data.time ?? null,
+        endTime: data.endTime ?? null,
+        location: data.location ?? null,
         createdAt,
         createdBy: data.createdBy ?? "",
         active: Boolean(data.active),

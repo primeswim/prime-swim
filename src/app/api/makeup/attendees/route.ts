@@ -122,33 +122,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, stage: "validate", error: "makeupId required" }, { status: 400 });
     }
 
-    // rsvps
+    // Step 1: Find all swimmers who have this makeupId set as their nextMakeupId
+    const swimmersSnap = await adminDb
+      .collection("swimmers")
+      .where("nextMakeupId", "==", makeupId)
+      .get();
+
+    const swimmerIds = swimmersSnap.docs.map((d) => d.id);
+    const swimmerMap: Record<string, Partial<Swimmer>> = {};
+    for (const doc of swimmersSnap.docs) {
+      swimmerMap[doc.id] = (doc.data() ?? {}) as Partial<Swimmer>;
+    }
+
+    // Step 2: Get all RSVP responses for these swimmers
     const rsvpSnap = await adminDb
       .collection("makeup_responses")
       .where("makeupId", "==", makeupId)
       .get();
 
-    const rsvps = rsvpSnap.docs.map((d) => d.data()) as Array<{
-      swimmerId?: string;
-      makeupId?: string;
-      status?: "yes" | "no" | "none";
-      parentEmail?: string | null;
-      updatedAt?: unknown; // Timestamp | Date | string | undefined
-    }>;
-
-    const swimmerIds = Array.from(new Set(rsvps.map((r) => r.swimmerId).filter((x): x is string => !!x)));
-
-    // pull swimmers (typed, no 'any')
-    const swimmerMap: Record<string, Partial<Swimmer>> = {};
-    for (const sid of swimmerIds) {
-      const s = await adminDb.collection("swimmers").doc(sid).get();
-      if (s.exists) swimmerMap[sid] = (s.data() ?? {}) as Partial<Swimmer>;
+    const rsvpMap: Record<string, { status: "yes" | "no" | "none"; updatedAt?: unknown }> = {};
+    for (const doc of rsvpSnap.docs) {
+      const data = doc.data();
+      const sid = data.swimmerId as string | undefined;
+      if (sid) {
+        rsvpMap[sid] = {
+          status: (data.status as "yes" | "no" | "none") || "none",
+          updatedAt: data.updatedAt,
+        };
+      }
     }
 
-    // rows
-    const rows: Row[] = rsvps.map((r) => {
-      const sid = r.swimmerId || "";
+    // Step 3: Build rows - include ALL swimmers with nextMakeupId, not just those with RSVPs
+    const rows: Row[] = swimmerIds.map((sid) => {
       const s = swimmerMap[sid] || {};
+      const rsvp = rsvpMap[sid];
       const swimmerName =
         s.swimmerName ||
         [s.childFirstName, s.childLastName].filter(Boolean).join(" ") ||
@@ -160,7 +167,6 @@ export async function POST(req: Request) {
       const email =
         s.parentEmail ||
         (Array.isArray(s.parentEmails) ? s.parentEmails[0] : "") ||
-        r.parentEmail ||
         "";
 
       return {
@@ -168,8 +174,8 @@ export async function POST(req: Request) {
         swimmerName,
         parentName,
         email,
-        status: (r.status as Row["status"]) || "none",
-        updatedAt: toIso(r.updatedAt),
+        status: rsvp?.status || "none",
+        updatedAt: rsvp?.updatedAt ? toIso(rsvp.updatedAt) : null,
       };
     });
 

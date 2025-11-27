@@ -7,6 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { onAuthStateChanged } from "firebase/auth"
 import {
   collection,
@@ -21,7 +22,7 @@ import {
 import { auth, db } from "@/lib/firebase"
 import { Swimmer } from "@/types"
 import Footer from "@/components/footer"
-import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2, TrendingUp } from "lucide-react"
+import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2, TrendingUp, Calendar, CheckCircle2, XCircle } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -103,16 +104,6 @@ function formatStartsAt(d?: Date | null) {
 }
 function normalizeId(s?: string | null) {
   return (s || "").trim()
-}
-
-function rsvpSuffix(status: RSVPStatus) {
-  if (status === "yes") {
-    return <span className="ml-2 text-green-600 font-medium">— I&apos;m going</span>
-  }
-  if (status === "no") {
-    return <span className="ml-2 text-rose-600 font-medium">— Not going</span>
-  }
-  return null
 }
 
 // 将 /api/makeup/events 结果做成索引
@@ -695,43 +686,86 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Next make-up class + RSVP */}
-                    <div className="mt-4 p-3 rounded-lg border bg-slate-50">
-                      <div className="text-sm text-slate-600 mb-2 flex items-center">
-                        <span>Will you attend?</span>
-                        {rsvpSuffix(rsvp)}
+                    <div className="mt-4 p-4 rounded-lg border-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                          Make-up Class
+                        </h3>
+                        {rsvp !== "none" && (
+                          <Badge
+                            className={
+                              rsvp === "yes"
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : "bg-red-100 text-red-700 border-red-200"
+                            }
+                          >
+                            {rsvp === "yes" ? "✅ Going" : "❌ Not going"}
+                          </Badge>
+                        )}
                       </div>
                       {showMakeup && displayText ? (
                         <>
-                          <div className="font-medium text-slate-800">{displayText}</div>
-                          <div className="mt-3 flex gap-2">
+                          <div className="font-medium text-slate-800 mb-4 text-base leading-relaxed">{displayText}</div>
+                          <div className="flex gap-2">
                             <Button
                               disabled={!nextId || isBusy || locked}
                               onClick={() => handleRSVP(swimmer, "yes")}
-                              className="rounded-full px-4"
+                              className={`flex-1 rounded-lg transition-all ${
+                                rsvp === "yes"
+                                  ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
+                                  : "bg-white hover:bg-green-50 text-green-600 border-2 border-green-200 hover:border-green-300"
+                              }`}
                             >
-                              {isBusy && rsvp !== "yes" ? "Saving..." : rsvp === "yes" ? "✅ Going" : "I'm going"}
+                              {isBusy && rsvp !== "yes" ? (
+                                "Saving..."
+                              ) : rsvp === "yes" ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  Going
+                                </>
+                              ) : (
+                                "I'm going"
+                              )}
                             </Button>
                             <Button
                               variant="outline"
                               disabled={!nextId || isBusy || locked}
                               onClick={() => handleRSVP(swimmer, "no")}
-                              className="rounded-full px-4"
+                              className={`flex-1 rounded-lg transition-all ${
+                                rsvp === "no"
+                                  ? "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md"
+                                  : "bg-white hover:bg-red-50 text-red-600 border-2 border-red-200 hover:border-red-300"
+                              }`}
                             >
-                              {isBusy && rsvp !== "no" ? "Saving..." : rsvp === "no" ? "❌ Not going" : "Not going"}
+                              {isBusy && rsvp !== "no" ? (
+                                "Saving..."
+                              ) : rsvp === "no" ? (
+                                <>
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Not going
+                                </>
+                              ) : (
+                                "Not going"
+                              )}
                             </Button>
                           </div>
                           {locked ? (
-                            <div className="text-xs text-slate-500 mt-2">
-                              Changes are locked within 1 hour of class.
+                            <div className="text-xs text-slate-500 mt-3 bg-yellow-50 border border-yellow-200 rounded p-2">
+                              ⚠️ Changes are locked within 1 hour of class.
                             </div>
                           ) : rsvp !== "none" ? (
-                            <div className="text-xs text-slate-500 mt-2">
-                              Your selection has been recorded. You can change it anytime (until 1 day before class).
+                            <div className="text-xs text-slate-600 mt-3">
+                              ✓ Your selection has been recorded.
                             </div>
-                          ) : null}
+                          ) : (
+                            <div className="text-xs text-slate-500 mt-3">
+                              Please let us know if you&apos;ll be attending.
+                            </div>
+                          )}
                         </>
                       ) : (
-                        <div className="text-slate-500 text-sm">No make-up class announced yet.</div>
+                        <div className="text-slate-500 text-sm text-center py-2">No make-up class announced yet.</div>
                       )}
                     </div>
 
