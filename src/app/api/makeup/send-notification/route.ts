@@ -43,7 +43,7 @@ function buildMakeupNotificationEmailHtml(params: {
   endTime?: string | null;
   location?: string | null;
 }) {
-  const { parentName, parentEmail, swimmerName, eventText, date, time, endTime, location } = params;
+  const { parentName, swimmerName, eventText, date, time, endTime, location } = params;
 
   // Format date
   let dateStr = "";

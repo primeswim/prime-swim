@@ -39,7 +39,7 @@ function buildReminderEmailHtml(params: {
   swimmerName: string;
   eventText: string;
 }) {
-  const { parentName, parentEmail, swimmerName, eventText } = params;
+  const { parentName, swimmerName, eventText } = params;
 
   return `<!DOCTYPE html>
 <html lang="en">
