@@ -5,6 +5,15 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useIsAdminFromDB } from "../../../hooks/useIsAdminFromDB";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import Header from "@/components/header";
+import { Mail, Users, Search, CheckCircle2, AlertCircle, FileText, Eye } from "lucide-react";
 
 type SwimmerDoc = {
   id: string;
@@ -92,6 +101,80 @@ function parseEmails(input: string): { emails: string[]; invalid: string[] } {
   return { emails, invalid };
 }
 
+// Convert plain text to HTML with rich formatting support
+function textToHtml(text: string): string {
+  if (!text.trim()) return "<p>(empty)</p>";
+  
+  // Split by double newlines to create paragraphs
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+  
+  if (paragraphs.length === 0) return "<p>(empty)</p>";
+  
+  return paragraphs
+    .map(para => {
+      const trimmed = para.trim();
+      
+      // Check for headings (lines starting with # or all caps)
+      if (/^#{1,3}\s+/.test(trimmed)) {
+        const level = trimmed.match(/^#+/)?.[0].length || 1;
+        const content = trimmed.replace(/^#+\s+/, "");
+        const size = level === 1 ? "24px" : level === 2 ? "20px" : "18px";
+        const formatted = formatInlineText(content);
+        return `<h${Math.min(level, 3)} style="font-size: ${size}; font-weight: 700; color: #1e293b; margin: 24px 0 16px; line-height: 1.3;">${formatted}</h${Math.min(level, 3)}>`;
+      }
+      
+      // Check for list items (starting with -, *, or numbers)
+      if (/^[-*•]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+        const content = trimmed.replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "");
+        const formatted = formatInlineText(content);
+        return `<li style="font-size: 16px; line-height: 1.7; color: #475569; margin-bottom: 8px; padding-left: 8px;">${formatted}</li>`;
+      }
+      
+      // Check if it's a list block (multiple list items)
+      const lines = trimmed.split(/\n/);
+      if (lines.length > 1 && lines.every(line => /^[-*•]\s+/.test(line.trim()) || /^\d+\.\s+/.test(line.trim()))) {
+        const listItems = lines
+          .map(line => {
+            const content = line.trim().replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "");
+            const formatted = formatInlineText(content);
+            return `<li style="font-size: 16px; line-height: 1.7; color: #475569; margin-bottom: 8px; padding-left: 8px;">${formatted}</li>`;
+          })
+          .join("");
+        return `<ul style="margin: 16px 0; padding-left: 24px; list-style: none;">${listItems}</ul>`;
+      }
+      
+      // Regular paragraph with inline formatting
+      const formatted = formatInlineText(trimmed);
+      return `<p style="font-size: 16px; line-height: 1.7; color: #475569; margin-bottom: 16px;">${formatted}</p>`;
+    })
+    .join("");
+}
+
+// Format inline text (bold, italic, links, etc.)
+function formatInlineText(text: string): string {
+  let result = escapeHtml(text);
+  
+  // Convert **bold** or __bold__ to <strong>
+  result = result.replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight: 700; color: #1e293b;">$1</strong>');
+  result = result.replace(/__(.+?)__/g, '<strong style="font-weight: 700; color: #1e293b;">$1</strong>');
+  
+  // Convert *italic* or _italic_ to <em>
+  result = result.replace(/\*(.+?)\*/g, '<em style="font-style: italic;">$1</em>');
+  result = result.replace(/_(.+?)_/g, '<em style="font-style: italic;">$1</em>');
+  
+  // Convert [text](url) to links
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #4338ca; text-decoration: underline;">$1</a>');
+  
+  // Auto-detect URLs and convert to links
+  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+  result = result.replace(urlRegex, '<a href="$1" style="color: #4338ca; text-decoration: underline;">$1</a>');
+  
+  // Convert single newlines to <br/>
+  result = result.replace(/\n/g, "<br/>");
+  
+  return result;
+}
+
 export default function SendEmailAdminPage() {
   const isAdmin = useIsAdminFromDB();
 
@@ -102,13 +185,19 @@ export default function SendEmailAdminPage() {
   const [content, setContent] = useState("");
   const [contentType, setContentType] = useState<"text" | "html">("text");
   const [bccAdmin, setBccAdmin] = useState(true);
-  const [useTemplate, setUseTemplate] = useState(true);
 
   const [status, setStatus] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  // 新增：可编辑的收件人文本与“是否手动修改”标记
+  // 新增：可编辑的收件人文本与"是否手动修改"标记
   const [recipientsText, setRecipientsText] = useState("");
   const [recipientsDirty, setRecipientsDirty] = useState(false);
+
+  // Update status handler to set success state
+  const updateStatus = (message: string, isSuccess: boolean) => {
+    setStatus(message);
+    setSuccess(isSuccess);
+  };
 
   // Load swimmers
   useEffect(() => {
@@ -159,23 +248,17 @@ export default function SendEmailAdminPage() {
   }, [subject]);
 
   const previewHtml = useMemo(() => {
-    const inner =
-      contentType === "html"
-        ? content || "<p>(empty)</p>"
-        : `<pre style="font: 14px/1.7 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Ubuntu,Cantarell,sans-serif; white-space: pre-wrap;">${escapeHtml(
-            content || "(empty)"
-          )}</pre>`;
-    return useTemplate ? renderBrandedHTML(subjectPreview, inner) : inner;
-  }, [content, contentType, useTemplate, subjectPreview]);
+    const innerHtml = contentType === "html" 
+      ? content || "<p>(empty)</p>"
+      : textToHtml(content);
+    return renderBrandedHTML(subjectPreview, innerHtml);
+  }, [content, contentType, subjectPreview]);
 
   // 解析当前可编辑文本为 emails
   const { emails: recipientsParsed, invalid: invalidEmails } = useMemo(
     () => parseEmails(recipientsText),
     [recipientsText]
   );
-
-  if (isAdmin === null) return <div className="p-6">Checking permission…</div>;
-  if (!isAdmin) return <div className="p-6 text-red-600 font-semibold">Not authorized (admin only).</div>;
 
   const handleSend = async () => {
     try {
@@ -203,18 +286,29 @@ export default function SendEmailAdminPage() {
           toEmails: recipientsParsed, // ← 使用可编辑后的解析结果
           subject,
           content,
-          contentType,
+          contentType, // Use selected content type
           bccAdmin,
-          useTemplate,
+          useTemplate: true, // Always use template
         }),
       });
 
       const j: SendResp = await res.json();
       if (!res.ok || !j.ok) throw new Error(j.error || "Send failed");
-      setStatus(`✅ Sent to ${recipientsParsed.length} recipient(s).`);
+      updateStatus(`✅ Sent to ${recipientsParsed.length} recipient(s).`, true);
+      
+      // Reset form after successful send
+      setTimeout(() => {
+        setStatus("");
+        setSuccess(false);
+        setSelectedIds([]);
+        setRecipientsText("");
+        setRecipientsDirty(false);
+        setSubject("");
+        setContent("");
+      }, 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setStatus("❌ " + msg);
+      updateStatus("❌ " + msg, false);
     }
   };
 
@@ -223,159 +317,277 @@ export default function SendEmailAdminPage() {
     setRecipientsDirty(false);
   };
 
+  if (isAdmin === null) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="container mx-auto px-4 py-10">
+          <p className="text-center">Checking permission…</p>
+        </div>
+      </div>
+    );
+  }
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="container mx-auto px-4 py-10">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Not authorized (admin only).</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Send Custom Email</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+      <Header />
+      <div className="container mx-auto px-4 py-10 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-slate-800 mb-2 flex items-center gap-3">
+            <Mail className="w-8 h-8 text-blue-600" />
+            Send Custom Email
+          </h1>
+          <p className="text-slate-600">Send branded emails to parents - just type your message, we&apos;ll handle the formatting</p>
+        </div>
 
-      <div className="grid gap-6">
-        {/* Multi-select students */}
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Students (multi-select)</label>
-          <select
-            multiple
-            className="border rounded-lg p-2 h-56"
-            value={selectedIds}
-            onChange={(e) =>
-              setSelectedIds(Array.from(e.target.selectedOptions).map((o) => o.value))
-            }
+        {status && (
+          <Alert 
+            variant={success ? "default" : "destructive"}
+            className={`mb-6 ${success ? "border-green-200 bg-green-50" : ""}`}
           >
-            {swimmers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.swimmerName}
-                {s.parentName ? ` — ${s.parentName}` : ""}
-                {s.parentEmail ? `  <${s.parentEmail}>` : ""}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-slate-500">Hold Cmd/Ctrl to select multiple</span>
-        </div>
+            {success ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            )}
+            <AlertDescription className={success ? "text-green-800" : ""}>
+              {status}
+            </AlertDescription>
+          </Alert>
+        )}
 
-        {/* Recipients (editable) */}
-        <div className="grid gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              Recipients ({recipientsParsed.length}
-              {invalidEmails.length ? ` • ${invalidEmails.length} invalid` : ""})
-            </span>
-            <button
-              type="button"
-              onClick={resetRecipientsToSelection}
-              className="text-xs underline text-slate-600 hover:text-slate-800"
-              title="Reset to current selection"
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Left: Recipients & Subject */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Select Recipients
+                </CardTitle>
+                <CardDescription>Choose students or enter email addresses directly</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Multi-select students */}
+                <div className="space-y-2">
+                  <Label>Students (multi-select)</Label>
+                  <select
+                    multiple
+                    className="border rounded-lg p-2 h-56 w-full bg-white"
+                    value={selectedIds}
+                    onChange={(e) =>
+                      setSelectedIds(Array.from(e.target.selectedOptions).map((o) => o.value))
+                    }
+                  >
+                    {swimmers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.swimmerName}
+                        {s.parentName ? ` — ${s.parentName}` : ""}
+                        {s.parentEmail ? `  <${s.parentEmail}>` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500">Hold Cmd/Ctrl to select multiple</p>
+                </div>
+
+                {/* Recipients (editable) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>
+                      Recipients ({recipientsParsed.length}
+                      {invalidEmails.length ? ` • ${invalidEmails.length} invalid` : ""})
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetRecipientsToSelection}
+                      className="text-xs h-auto py-1"
+                    >
+                      Reset to selection
+                    </Button>
+                  </div>
+                  <Textarea
+                    className={invalidEmails.length ? "border-amber-400 bg-amber-50" : ""}
+                    placeholder="email1@example.com, email2@example.com (comma/semicolon/newline separated)"
+                    value={recipientsText}
+                    onChange={(e) => {
+                      setRecipientsText(e.target.value);
+                      setRecipientsDirty(true);
+                    }}
+                    rows={4}
+                  />
+                  {!!invalidEmails.length && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Invalid: {invalidEmails.join(", ")}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <p className="text-xs text-slate-500">
+                    Tip: You can edit addresses directly. Use commas, semicolons, spaces, or new lines as separators.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Email Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Subject */}
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g., Schedule Update for This Week"
+                  />
+                </div>
+
+                {/* Options */}
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Content Type</Label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="contentType"
+                          checked={contentType === "text"}
+                          onChange={() => setContentType("text")}
+                        />
+                        <span className="text-sm">Plain Text (with formatting)</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="contentType"
+                          checked={contentType === "html"}
+                          onChange={() => setContentType("html")}
+                        />
+                        <span className="text-sm">HTML</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="bcc-admin"
+                      checked={bccAdmin}
+                      onCheckedChange={(checked) => setBccAdmin(checked === true)}
+                    />
+                    <Label htmlFor="bcc-admin" className="text-sm font-normal cursor-pointer">
+                      BCC admin (default)
+                    </Label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Content & Preview */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Message Content
+                </CardTitle>
+                <CardDescription>Type your message in plain text - formatting is automatic</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="content">
+                    Your Message ({contentType === "text" ? "Plain Text" : "HTML"})
+                  </Label>
+                  <Textarea
+                    id="content"
+                    className={`min-h-64 text-base leading-relaxed ${contentType === "html" ? "font-mono" : "font-sans"}`}
+                    placeholder={
+                      contentType === "text"
+                        ? "Type your message here...\n\nYou can use simple formatting:\n• **bold** or __bold__ for bold text\n• *italic* or _italic_ for italic text\n• # Heading for large headings\n• ## Subheading for smaller headings\n• - item or * item for bullet lists\n• URLs are automatically converted to links\n\nDouble line breaks create new paragraphs."
+                        : "<p>Type your HTML here...</p>\n<p>Your HTML will be wrapped with PSA template.</p>"
+                    }
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={12}
+                  />
+                  {contentType === "text" ? (
+                    <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded-lg">
+                      <p><strong>Formatting Tips:</strong></p>
+                      <p>• Double line breaks create new paragraphs</p>
+                      <p>• Use <code>**text**</code> for <strong>bold</strong> or <code>__text__</code> for <strong>bold</strong></p>
+                      <p>• Use <code>*text*</code> for <em>italic</em> or <code>_text_</code> for <em>italic</em></p>
+                      <p>• Use <code># Heading</code> for headings (## for smaller)</p>
+                      <p>• Use <code>- item</code> or <code>* item</code> for bullet lists</p>
+                      <p>• URLs are automatically converted to links</p>
+                      <p>• Your message will be automatically wrapped with PSA branded template</p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 space-y-1 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                      <p><strong>HTML Mode:</strong></p>
+                      <p>• Enter your HTML directly (e.g., &lt;p&gt;Your content&lt;/p&gt;)</p>
+                      <p>• Your HTML will be wrapped with PSA branded template</p>
+                      <p>• You can use inline CSS styles</p>
+                      <p>• Links, images, and other HTML elements are supported</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  Preview
+                </CardTitle>
+                <CardDescription>How your email will look to recipients</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <iframe title="preview" className="w-full h-96" srcDoc={previewHtml}></iframe>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Send Button */}
+            <Button
+              onClick={handleSend}
+              size="lg"
+              className="w-full"
+              disabled={!recipientsParsed.length || !subject.trim() || !content.trim() || status.includes("Sending")}
             >
-              Reset to selection
-            </button>
-          </div>
-          <textarea
-            className={[
-              "border rounded-lg p-2 min-h-24 text-sm",
-              invalidEmails.length ? "border-amber-400 bg-amber-50" : "bg-slate-50",
-            ].join(" ")}
-            placeholder="email1@example.com, email2@example.com (comma/semicolon/newline separated)"
-            value={recipientsText}
-            onChange={(e) => {
-              setRecipientsText(e.target.value);
-              setRecipientsDirty(true);
-            }}
-          />
-          {!!invalidEmails.length && (
-            <div className="text-xs text-amber-700">
-              Invalid: {invalidEmails.join(", ")}
-            </div>
-          )}
-          {/* 小提示 */}
-          <div className="text-xs text-slate-500">
-            Tip: You can edit addresses directly. Use commas, semicolons, spaces, or new lines as separators.
+              {status.includes("Sending") ? (
+                "Sending..."
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Email
+                </>
+              )}
+            </Button>
           </div>
         </div>
-
-        {/* Subject */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Subject</span>
-          <input
-            className="border rounded-lg p-2"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="e.g., Schedule Update for This Week"
-          />
-        </label>
-
-        {/* Content type + toggles */}
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">Content type:</span>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="ctype"
-                checked={contentType === "text"}
-                onChange={() => setContentType("text")}
-              />
-              <span>Plain text</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="ctype"
-                checked={contentType === "html"}
-                onChange={() => setContentType("html")}
-              />
-              <span>HTML</span>
-            </label>
-          </div>
-
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={useTemplate}
-              onChange={(e) => setUseTemplate(e.target.checked)}
-            />
-            <span className="text-sm">Use PSA template</span>
-          </label>
-
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={bccAdmin}
-              onChange={(e) => setBccAdmin(e.target.checked)}
-            />
-            <span className="text-sm">BCC admin (default)</span>
-          </label>
-        </div>
-
-        {/* Editor */}
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Content ({contentType.toUpperCase()})</span>
-          <textarea
-            className="border rounded-lg p-2 min-h-48 font-mono"
-            placeholder={
-              contentType === "text" ? "Type your message…" : "<p>Type your HTML email…</p>"
-            }
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
-          <span className="text-xs text-slate-500">Tip: HTML supports inline CSS and basic tags.</span>
-        </label>
-
-        {/* Preview */}
-        <div className="grid gap-1">
-          <span className="text-sm font-medium">
-            Preview {useTemplate ? "(with PSA template)" : "(raw)"}
-          </span>
-          <div className="border rounded-lg overflow-hidden bg-white">
-            <iframe title="preview" className="w-full h-96" srcDoc={previewHtml}></iframe>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <button
-          onClick={handleSend}
-          className="rounded-2xl px-5 py-3 font-semibold shadow bg-black text-white hover:opacity-90"
-        >
-          Send Email
-        </button>
-
-        <div className="text-sm">{status}</div>
       </div>
     </div>
   );
