@@ -584,26 +584,66 @@ function ArrangementPageContent() {
       if (json.rows) {
         json.rows = json.rows.map((row) => {
           // Try to match placement by location and label
-          // First try with date if available in label
-          const labelParts = row.label.split(" - ");
+          // Handle different date formats in label
           let slotDate: string | undefined;
           let slotLabel: string;
           
-          // Check if first part is a date (MM/DD/YYYY format)
+          // Try to extract date from label - handle multiple formats
+          // Format 1: MM/DD/YYYY - Time (e.g., "01/02/2026 - 10:00-11:00AM")
+          // Format 2: YYYY-MM-DD-Time (e.g., "2025-12-22-10:00-11:00AM")
+          // Format 3: Date already in label as prefix
+          
+          const labelParts = row.label.split(" - ");
+          
+          // Check for MM/DD/YYYY format at start
           if (labelParts.length > 1 && /^\d{2}\/\d{2}\/\d{4}/.test(labelParts[0])) {
             slotDate = labelParts[0];
             slotLabel = labelParts.slice(1).join(" - ").trim();
+          } 
+          // Check for YYYY-MM-DD format at start (e.g., "2025-12-22-10:00-11:00AM")
+          else if (/^\d{4}-\d{2}-\d{2}-/.test(row.label)) {
+            const match = row.label.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
+            if (match) {
+              // Convert YYYY-MM-DD to MM/DD/YYYY
+              const [year, month, day] = match[1].split('-');
+              slotDate = `${month}/${day}/${year}`;
+              slotLabel = match[2].trim();
+            } else {
+              slotLabel = row.label.trim();
+            }
           } else {
             slotLabel = row.label.trim();
           }
           
-          // Try multiple key formats
+          // Try multiple key formats with different date formats
           const keys = [
-            `${row.location}__${slotLabel}__${slotDate || ""}`, // location__label__date
-            `${row.location}__${row.label}__${slotDate || ""}`, // location__fullLabel__date
+            `${row.location}__${slotLabel}__${slotDate || ""}`, // location__label__MM/DD/YYYY
+            `${row.location}__${row.label}__${slotDate || ""}`, // location__fullLabel__MM/DD/YYYY
             `${row.location}__${slotLabel}__`, // location__label (no date)
             `${row.location}__${row.label}__`, // location__fullLabel (no date)
           ];
+          
+          // Also try with YYYY-MM-DD format if we have a date
+          if (slotDate) {
+            // Convert MM/DD/YYYY back to YYYY-MM-DD
+            const dateMatch = slotDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (dateMatch) {
+              const [, month, day, year] = dateMatch;
+              const yyyyMMdd = `${year}-${month}-${day}`;
+              keys.push(`${row.location}__${slotLabel}__${yyyyMMdd}`);
+              keys.push(`${row.location}__${row.label}__${yyyyMMdd}`);
+            }
+          }
+          
+          // Also try matching without date (in case date format doesn't match)
+          // This is important when label format is different
+          if (slotLabel !== row.label) {
+            keys.push(`${row.location}__${row.label}__`); // Try with original label without date
+          }
+          
+          console.log(`Trying to match row: ${row.location} - ${row.label}`);
+          console.log(`  Extracted slotDate: ${slotDate || 'none'}, slotLabel: ${slotLabel}`);
+          console.log(`  Trying keys:`, keys);
           
           let matched = false;
           for (const key of keys) {
