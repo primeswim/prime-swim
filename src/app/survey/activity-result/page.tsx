@@ -252,7 +252,21 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
                       </span>
                     </td>
                     <td className="p-3 text-center">
-                      {r.capacity !== undefined ? (
+                      {r.laneDetails && r.laneDetails.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm text-slate-700 font-medium">
+                            {r.lanes} lane{r.lanes !== 1 ? "s" : ""}
+                          </span>
+                          <div className="text-xs text-slate-600">
+                            {r.laneDetails.map((lane, idx) => (
+                              <span key={lane.laneNumber}>
+                                Lane {lane.laneNumber}: {lane.capacity} swimmer{lane.capacity !== 1 ? "s" : ""}
+                                {idx < r.laneDetails!.length - 1 ? ", " : ""}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : r.capacity !== undefined ? (
                         <span className="text-sm text-slate-700">
                           {r.capacity} {r.lanes ? `(${r.lanes} lane${r.lanes !== 1 ? "s" : ""})` : ""}
                         </span>
