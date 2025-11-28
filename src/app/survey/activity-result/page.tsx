@@ -346,19 +346,26 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                       <span className="text-sm text-slate-600 font-medium">
                         {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
                       </span>
-                      {(s.laneDetails && Array.isArray(s.laneDetails) && s.laneDetails.length > 0) ? (
+                      {s.lanes !== undefined && s.lanes > 0 ? (
                         <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
-                          <span className="font-semibold">{s.lanes} lane{s.lanes !== 1 ? "s" : ""}:</span>
-                          {s.laneDetails.map((lane: { laneNumber: number; capacity: number }, idx: number) => (
-                            <span key={lane.laneNumber}>
-                              Lane {lane.laneNumber} ({lane.capacity} swimmer{lane.capacity !== 1 ? "s" : ""})
-                              {idx < s.laneDetails!.length - 1 ? ", " : ""}
-                            </span>
-                          ))}
+                          <span className="font-semibold">{s.lanes} lane{s.lanes !== 1 ? "s" : ""}</span>
+                          {s.laneDetails && Array.isArray(s.laneDetails) && s.laneDetails.length > 0 ? (
+                            <>
+                              <span>:</span>
+                              {s.laneDetails.map((lane: { laneNumber: number; capacity: number }, idx: number) => (
+                                <span key={lane.laneNumber}>
+                                  Lane {lane.laneNumber} ({lane.capacity} swimmer{lane.capacity !== 1 ? "s" : ""})
+                                  {idx < s.laneDetails!.length - 1 ? ", " : ""}
+                                </span>
+                              ))}
+                            </>
+                          ) : s.capacity !== undefined ? (
+                            <span>({s.capacity} total capacity)</span>
+                          ) : null}
                         </div>
                       ) : s.capacity !== undefined ? (
                         <span className="text-sm text-blue-600 font-medium">
-                          Capacity: {s.capacity} {s.lanes ? `(${s.lanes} lane${s.lanes !== 1 ? "s" : ""})` : ""}
+                          Capacity: {s.capacity}
                         </span>
                       ) : null}
                     </div>
