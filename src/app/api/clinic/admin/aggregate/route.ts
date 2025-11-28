@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getAuth } from "firebase-admin/auth";
 import { SwimmerLevel } from "@/lib/swimmer-levels";
+import { Timestamp } from "firebase-admin/firestore";
 
 interface Submission {
   parentEmail: string;
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
       ? await adminDb.collection("clinicSubmissions").where("season", "==", season).get()
       : await adminDb.collection("clinicSubmissions").get();
 
-    const submissions = snap.docs.map((d) => d.data() as Submission);
+    const submissions = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Submission & { id: string }));
 
     // --- Aggregate ---
     const rowsMap = new Map<
@@ -54,8 +55,10 @@ export async function GET(req: Request) {
           key: string;
           swimmerName: string;
           parentEmail: string;
-          parentPhone: string; // ✅ 返回电话
+          parentPhone: string;
           level: SwimmerLevel | string;
+          submittedAt?: number; // Timestamp in milliseconds
+          submissionId?: string;
         }[];
       }
     >();
@@ -76,12 +79,30 @@ export async function GET(req: Request) {
           }
           const row = rowsMap.get(key)!;
           if (!row.swimmers.find((x) => x.key === ukey)) {
+            // Extract submission timestamp
+            let submittedAt: number | undefined;
+            if (s.submittedAt) {
+              if (s.submittedAt instanceof Timestamp) {
+                submittedAt = s.submittedAt.toMillis();
+              } else if (typeof s.submittedAt === 'object' && 'toMillis' in s.submittedAt && typeof s.submittedAt.toMillis === 'function') {
+                submittedAt = s.submittedAt.toMillis();
+              } else if (typeof s.submittedAt === 'object' && '_seconds' in s.submittedAt) {
+                const seconds = (s.submittedAt as { _seconds?: number })._seconds;
+                submittedAt = seconds ? seconds * 1000 : undefined;
+              } else if (typeof s.submittedAt === 'object' && 'seconds' in s.submittedAt) {
+                const seconds = (s.submittedAt as { seconds?: number }).seconds;
+                submittedAt = seconds ? seconds * 1000 : undefined;
+              }
+            }
+            
             row.swimmers.push({
               key: ukey,
               swimmerName: s.swimmerName,
               parentEmail: s.parentEmail,
-              parentPhone: (s.parentPhone || "").toString(), // ✅
+              parentPhone: (s.parentPhone || "").toString(),
               level: s.level,
+              submittedAt,
+              submissionId: s.id || ukey,
             });
           }
           seen.add(ukey);

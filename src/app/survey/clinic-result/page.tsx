@@ -26,6 +26,8 @@ interface DemandRow {
     parentEmail: string;
     parentPhone: string;
     level: SwimmerLevel | string;
+    submittedAt?: number; // Timestamp in milliseconds
+    submissionId?: string;
   }[];
 }
 
@@ -281,25 +283,46 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="min-w-full text-sm">
-                          <thead>
-                            <tr className="text-left text-slate-600 border-b">
-                              <th className="p-3 font-semibold">Swimmer Name</th>
-                              <th className="p-3 font-semibold">Level</th>
-                              <th className="p-3 font-semibold">Parent Email</th>
-                              <th className="p-3 font-semibold">Parent Phone</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {s.swimmers
-                              .slice()
-                              .sort((a, b) => a.swimmerName.localeCompare(b.swimmerName))
-                              .map((w, idx) => (
+                        <thead>
+                          <tr className="text-left text-slate-600 border-b">
+                            <th className="p-3 font-semibold">Swimmer Name</th>
+                            <th className="p-3 font-semibold">Level</th>
+                            <th className="p-3 font-semibold">Submitted At</th>
+                            <th className="p-3 font-semibold">Parent Email</th>
+                            <th className="p-3 font-semibold">Parent Phone</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {s.swimmers
+                            .slice()
+                            .sort((a, b) => {
+                              // Sort by submission time (first come first serve), then by name
+                              if (a.submittedAt && b.submittedAt) {
+                                return a.submittedAt - b.submittedAt;
+                              }
+                              if (a.submittedAt) return -1;
+                              if (b.submittedAt) return 1;
+                              return a.swimmerName.localeCompare(b.swimmerName);
+                            })
+                            .map((w, idx) => {
+                              const submittedDate = w.submittedAt 
+                                ? new Date(w.submittedAt).toLocaleString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })
+                                : "Unknown";
+                              return (
                                 <tr key={w.key} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                                   <td className="p-3 font-medium text-slate-800">{w.swimmerName}</td>
                                   <td className="p-3">
                                     <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
                                       {w.level}
                                     </span>
+                                  </td>
+                                  <td className="p-3 text-sm text-slate-600">
+                                    {submittedDate}
                                   </td>
                                   <td className="p-3">
                                     <a
@@ -324,7 +347,8 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                                     )}
                                   </td>
                                 </tr>
-                              ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>

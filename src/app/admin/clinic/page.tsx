@@ -12,8 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Header from "@/components/header";
-import { Calendar, MapPin, Plus, Trash2, Edit, Save, X, CheckCircle2, AlertCircle, Eye } from "lucide-react";
+import { Calendar, MapPin, Plus, Trash2, Edit, Save, X, CheckCircle2, AlertCircle, Eye, Copy, Link as LinkIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ActivityType } from "@/app/api/clinic/config/route";
 
 interface ClinicSlot {
   date: string;
@@ -30,6 +32,7 @@ interface ClinicConfig {
   id?: string;
   season: string;
   title: string;
+  type?: ActivityType;
   description?: string;
   locations: ClinicLocation[];
   levels?: string[];
@@ -45,6 +48,7 @@ export default function ClinicAdminPage() {
   const [formData, setFormData] = useState<ClinicConfig>({
     season: "",
     title: "",
+    type: "clinic",
     description: "",
     locations: [],
     levels: [],
@@ -123,6 +127,7 @@ export default function ClinicAdminPage() {
       setFormData({
         season: "",
         title: "",
+        type: "clinic",
         description: "",
         locations: [],
         levels: [],
@@ -167,14 +172,15 @@ export default function ClinicAdminPage() {
 
   const handleCancel = () => {
     setEditingId(null);
-    setFormData({
-      season: "",
-      title: "",
-      description: "",
-      locations: [],
-      levels: [],
-      active: true,
-    });
+      setFormData({
+        season: "",
+        title: "",
+        type: "clinic",
+        description: "",
+        locations: [],
+        levels: [],
+        active: true,
+      });
   };
 
   const addLocation = () => {
@@ -250,9 +256,9 @@ export default function ClinicAdminPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-800 mb-2 flex items-center gap-3">
             <Calendar className="w-8 h-8 text-blue-600" />
-            Clinic Management
+            Activity Management
           </h1>
-          <p className="text-slate-600">Create and manage clinic time slots and locations</p>
+          <p className="text-slate-600">Create and manage clinics, camps, and pop-up training sessions</p>
         </div>
 
         {status && (
@@ -274,13 +280,29 @@ export default function ClinicAdminPage() {
         {/* Form */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>{editingId ? "Edit Clinic Config" : "Create New Clinic Config"}</CardTitle>
+            <CardTitle>{editingId ? "Edit Activity Config" : "Create New Activity Config"}</CardTitle>
             <CardDescription>
-              {editingId ? "Update clinic configuration" : "Add a new clinic with time slots and locations"}
+              {editingId ? "Update activity configuration" : "Add a new activity (clinic/camp/pop-up) with time slots and locations"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type">Activity Type *</Label>
+                <Select
+                  value={formData.type || "clinic"}
+                  onValueChange={(v) => setFormData({ ...formData, type: v as "clinic" | "camp" | "pop-up" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="clinic">Clinic</SelectItem>
+                    <SelectItem value="camp">Camp</SelectItem>
+                    <SelectItem value="pop-up">Pop-up Training</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="season">Season *</Label>
                 <Input
@@ -296,7 +318,7 @@ export default function ClinicAdminPage() {
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g. Winter Break Clinic Preferences"
+                  placeholder="e.g. Winter Break Clinic"
                 />
               </div>
             </div>
@@ -430,6 +452,11 @@ export default function ClinicAdminPage() {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {config.title}
+                        {config.type && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full capitalize">
+                            {config.type}
+                          </span>
+                        )}
                         {config.active && (
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
                             Active
@@ -437,6 +464,33 @@ export default function ClinicAdminPage() {
                         )}
                       </CardTitle>
                       <CardDescription>{config.season}</CardDescription>
+                      <div className="mt-3">
+                        <div className="text-sm text-slate-600 mb-1 flex items-center gap-1">
+                          <LinkIcon className="w-4 h-4" />
+                          Poll Link:
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            readOnly
+                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/survey/poll?id=${config.id}`}
+                            className="text-xs font-mono bg-slate-50"
+                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const url = `${window.location.origin}/survey/poll?id=${config.id}`;
+                              navigator.clipboard.writeText(url);
+                              setStatus({ message: "Poll link copied to clipboard!", success: true });
+                              setTimeout(() => setStatus(null), 3000);
+                            }}
+                          >
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button

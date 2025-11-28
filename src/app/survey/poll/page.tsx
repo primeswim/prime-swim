@@ -1,9 +1,10 @@
-// ./src/app/survey/clinic-poll/page.tsx
+// ./src/app/survey/poll/page.tsx
 "use client"
 
 import type React from "react"
 import Image from "next/image"
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
@@ -68,9 +69,10 @@ interface SwimmerInfo {
 
 type SubmitResponse = { error?: string }
 
-const MIN_SUGGESTED_CHOICES = 2
+// Removed minimum requirement - encourage as many selections as possible
 
-export default function ClinicSurveyPage() {
+function ClinicSurveyPageContent() {
+  const searchParams = useSearchParams()
   const [config, setConfig] = useState<ClinicConfig | null>(null)
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [user, setUser] = useState<{ uid: string; email: string | null } | null>(null)
@@ -87,11 +89,21 @@ export default function ClinicSurveyPage() {
   const [honeypot, setHoneypot] = useState("")
   const [autoFilled, setAutoFilled] = useState(false)
 
-  // Load active clinic config
+  // Load clinic config by ID from URL or active config
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const res = await fetch("/api/clinic/config/active")
+        const configId = searchParams.get("id")
+        
+        let res: Response
+        if (configId) {
+          // Load specific config by ID
+          res = await fetch(`/api/clinic/config?id=${encodeURIComponent(configId)}`)
+        } else {
+          // Load active config (backward compatibility)
+          res = await fetch("/api/clinic/config/active")
+        }
+        
         if (!res.ok) throw new Error("Failed to load clinic config")
         const data = await res.json()
         if (data.config) {
@@ -104,7 +116,7 @@ export default function ClinicSurveyPage() {
       }
     }
     loadConfig()
-  }, [])
+  }, [searchParams])
 
   // Load user and swimmers if logged in
   useEffect(() => {
@@ -174,7 +186,6 @@ export default function ClinicSurveyPage() {
     () => form.preferences.reduce((sum, p) => sum + p.selections.length, 0),
     [form.preferences]
   )
-  const meetsSuggested = totalSelected >= MIN_SUGGESTED_CHOICES
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -346,7 +357,7 @@ export default function ClinicSurveyPage() {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-slate-800 text-center flex items-center justify-center">
                   <Calendar className="w-6 h-6 mr-2" />
-                  {config.title} — Interest Survey
+                  {config.title} — Survey
                 </CardTitle>
                 <CardDescription className="text-center text-slate-600">
                   Parent email, phone, swimmer info, location & time preferences
@@ -493,8 +504,8 @@ export default function ClinicSurveyPage() {
                     </div>
 
                     <p className="text-slate-600">
-                      <strong>We encourage daily attendance if your schedule allows.</strong>{" "}
-                      Select <em>all</em> dates that work (use &quot;Select all&quot; per location for convenience).
+                      <strong>The more time slots you select, the better we can plan and help your swimmer improve.</strong>{" "}
+                      Please select <em>all</em> dates that work for you (use &quot;Select all&quot; per location for convenience).
                     </p>
 
                     {config.locations.map((locationData) => {
@@ -554,23 +565,12 @@ export default function ClinicSurveyPage() {
                   </div>
 
                   {/* dynamic hint */}
-                  <div
-                    className={[
-                      "rounded-xl border px-4 py-3 text-sm md:text-base flex items-start gap-3",
-                      meetsSuggested
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                        : "bg-amber-50 border-amber-200 text-amber-800",
-                    ].join(" ")}
-                  >
-                    {meetsSuggested ? (
-                      <CheckCircle2 className="w-5 h-5 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 mt-0.5" />
-                    )}
+                  <div className="rounded-xl border px-4 py-3 text-sm md:text-base flex items-start gap-3 bg-blue-50 border-blue-200 text-blue-800">
+                    <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
                     <div>
-                      You’ve selected <strong>{totalSelected}</strong> time(s). We <strong>encourage daily attendance</strong>—feel free to
-                      select all dates that work.
-                      {!meetsSuggested && <> Choosing at least <strong>{MIN_SUGGESTED_CHOICES}</strong> helps us plan lanes & staffing.</>}
+                      You&apos;ve selected <strong>{totalSelected}</strong> time slot{totalSelected !== 1 ? "s" : ""}. 
+                      <strong> The more selections you provide, the better we can plan lanes, assign coaches, and help your swimmer improve.</strong>{" "}
+                      We encourage selecting all dates that work for your schedule.
                     </div>
                   </div>
 
@@ -602,5 +602,22 @@ export default function ClinicSurveyPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function ClinicSurveyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-slate-600">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <ClinicSurveyPageContent />
+    </Suspense>
   )
 }

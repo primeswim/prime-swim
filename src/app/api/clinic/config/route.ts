@@ -12,10 +12,13 @@ interface ClinicSlot {
   time?: string;
 }
 
+export type ActivityType = "clinic" | "camp" | "pop-up";
+
 interface ClinicConfig {
   id?: string;
   season: string;
   title: string;
+  type?: ActivityType; // Default to "clinic" for backward compatibility
   description?: string;
   locations: {
     name: string;
@@ -27,12 +30,34 @@ interface ClinicConfig {
   updatedAt?: Timestamp;
 }
 
-// GET: 获取所有 clinic 配置
+// GET: 获取所有 clinic 配置或单个配置
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
     const season = searchParams.get("season");
     const activeOnly = searchParams.get("activeOnly") === "true";
+
+    // If ID is provided, return single config (public, no auth required)
+    if (id) {
+      const doc = await adminDb.collection("clinicConfigs").doc(id).get();
+      if (!doc.exists) {
+        return NextResponse.json({ error: "Config not found" }, { status: 404 });
+      }
+      return NextResponse.json({ config: { id: doc.id, ...doc.data() } });
+    }
+
+    // Otherwise, return list of configs (requires auth for admin)
+    const authz = req.headers.get("authorization") || "";
+    const m = /^Bearer\s+(.+)$/.exec(authz);
+    if (!m) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    
+    const decoded = await getAuth().verifyIdToken(m[1]);
+    const email = (decoded.email || "").toLowerCase();
+    if (!email) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    
+    const adminDoc = await adminDb.collection("admin").doc(email).get();
+    if (!adminDoc.exists) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
     let queryRef: FirebaseFirestore.Query = adminDb.collection("clinicConfigs");
     
@@ -81,6 +106,7 @@ export async function POST(req: Request) {
     const config: ClinicConfig = {
       season: body.season.trim(),
       title: body.title.trim(),
+      type: body.type || "clinic",
       description: body.description?.trim() || "",
       locations: body.locations,
       levels: body.levels || [],
@@ -122,6 +148,7 @@ export async function PUT(req: Request) {
     const updateData: Partial<ClinicConfig> = {
       season: body.season?.trim(),
       title: body.title?.trim(),
+      type: body.type,
       description: body.description?.trim(),
       locations: body.locations,
       levels: body.levels,
