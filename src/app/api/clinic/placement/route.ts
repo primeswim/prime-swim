@@ -33,6 +33,7 @@ interface Placement {
   season: string;
   location: string;
   slotLabel: string;
+  slotDate?: string; // Add date field to distinguish slots with same label but different dates
   lanes: {
     laneNumber: number;
     capacity: number; // Default 3, can be changed
@@ -110,6 +111,7 @@ export async function POST(req: Request) {
       season: body.season,
       location: body.location,
       slotLabel: body.slotLabel,
+      slotDate: body.slotDate, // Include date field
       lanes: body.lanes || [],
       waitlist: body.waitlist || [],
       updatedAt: Timestamp.now(),

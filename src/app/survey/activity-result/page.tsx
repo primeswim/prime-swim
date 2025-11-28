@@ -1,4 +1,4 @@
-// ./src/app/survey/clinic-result/page.tsx
+// ./src/app/survey/activity-result/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState, Suspense } from "react";

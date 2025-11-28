@@ -1,4 +1,4 @@
-// app/admin/clinic/page.tsx
+// app/admin/activity/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -497,7 +497,7 @@ export default function ClinicAdminPage() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => router.push(`/survey/clinic-result?season=${encodeURIComponent(config.season)}`)}
+                        onClick={() => router.push(`/survey/activity-result?season=${encodeURIComponent(config.season)}`)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         <Eye className="w-4 h-4 mr-2" />
@@ -506,7 +506,7 @@ export default function ClinicAdminPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/admin/clinic/placement?activityId=${config.id}&season=${encodeURIComponent(config.season)}`)}
+                        onClick={() => router.push(`/admin/activity/placement?activityId=${config.id}&season=${encodeURIComponent(config.season)}`)}
                       >
                         <Users className="w-4 h-4 mr-2" />
                         Manage Placement

@@ -1,4 +1,4 @@
-// app/admin/clinic/placement/page.tsx
+// app/admin/activity/placement/page.tsx
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
@@ -47,6 +47,7 @@ interface Placement {
   season: string;
   location: string;
   slotLabel: string;
+  slotDate?: string; // Add date field to distinguish slots with same label but different dates
   lanes: Lane[];
   waitlist: WaitlistSwimmer[];
   createdAt?: number;
@@ -148,9 +149,9 @@ function PlacementManagementContent() {
     }
   }, [isAdmin, selectedConfig]);
 
-  const getOrCreatePlacement = (location: string, slotLabel: string): Placement => {
+  const getOrCreatePlacement = (location: string, slotLabel: string, slotDate?: string): Placement => {
     const existing = placements.find(
-      (p) => p.location === location && p.slotLabel === slotLabel
+      (p) => p.location === location && p.slotLabel === slotLabel && p.slotDate === slotDate
     );
 
     if (existing) {
@@ -167,6 +168,7 @@ function PlacementManagementContent() {
       season: selectedConfig!.season,
       location,
       slotLabel,
+      slotDate,
       lanes: [{ laneNumber: 1, capacity: 3, swimmers: [] }],
       waitlist: [],
     };
@@ -177,7 +179,7 @@ function PlacementManagementContent() {
   const updatePlacement = (placement: Placement) => {
     setPlacements((prev) => {
       const index = prev.findIndex(
-        (p) => p.location === placement.location && p.slotLabel === placement.slotLabel
+        (p) => p.location === placement.location && p.slotLabel === placement.slotLabel && p.slotDate === placement.slotDate
       );
 
       if (index >= 0) {
@@ -368,16 +370,41 @@ function PlacementManagementContent() {
                     {locationData.slots.map((slot, slotIdx) => {
                       // Use unique key combining location, date, and label to avoid duplicates
                       const uniqueKey = `${locationData.name}-${slot.date || slotIdx}-${slot.label}`;
-                      const placement = getOrCreatePlacement(locationData.name, slot.label);
+                      const placement = getOrCreatePlacement(locationData.name, slot.label, slot.date);
                       const totalCapacity = placement.lanes.reduce((sum, l) => sum + l.capacity, 0);
                       const totalPlaced = placement.lanes.reduce((sum, l) => sum + l.swimmers.length, 0);
                       const available = totalCapacity - totalPlaced;
+
+                      // Format date for display
+                      let displayDate = "";
+                      if (slot.date) {
+                        try {
+                          let dateObj: Date;
+                          if (/^\d{4}-\d{2}-\d{2}$/.test(slot.date)) {
+                            const [year, month, day] = slot.date.split('-').map(Number);
+                            dateObj = new Date(year, month - 1, day);
+                          } else {
+                            dateObj = new Date(slot.date);
+                          }
+                          if (!isNaN(dateObj.getTime())) {
+                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            const day = String(dateObj.getDate()).padStart(2, '0');
+                            const year = dateObj.getFullYear();
+                            displayDate = `${month}/${day}/${year}`;
+                          }
+                        } catch {
+                          // If date parsing fails, just use the raw date
+                          displayDate = slot.date;
+                        }
+                      }
 
                       return (
                         <div key={uniqueKey} className="border rounded-lg p-4 bg-slate-50">
                           <div className="flex items-center justify-between mb-4">
                             <div>
-                              <h4 className="font-semibold text-slate-800">{slot.label}</h4>
+                              <h4 className="font-semibold text-slate-800">
+                                {displayDate ? `${displayDate} - ${slot.label}` : slot.label}
+                              </h4>
                               <p className="text-sm text-slate-600">
                                 Capacity: {totalPlaced}/{totalCapacity} ({available} available) | Waitlist: {placement.waitlist.length}
                               </p>
