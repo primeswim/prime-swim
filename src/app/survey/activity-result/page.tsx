@@ -326,32 +326,36 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
               </Button>
             </div>
             <div className="p-5 space-y-4">
-              {sessions.map((s) => (
+              {sessions.map((s) => {
+                // Debug: log session data
+                console.log("Session:", s.label, "laneDetails:", s.laneDetails, "lanes:", s.lanes, "capacity:", s.capacity);
+                
+                return (
                 <div key={s.label} className="border rounded-lg border-slate-200 overflow-hidden">
                   <div className="px-4 py-3 bg-slate-50 border-b flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-slate-600" />
                       <span className="font-semibold text-slate-800">{s.label}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-sm text-slate-600 font-medium">
                         {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
                       </span>
                       {s.laneDetails && s.laneDetails.length > 0 ? (
                         <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
-                          <span>{s.lanes} lane{s.lanes !== 1 ? "s" : ""}:</span>
+                          <span className="font-semibold">{s.lanes} lane{s.lanes !== 1 ? "s" : ""}:</span>
                           {s.laneDetails.map((lane, idx) => (
                             <span key={lane.laneNumber}>
-                              Lane {lane.laneNumber} ({lane.capacity})
+                              Lane {lane.laneNumber} ({lane.capacity} swimmer{lane.capacity !== 1 ? "s" : ""})
                               {idx < s.laneDetails!.length - 1 ? ", " : ""}
                             </span>
                           ))}
                         </div>
-                      ) : s.capacity !== undefined && (
+                      ) : s.capacity !== undefined ? (
                         <span className="text-sm text-blue-600 font-medium">
                           Capacity: {s.capacity} {s.lanes ? `(${s.lanes} lane${s.lanes !== 1 ? "s" : ""})` : ""}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   <div className="p-4">
@@ -435,7 +439,8 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             </div>
           );
