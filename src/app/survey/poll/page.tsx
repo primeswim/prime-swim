@@ -191,16 +191,18 @@ function ClinicSurveyPageContent() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  const toggleSelection = (location: string, slotLabel: string) => {
+  const toggleSelection = (location: string, slot: ClinicSlot) => {
+    // Use date + label as unique identifier to avoid conflicts when same time appears on different dates
+    const uniqueKey = `${slot.date}-${slot.label}`
     setForm((prev) => {
       const existing = prev.preferences.find((p) => p.location === location)
       if (!existing) {
-        return { ...prev, preferences: [...prev.preferences, { location, selections: [slotLabel] }] }
+        return { ...prev, preferences: [...prev.preferences, { location, selections: [uniqueKey] }] }
       }
-      const already = existing.selections.includes(slotLabel)
+      const already = existing.selections.includes(uniqueKey)
       const nextSelections = already
-        ? existing.selections.filter((s) => s !== slotLabel)
-        : [...existing.selections, slotLabel]
+        ? existing.selections.filter((s) => s !== uniqueKey)
+        : [...existing.selections, uniqueKey]
       return {
         ...prev,
         preferences: prev.preferences.map((p) =>
@@ -213,16 +215,17 @@ function ClinicSurveyPageContent() {
   const selectAllForLocation = (location: string) => {
     const locationData = config?.locations.find((l) => l.name === location)
     if (!locationData) return
-    const allLabels = locationData.slots.map((s) => s.label)
+    // Use date + label as unique identifier
+    const allKeys = locationData.slots.map((s) => `${s.date}-${s.label}`)
     setForm((prev) => {
       const exists = prev.preferences.find((p) => p.location === location)
       if (!exists) {
-        return { ...prev, preferences: [...prev.preferences, { location, selections: allLabels }] }
+        return { ...prev, preferences: [...prev.preferences, { location, selections: allKeys }] }
       }
       return {
         ...prev,
         preferences: prev.preferences.map((p) =>
-          p.location === location ? { ...p, selections: allLabels } : p
+          p.location === location ? { ...p, selections: allKeys } : p
         ),
       }
     })
@@ -253,11 +256,48 @@ function ClinicSurveyPageContent() {
 
     try {
       setSubmitting(true)
+      // Convert unique keys (date-label) back to labels for submission
+      // We need to reconstruct the full label with date if label doesn't already contain date
+      const preferencesForSubmit = form.preferences.map((p) => {
+        const locationData = config?.locations.find((l) => l.name === p.location)
+        const selections = p.selections.map((key) => {
+          // Check if it's in date-label format
+          const dateLabelMatch = key.match(/^(.+?)-(.+)$/)
+          if (dateLabelMatch && locationData) {
+            const [, dateStr, label] = dateLabelMatch
+            // Find the original slot to get the full label
+            const slot = locationData.slots.find((s) => s.date === dateStr && s.label === label)
+            if (slot) {
+              // If label already contains date info, use as-is; otherwise prepend date
+              if (/^[A-Za-z]{3}\s+\d{1,2}/.test(slot.label)) {
+                return slot.label
+              } else {
+                // Format date and prepend to label
+                try {
+                  const dateObj = new Date(slot.date)
+                  if (!isNaN(dateObj.getTime())) {
+                    const formattedDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    return `${formattedDate} ${slot.label}`
+                  }
+                } catch {
+                  // If date parsing fails, just use label
+                }
+                return slot.label
+              }
+            }
+          }
+          // Fallback: use as-is (backward compatibility)
+          return key
+        })
+        return { location: p.location, selections }
+      })
+      
       const res = await fetch("/api/clinic/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          preferences: preferencesForSubmit,
           season: config?.season || "Winter Break 2025–26",
           website: honeypot,
           swimmerId: selectedSwimmerId || undefined,
@@ -542,17 +582,35 @@ function ClinicSurveyPageContent() {
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             {slots.map((s, idx) => {
-                              const id = `${location}-${idx}-${s.label}`
-                              const checked = chosen.includes(s.label)
+                              // Use date + label as unique identifier to avoid conflicts
+                              const uniqueKey = `${s.date}-${s.label}`
+                              const id = `${location}-${idx}-${uniqueKey}`
+                              const checked = chosen.includes(uniqueKey)
+                              // Format date for display - always show date to make it clear
+                              let displayText = s.label
+                              if (s.date) {
+                                try {
+                                  const dateObj = new Date(s.date)
+                                  if (!isNaN(dateObj.getTime())) {
+                                    const formattedDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                                    // Only add date prefix if label doesn't already contain a date-like pattern
+                                    if (!/^[A-Za-z]{3}\s+\d{1,2}/.test(s.label)) {
+                                      displayText = `${formattedDate} - ${s.label}`
+                                    }
+                                  }
+                                } catch {
+                                  // If date parsing fails, just use label
+                                }
+                              }
                               return (
                                 <div key={id} className="flex items-center space-x-2">
                                   <Checkbox
                                     id={id}
                                     checked={checked}
-                                    onCheckedChange={() => toggleSelection(location, s.label)}
+                                    onCheckedChange={() => toggleSelection(location, s)}
                                     className="border-slate-300 data-[state=checked]:bg-slate-800 data-[state=checked]:text-white"
                                   />
-                                  <Label htmlFor={id} className="text-slate-700">{s.label}</Label>
+                                  <Label htmlFor={id} className="text-slate-700">{displayText}</Label>
                                 </div>
                               )
                             })}
