@@ -538,8 +538,6 @@ function ClinicSurveyPageContent() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 text-sm md:text-base">
-                    </div>
                   </div>
 
                   
