@@ -268,14 +268,26 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {Object.entries(grouped).map(([loc, sessions]) => (
-          <div key={loc} className="border-2 rounded-lg border-slate-200 overflow-hidden">
+        {Object.entries(grouped).map(([loc, sessions]) => {
+          // Calculate unique swimmers and total interests for this location
+          const uniqueSwimmerKeys = new Set<string>();
+          let totalInterests = 0;
+          
+          sessions.forEach((s) => {
+            totalInterests += s.swimmers.length; // Total preferences/interests
+            s.swimmers.forEach((swimmer) => {
+              uniqueSwimmerKeys.add(swimmer.key); // Unique swimmers
+            });
+          });
+          
+          return (
+            <div key={loc} className="border-2 rounded-lg border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-50 to-slate-50 border-b-2 border-slate-200">
               <div className="flex items-center gap-3">
                 <MapPin className="w-5 h-5 text-blue-600" />
                 <h3 className="text-lg font-bold text-slate-800">{loc}</h3>
                 <span className="text-sm text-slate-600">
-                  ({sessions.reduce((sum, s) => sum + s.swimmers.length, 0)} total swimmers)
+                  {uniqueSwimmerKeys.size} unique swimmer{uniqueSwimmerKeys.size !== 1 ? "s" : ""}, {totalInterests} interest{totalInterests !== 1 ? "s" : ""}
                 </span>
               </div>
               <Button size="sm" variant="outline" onClick={() => exportLocationCSV(loc, sessions)}>
@@ -378,8 +390,9 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                 </div>
               ))}
             </div>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
@@ -562,7 +575,7 @@ function ArrangementPageContent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-slate-600 mb-1">Total Swimmers</p>
+                      <p className="text-sm text-slate-600 mb-1">Unique Swimmers</p>
                       <p className="text-3xl font-bold text-blue-700">{data.uniqueSwimmers}</p>
                     </div>
                     <Users className="w-10 h-10 text-blue-600 opacity-50" />
