@@ -605,7 +605,7 @@ function ArrangementPageContent() {
             slotDate = labelParts[0];
             slotLabel = labelParts.slice(1).join(" - ").trim();
           } 
-          // Check for YYYY-MM-DD format at start (e.g., "2025-12-22-10:00-11:00AM")
+          // Check for YYYY-MM-DD format at start (e.g., "2025-12-22-10:00-11:00AM" or "2025-11-30-4:00PM-5:00PM")
           else if (/^\d{4}-\d{2}-\d{2}-/.test(row.label)) {
             const match = row.label.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
             if (match) {
@@ -613,6 +613,10 @@ function ArrangementPageContent() {
               const [year, month, day] = match[1].split('-');
               slotDate = `${month}/${day}/${year}`;
               slotLabel = match[2].trim();
+              
+              // Also try without the date prefix for matching
+              // In case placement doesn't have date in slotLabel
+              console.log(`Extracted from YYYY-MM-DD format: date=${slotDate}, label=${slotLabel}`);
             } else {
               slotLabel = row.label.trim();
             }
@@ -644,11 +648,23 @@ function ArrangementPageContent() {
           // This is important when label format is different
           if (slotLabel !== row.label) {
             keys.push(`${row.location}__${row.label}__`); // Try with original label without date
+            // Also try with just the time part if it's in YYYY-MM-DD-Time format
+            if (/^\d{4}-\d{2}-\d{2}-/.test(row.label)) {
+              const timePart = row.label.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+              keys.push(`${row.location}__${timePart}__${slotDate || ""}`);
+              keys.push(`${row.location}__${timePart}__`);
+            }
           }
           
-          console.log(`Trying to match row: ${row.location} - ${row.label}`);
-          console.log(`  Extracted slotDate: ${slotDate || 'none'}, slotLabel: ${slotLabel}`);
-          console.log(`  Trying keys:`, keys);
+          // For debugging last session
+          const isLastSession = row.label.includes('4:00PM-5:00PM') || row.label.includes('2025-11-30');
+          if (isLastSession) {
+            console.log(`=== DEBUGGING LAST SESSION ===`);
+            console.log(`Row: ${row.location} - ${row.label}`);
+            console.log(`  Extracted slotDate: ${slotDate || 'none'}, slotLabel: ${slotLabel}`);
+            console.log(`  All trying keys:`, keys);
+            console.log(`  Placements map has keys:`, Object.keys(placementsMap).filter(k => k.includes(row.location)));
+          }
           
           let matched = false;
           for (const key of keys) {
