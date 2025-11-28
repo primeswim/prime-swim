@@ -383,6 +383,7 @@ export default function ClinicAdminPage() {
                       <div key={slotIndex} className="flex gap-2 items-start">
                         <div className="flex-1 grid grid-cols-2 gap-2">
                           <Input
+                            type="date"
                             placeholder="Date (e.g. 2025-12-23)"
                             value={slot.date}
                             onChange={(e) => updateSlot(locIndex, slotIndex, "date", e.target.value)}
@@ -472,7 +473,7 @@ export default function ClinicAdminPage() {
                         <div className="flex items-center gap-2">
                           <Input
                             readOnly
-                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/survey/poll?id=${config.id}`}
+                            value={`https://primeswimacademy.com/survey/poll?id=${config.id}`}
                             className="text-xs font-mono bg-slate-50"
                             onClick={(e) => (e.target as HTMLInputElement).select()}
                           />
@@ -480,7 +481,7 @@ export default function ClinicAdminPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const url = `${window.location.origin}/survey/poll?id=${config.id}`;
+                              const url = `https://primeswimacademy.com/survey/poll?id=${config.id}`;
                               navigator.clipboard.writeText(url);
                               setStatus({ message: "Poll link copied to clipboard!", success: true });
                               setTimeout(() => setStatus(null), 3000);

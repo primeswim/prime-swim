@@ -268,15 +268,35 @@ function ClinicSurveyPageContent() {
             // Find the original slot to get the full label
             const slot = locationData.slots.find((s) => s.date === dateStr && s.label === label)
             if (slot) {
-              // If label already contains date info, use as-is; otherwise prepend date
-              if (/^[A-Za-z]{3}\s+\d{1,2}/.test(slot.label)) {
+              // If label already contains date info (MM/dd/yyyy format), use as-is; otherwise prepend date
+              if (/^\d{2}\/\d{2}\/\d{4}/.test(slot.label)) {
                 return slot.label
               } else {
                 // Format date and prepend to label
                 try {
-                  const dateObj = new Date(slot.date)
+                  // Parse date string and use local timezone to avoid date shift
+                  let dateObj: Date
+                  if (slot.date.includes('T')) {
+                    // ISO format with time
+                    dateObj = new Date(slot.date)
+                  } else if (slot.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    // YYYY-MM-DD format - parse as local date to avoid timezone issues
+                    const [year, month, day] = slot.date.split('-').map(Number)
+                    dateObj = new Date(year, month - 1, day)
+                  } else if (slot.date.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                    // MM/DD/YYYY format - parse as local date
+                    const [month, day, year] = slot.date.split('/').map(Number)
+                    dateObj = new Date(year, month - 1, day)
+                  } else {
+                    dateObj = new Date(slot.date)
+                  }
+                  
                   if (!isNaN(dateObj.getTime())) {
-                    const formattedDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    // Format as MM/dd/yyyy using local date components
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+                    const day = String(dateObj.getDate()).padStart(2, '0')
+                    const year = dateObj.getFullYear()
+                    const formattedDate = `${month}/${day}/${year}`
                     return `${formattedDate} ${slot.label}`
                   }
                 } catch {
@@ -590,11 +610,31 @@ function ClinicSurveyPageContent() {
                               let displayText = s.label
                               if (s.date) {
                                 try {
-                                  const dateObj = new Date(s.date)
+                                  // Parse date string and use local timezone to avoid date shift
+                                  let dateObj: Date
+                                  if (s.date.includes('T')) {
+                                    // ISO format with time
+                                    dateObj = new Date(s.date)
+                                  } else if (s.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                    // YYYY-MM-DD format - parse as local date to avoid timezone issues
+                                    const [year, month, day] = s.date.split('-').map(Number)
+                                    dateObj = new Date(year, month - 1, day)
+                                  } else if (s.date.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                                    // MM/DD/YYYY format - parse as local date
+                                    const [month, day, year] = s.date.split('/').map(Number)
+                                    dateObj = new Date(year, month - 1, day)
+                                  } else {
+                                    dateObj = new Date(s.date)
+                                  }
+                                  
                                   if (!isNaN(dateObj.getTime())) {
-                                    const formattedDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                                    // Format as MM/dd/yyyy using local date components
+                                    const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+                                    const day = String(dateObj.getDate()).padStart(2, '0')
+                                    const year = dateObj.getFullYear()
+                                    const formattedDate = `${month}/${day}/${year}`
                                     // Only add date prefix if label doesn't already contain a date-like pattern
-                                    if (!/^[A-Za-z]{3}\s+\d{1,2}/.test(s.label)) {
+                                    if (!/^\d{2}\/\d{2}\/\d{4}/.test(s.label)) {
                                       displayText = `${formattedDate} - ${s.label}`
                                     }
                                   }
