@@ -29,6 +29,8 @@ interface DemandRow {
     submittedAt?: number; // Timestamp in milliseconds
     submissionId?: string;
   }[];
+  capacity?: number; // Total lane capacity for this slot
+  lanes?: number; // Number of lanes
 }
 
 interface AggregatePayload {
@@ -177,6 +179,8 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
           location: r.location,
           label: r.label,
           uniqueSwimmers: uniqueSwimmers.size,
+          capacity: r.capacity,
+          lanes: r.lanes,
         };
       });
   }, [rows]);
@@ -227,6 +231,7 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
                 <th className="p-3 font-semibold">Location</th>
                 <th className="p-3 font-semibold">Date/Time</th>
                 <th className="p-3 font-semibold text-center">Unique Swimmers</th>
+                <th className="p-3 font-semibold text-center">Capacity</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,6 +248,15 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
                       }`}>
                         {r.uniqueSwimmers}
                       </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      {r.capacity !== undefined ? (
+                        <span className="text-sm text-slate-700">
+                          {r.capacity} {r.lanes ? `(${r.lanes} lane${r.lanes !== 1 ? "s" : ""})` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-slate-400">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -303,9 +317,16 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                       <Calendar className="w-4 h-4 text-slate-600" />
                       <span className="font-semibold text-slate-800">{s.label}</span>
                     </div>
-                    <span className="text-sm text-slate-600 font-medium">
-                      {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-slate-600 font-medium">
+                        {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
+                      </span>
+                      {s.capacity !== undefined && (
+                        <span className="text-sm text-blue-600 font-medium">
+                          Capacity: {s.capacity} {s.lanes ? `(${s.lanes} lane${s.lanes !== 1 ? "s" : ""})` : ""}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="p-4">
                     {s.swimmers.length === 0 ? (
@@ -422,6 +443,8 @@ function ArrangementPageContent() {
       }
 
       const idToken = await user.getIdToken(true);
+      
+      // Load aggregate data
       const res = await fetch(`/api/clinic/admin/aggregate?season=${encodeURIComponent(seasonValue)}`, {
         headers: { Authorization: `Bearer ${idToken}` },
       });
@@ -435,6 +458,78 @@ function ArrangementPageContent() {
       }
       
       const json = (await res.json()) as AggregatePayload;
+      
+      // Load activity config to get activityId
+      const configRes = await fetch("/api/clinic/config", {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      
+      let activityId: string | null = null;
+      if (configRes.ok) {
+        const configData = await configRes.json();
+        const config = configData.configs?.find((c: { season: string }) => c.season === seasonValue);
+        if (config) {
+          activityId = config.id;
+        }
+      }
+      
+      // Load placements if activityId is available
+      const placementsMap: Record<string, { capacity: number; lanes: number }> = {};
+      if (activityId) {
+        const placementRes = await fetch(
+          `/api/clinic/placement?season=${encodeURIComponent(seasonValue)}&activityId=${encodeURIComponent(activityId)}`,
+          {
+            headers: { Authorization: `Bearer ${idToken}` },
+          }
+        );
+        
+        if (placementRes.ok) {
+          const placementData = await placementRes.json();
+          const placementsList = placementData.placements || [];
+          
+          // Create a map: location__slotLabel__slotDate -> { capacity, lanes }
+          placementsList.forEach((p: { location: string; slotLabel: string; slotDate?: string; lanes: Array<{ capacity: number }> }) => {
+            const key = `${p.location}__${p.slotLabel}__${p.slotDate || ""}`;
+            const totalCapacity = p.lanes?.reduce((sum: number, lane: { capacity: number }) => sum + lane.capacity, 0) || 0;
+            const numLanes = p.lanes?.length || 0;
+            placementsMap[key] = { capacity: totalCapacity, lanes: numLanes };
+          });
+        }
+      }
+      
+      // Merge capacity info into rows
+      if (json.rows) {
+        json.rows = json.rows.map((row) => {
+          // Try to match placement by location and label
+          // First try with date if available in label
+          const labelParts = row.label.split(" - ");
+          const slotDate = labelParts.length > 1 && /^\d{2}\/\d{2}\/\d{4}/.test(labelParts[0]) 
+            ? labelParts[0] 
+            : undefined;
+          const slotLabel = slotDate ? labelParts.slice(1).join(" - ") : row.label;
+          
+          // Try multiple key formats
+          const keys = [
+            `${row.location}__${row.label}__${slotDate || ""}`,
+            `${row.location}__${slotLabel}__${slotDate || ""}`,
+            `${row.location}__${row.label}__`,
+            `${row.location}__${slotLabel}__`,
+          ];
+          
+          for (const key of keys) {
+            if (placementsMap[key]) {
+              return {
+                ...row,
+                capacity: placementsMap[key].capacity,
+                lanes: placementsMap[key].lanes,
+              };
+            }
+          }
+          
+          return row;
+        });
+      }
+      
       setData(json);
     } catch (err) {
       console.error("Load data error:", err);
