@@ -31,6 +31,7 @@ interface DemandRow {
   }[];
   capacity?: number; // Total lane capacity for this slot
   lanes?: number; // Number of lanes
+  laneDetails?: Array<{ laneNumber: number; capacity: number }>; // Details for each lane
 }
 
 interface AggregatePayload {
@@ -181,6 +182,7 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
           uniqueSwimmers: uniqueSwimmers.size,
           capacity: r.capacity,
           lanes: r.lanes,
+          laneDetails: r.laneDetails,
         };
       });
   }, [rows]);
@@ -321,7 +323,17 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                       <span className="text-sm text-slate-600 font-medium">
                         {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
                       </span>
-                      {s.capacity !== undefined && (
+                      {s.laneDetails && s.laneDetails.length > 0 ? (
+                        <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                          <span>{s.lanes} lane{s.lanes !== 1 ? "s" : ""}:</span>
+                          {s.laneDetails.map((lane, idx) => (
+                            <span key={lane.laneNumber}>
+                              Lane {lane.laneNumber} ({lane.capacity})
+                              {idx < s.laneDetails!.length - 1 ? ", " : ""}
+                            </span>
+                          ))}
+                        </div>
+                      ) : s.capacity !== undefined && (
                         <span className="text-sm text-blue-600 font-medium">
                           Capacity: {s.capacity} {s.lanes ? `(${s.lanes} lane${s.lanes !== 1 ? "s" : ""})` : ""}
                         </span>
@@ -474,7 +486,7 @@ function ArrangementPageContent() {
       }
       
       // Load placements if activityId is available
-      const placementsMap: Record<string, { capacity: number; lanes: number }> = {};
+      const placementsMap: Record<string, { capacity: number; lanes: number; laneDetails: Array<{ laneNumber: number; capacity: number }> }> = {};
       if (activityId) {
         const placementRes = await fetch(
           `/api/clinic/placement?season=${encodeURIComponent(seasonValue)}&activityId=${encodeURIComponent(activityId)}`,
@@ -490,7 +502,7 @@ function ArrangementPageContent() {
           console.log("Loaded placements:", placementsList.length);
           
           // Create a map: location__slotLabel__slotDate -> { capacity, lanes }
-          placementsList.forEach((p: { location: string; slotLabel: string; slotDate?: string; lanes: Array<{ capacity: number }> }) => {
+          placementsList.forEach((p: { location: string; slotLabel: string; slotDate?: string; lanes: Array<{ laneNumber: number; capacity: number }> }) => {
             // Normalize slotDate format (convert YYYY-MM-DD to MM/DD/YYYY if needed)
             let normalizedDate = p.slotDate || "";
             if (normalizedDate && /^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
@@ -516,8 +528,12 @@ function ArrangementPageContent() {
               `${p.location}__${p.slotLabel}__`, // location__originalLabel (no date)
             ];
             
-            const totalCapacity = p.lanes?.reduce((sum: number, lane: { capacity: number }) => sum + lane.capacity, 0) || 0;
+            const totalCapacity = p.lanes?.reduce((sum: number, lane: { laneNumber: number; capacity: number }) => sum + lane.capacity, 0) || 0;
             const numLanes = p.lanes?.length || 0;
+            const laneDetails = p.lanes?.map((lane: { laneNumber: number; capacity: number }) => ({
+              laneNumber: lane.laneNumber,
+              capacity: lane.capacity,
+            })) || [];
             
             console.log(`Placement: ${p.location} - ${p.slotLabel} - ${normalizedDate || 'no date'}: ${totalCapacity} capacity, ${numLanes} lanes`);
             console.log(`  Normalized label: "${normalizedLabel}"`);
@@ -525,7 +541,7 @@ function ArrangementPageContent() {
             
             // Store for all key variations
             keys.forEach(key => {
-              placementsMap[key] = { capacity: totalCapacity, lanes: numLanes };
+              placementsMap[key] = { capacity: totalCapacity, lanes: numLanes, laneDetails };
             });
           });
           
@@ -567,6 +583,7 @@ function ArrangementPageContent() {
                 ...row,
                 capacity: placementsMap[key].capacity,
                 lanes: placementsMap[key].lanes,
+                laneDetails: placementsMap[key].laneDetails,
               };
             }
           }
