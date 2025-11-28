@@ -389,7 +389,7 @@ function ClinicSurveyPageContent() {
             {config.title}
           </h1>
           <p className="text-xl md:text-2xl text-slate-600 mb-2 font-light">
-            Tell us which clinic days/times work during {config.season}
+            Tell us which days/times work during {config.season}
           </p>
           {config.description && (
             <p className="text-lg text-slate-500 mt-4">{config.description}</p>
