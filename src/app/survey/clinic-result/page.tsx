@@ -66,20 +66,22 @@ function exportLocationCSV(location: string, sessions: DemandRow[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${location.replaceAll(" ", "_")}-clinic-roster.csv`;
+  a.download = `${location.replaceAll(" ", "_")}-activity-roster.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
 function exportHeadcountCSV(rows: DemandRow[]) {
-  const header = ["Location", "Date/Time", "Headcount"];
+  const header = ["Location", "Date/Time", "Unique Swimmers"];
   const lines = [header.join(",")];
   const sorted = rows
     .slice()
     .sort((a, b) => a.location.localeCompare(b.location) || a.label.localeCompare(b.label));
   sorted.forEach((r) => {
+    // Count unique swimmers
+    const uniqueSwimmers = new Set(r.swimmers.map((s) => s.key));
     lines.push(
-      [r.location, r.label, String(r.swimmers.length)]
+      [r.location, r.label, String(uniqueSwimmers.size)]
         .map((x) => `"${String(x ?? "").replaceAll('"', '""')}"`)
         .join(",")
     );
@@ -88,7 +90,7 @@ function exportHeadcountCSV(rows: DemandRow[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "clinic-headcount.csv";
+  a.download = "activity-headcount.csv";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -143,21 +145,40 @@ function LevelDistribution({ byLevel }: { byLevel: Record<string, number> }) {
 
 /* ---------- 人数统计（改进版） ---------- */
 function HeadcountStats({ rows }: { rows: DemandRow[] }) {
+  // Count unique swimmers per location (not preferences)
   const byLoc = useMemo(() => {
-    const base: Record<string, { sessions: number; headcount: number }> = {};
+    const base: Record<string, { sessions: number; uniqueSwimmers: Set<string> }> = {};
     for (const r of rows) {
-      const b = (base[r.location] ||= { sessions: 0, headcount: 0 });
+      const b = (base[r.location] ||= { sessions: 0, uniqueSwimmers: new Set() });
       b.sessions += 1;
-      b.headcount += r.swimmers.length;
+      // Add unique swimmers for this session
+      r.swimmers.forEach((s) => {
+        b.uniqueSwimmers.add(s.key); // Use key to identify unique swimmers
+      });
     }
-    return Object.entries(base).sort((a, b) => a[0].localeCompare(b[0]));
+    return Object.entries(base)
+      .map(([loc, data]) => ({
+        location: loc,
+        sessions: data.sessions,
+        uniqueSwimmers: data.uniqueSwimmers.size,
+      }))
+      .sort((a, b) => a.location.localeCompare(b.location));
   }, [rows]);
 
+  // Count unique swimmers per session
   const perSession = useMemo(() => {
     return rows
       .slice()
       .sort((a, b) => a.location.localeCompare(b.location) || a.label.localeCompare(b.label))
-      .map((r) => ({ location: r.location, label: r.label, headcount: r.swimmers.length }));
+      .map((r) => {
+        // Count unique swimmers in this session
+        const uniqueSwimmers = new Set(r.swimmers.map((s) => s.key));
+        return {
+          location: r.location,
+          label: r.label,
+          uniqueSwimmers: uniqueSwimmers.size,
+        };
+      });
   }, [rows]);
 
   return (
@@ -179,15 +200,15 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
         <div>
           <h3 className="font-semibold text-slate-800 mb-3">Summary by Location</h3>
           <div className="grid md:grid-cols-3 gap-4">
-            {byLoc.map(([loc, v]) => (
-              <div key={loc} className="border rounded-lg p-4 bg-slate-50">
+            {byLoc.map((item) => (
+              <div key={item.location} className="border rounded-lg p-4 bg-slate-50">
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="w-4 h-4 text-slate-600" />
-                  <span className="font-medium text-slate-800">{loc}</span>
+                  <span className="font-medium text-slate-800">{item.location}</span>
                 </div>
                 <div className="text-sm text-slate-600">
-                  <div>{v.sessions} session(s)</div>
-                  <div className="text-lg font-bold text-blue-600 mt-1">{v.headcount} swimmers</div>
+                  <div>{item.sessions} session(s)</div>
+                  <div className="text-lg font-bold text-blue-600 mt-1">{item.uniqueSwimmers} unique swimmers</div>
                 </div>
               </div>
             ))}
@@ -203,9 +224,9 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-slate-600 border-b">
-                  <th className="p-3 font-semibold">Location</th>
-                  <th className="p-3 font-semibold">Date/Time</th>
-                  <th className="p-3 font-semibold text-center">Headcount</th>
+                <th className="p-3 font-semibold">Location</th>
+                <th className="p-3 font-semibold">Date/Time</th>
+                <th className="p-3 font-semibold text-center">Unique Swimmers</th>
                 </tr>
               </thead>
               <tbody>
@@ -215,12 +236,12 @@ function HeadcountStats({ rows }: { rows: DemandRow[] }) {
                     <td className="p-3">{r.label}</td>
                     <td className="p-3 text-center">
                       <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                        r.headcount === 0 ? "bg-slate-100 text-slate-600" :
-                        r.headcount < 5 ? "bg-amber-100 text-amber-700" :
-                        r.headcount < 10 ? "bg-blue-100 text-blue-700" :
+                        r.uniqueSwimmers === 0 ? "bg-slate-100 text-slate-600" :
+                        r.uniqueSwimmers < 5 ? "bg-amber-100 text-amber-700" :
+                        r.uniqueSwimmers < 10 ? "bg-blue-100 text-blue-700" :
                         "bg-green-100 text-green-700"
                       }`}>
-                        {r.headcount}
+                        {r.uniqueSwimmers}
                       </span>
                     </td>
                   </tr>
@@ -474,8 +495,8 @@ function ArrangementPageContent() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">Clinic Submissions</h1>
-          <p className="text-slate-600">View and analyze clinic preferences by location and time</p>
+          <h1 className="text-4xl font-bold text-slate-800 mb-2">Activity Submissions</h1>
+          <p className="text-slate-600">View and analyze activity preferences by location and time</p>
         </div>
 
         {/* Season Selector */}

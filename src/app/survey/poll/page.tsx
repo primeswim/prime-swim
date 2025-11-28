@@ -345,7 +345,7 @@ function ClinicSurveyPageContent() {
         <Header />
         <div className="container mx-auto px-4 py-20 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-slate-600">Loading clinic information...</p>
+          <p className="text-slate-600">Loading activity information...</p>
         </div>
         <Footer />
       </div>

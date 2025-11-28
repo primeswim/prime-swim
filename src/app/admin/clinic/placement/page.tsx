@@ -365,14 +365,16 @@ function PlacementManagementContent() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {locationData.slots.map((slot) => {
+                    {locationData.slots.map((slot, slotIdx) => {
+                      // Use unique key combining location, date, and label to avoid duplicates
+                      const uniqueKey = `${locationData.name}-${slot.date || slotIdx}-${slot.label}`;
                       const placement = getOrCreatePlacement(locationData.name, slot.label);
                       const totalCapacity = placement.lanes.reduce((sum, l) => sum + l.capacity, 0);
                       const totalPlaced = placement.lanes.reduce((sum, l) => sum + l.swimmers.length, 0);
                       const available = totalCapacity - totalPlaced;
 
                       return (
-                        <div key={slot.label} className="border rounded-lg p-4 bg-slate-50">
+                        <div key={uniqueKey} className="border rounded-lg p-4 bg-slate-50">
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h4 className="font-semibold text-slate-800">{slot.label}</h4>

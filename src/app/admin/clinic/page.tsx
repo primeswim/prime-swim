@@ -77,7 +77,7 @@ export default function ClinicAdminPage() {
       setConfigs(data.configs || []);
     } catch (err) {
       console.error("Load configs error:", err);
-      setStatus({ message: "Failed to load clinic configs", success: false });
+        setStatus({ message: "Failed to load activity configs", success: false });
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export default function ClinicAdminPage() {
         throw new Error(error.error || "Failed to save");
       }
 
-      setStatus({ message: editingId ? "Clinic config updated" : "Clinic config created", success: true });
+      setStatus({ message: editingId ? "Activity config updated" : "Activity config created", success: true });
       setEditingId(null);
       setFormData({
         season: "",
@@ -137,14 +137,14 @@ export default function ClinicAdminPage() {
     } catch (err) {
       console.error("Save error:", err);
       setStatus({
-        message: err instanceof Error ? err.message : "Failed to save clinic config",
+        message: err instanceof Error ? err.message : "Failed to save activity config",
         success: false,
       });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this clinic config?")) return;
+    if (!confirm("Are you sure you want to delete this activity config?")) return;
 
     try {
       const user = auth.currentUser;
@@ -157,7 +157,7 @@ export default function ClinicAdminPage() {
       });
 
       if (!res.ok) throw new Error("Failed to delete");
-      setStatus({ message: "Clinic config deleted", success: true });
+      setStatus({ message: "Activity config deleted", success: true });
       await loadConfigs();
     } catch (err) {
       console.error("Delete error:", err);
@@ -258,7 +258,7 @@ export default function ClinicAdminPage() {
             <Calendar className="w-8 h-8 text-blue-600" />
             Activity Management
           </h1>
-          <p className="text-slate-600">Create and manage clinics, camps, and pop-up training sessions</p>
+          <p className="text-slate-600">Create and manage activities (clinics, camps, and pop-up training sessions)</p>
         </div>
 
         {status && (
@@ -282,7 +282,7 @@ export default function ClinicAdminPage() {
           <CardHeader>
             <CardTitle>{editingId ? "Edit Activity Config" : "Create New Activity Config"}</CardTitle>
             <CardDescription>
-              {editingId ? "Update activity configuration" : "Add a new activity (clinic/camp/pop-up) with time slots and locations"}
+              {editingId ? "Update activity configuration" : "Add a new activity with time slots and locations"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -442,7 +442,7 @@ export default function ClinicAdminPage() {
           ) : configs.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-slate-500">
-                No clinic configs found. Create one above.
+                No activity configs found. Create one above.
               </CardContent>
             </Card>
           ) : (

@@ -14,7 +14,7 @@ export async function GET() {
       .get();
 
     if (snap.empty) {
-      console.log("No active clinic configs found");
+      console.log("No active activity configs found");
       return NextResponse.json({ config: null });
     }
 
@@ -36,10 +36,10 @@ export async function GET() {
     });
 
     const config = docs[0];
-    console.log("Found active clinic config:", config.id);
+    console.log("Found active activity config:", config.id);
     return NextResponse.json({ config });
   } catch (e) {
-    console.error("Get active clinic config error:", e);
+    console.error("Get active activity config error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

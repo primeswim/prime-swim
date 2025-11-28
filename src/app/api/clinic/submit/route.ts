@@ -148,9 +148,9 @@ export async function POST(request: Request) {
       await resend.emails.send({
         from: "Prime Swim Academy <noreply@primeswimacademy.com>",
         to: "prime.swim.us@gmail.com",
-        subject: "*** New Clinic Submission ***",
+        subject: "*** New Activity Submission ***",
         html: `
-          <h2>New Clinic Submission</h2>
+          <h2>New Activity Submission</h2>
           <p><strong>Parent Email:</strong> ${parentEmail}</p>
           <p><strong>Parent Phone:</strong> ${parentPhoneRaw}</p>
           <p><strong>Swimmer:</strong> ${swimmerName}</p>
