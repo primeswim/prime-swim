@@ -539,10 +539,6 @@ function ClinicSurveyPageContent() {
                       </Select>
                     </div>
                     <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 text-sm md:text-base">
-                      <strong>Note:</strong> Our clinics are designed for swimmers who already have some independent water skills.  
-                      If your child is brand new to swimming, we recommend starting with our{" "}
-                      <span className="font-semibold">Beginner Group Lessons</span> or{" "}
-                      <span className="font-semibold">Private Lessons</span> to build a solid foundation.
                     </div>
                   </div>
 
