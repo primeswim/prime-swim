@@ -328,7 +328,12 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
             <div className="p-5 space-y-4">
               {sessions.map((s) => {
                 // Debug: log session data
-                console.log("Session:", s.label, "laneDetails:", s.laneDetails, "lanes:", s.lanes, "capacity:", s.capacity);
+                console.log("Session:", s.label);
+                console.log("  Full session object:", s);
+                console.log("  laneDetails:", s.laneDetails);
+                console.log("  lanes:", s.lanes);
+                console.log("  capacity:", s.capacity);
+                console.log("  laneDetails check:", s.laneDetails && s.laneDetails.length > 0);
                 
                 return (
                 <div key={s.label} className="border rounded-lg border-slate-200 overflow-hidden">
@@ -341,10 +346,10 @@ function RosterByLocation({ rows }: { rows: DemandRow[] }) {
                       <span className="text-sm text-slate-600 font-medium">
                         {s.swimmers.length} swimmer{s.swimmers.length !== 1 ? "s" : ""}
                       </span>
-                      {s.laneDetails && s.laneDetails.length > 0 ? (
+                      {(s.laneDetails && Array.isArray(s.laneDetails) && s.laneDetails.length > 0) ? (
                         <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
                           <span className="font-semibold">{s.lanes} lane{s.lanes !== 1 ? "s" : ""}:</span>
-                          {s.laneDetails.map((lane, idx) => (
+                          {s.laneDetails.map((lane: { laneNumber: number; capacity: number }, idx: number) => (
                             <span key={lane.laneNumber}>
                               Lane {lane.laneNumber} ({lane.capacity} swimmer{lane.capacity !== 1 ? "s" : ""})
                               {idx < s.laneDetails!.length - 1 ? ", " : ""}
@@ -596,14 +601,18 @@ function ArrangementPageContent() {
           let matched = false;
           for (const key of keys) {
             if (placementsMap[key]) {
-              console.log(`Matched row: ${row.location} - ${row.label} with key: ${key}, capacity: ${placementsMap[key].capacity}`);
+              const matchedData = placementsMap[key];
+              console.log(`Matched row: ${row.location} - ${row.label} with key: ${key}`);
+              console.log(`  capacity: ${matchedData.capacity}, lanes: ${matchedData.lanes}, laneDetails:`, matchedData.laneDetails);
               matched = true;
-              return {
+              const updatedRow = {
                 ...row,
-                capacity: placementsMap[key].capacity,
-                lanes: placementsMap[key].lanes,
-                laneDetails: placementsMap[key].laneDetails,
+                capacity: matchedData.capacity,
+                lanes: matchedData.lanes,
+                laneDetails: matchedData.laneDetails,
               };
+              console.log(`  Updated row laneDetails:`, updatedRow.laneDetails);
+              return updatedRow;
             }
           }
           
