@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Header from "@/components/header";
-import { Calendar, MapPin, Plus, Trash2, Edit, Save, X, CheckCircle2, AlertCircle, Eye, Copy, Link as LinkIcon } from "lucide-react";
+import { Calendar, MapPin, Plus, Trash2, Edit, Save, X, CheckCircle2, AlertCircle, Eye, Copy, Link as LinkIcon, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ActivityType } from "@/app/api/clinic/config/route";
@@ -502,6 +502,14 @@ export default function ClinicAdminPage() {
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View Submissions
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/admin/clinic/placement?activityId=${config.id}&season=${encodeURIComponent(config.season)}`)}
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Manage Placement
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(config)}>
                         <Edit className="w-4 h-4 mr-2" />
