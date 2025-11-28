@@ -487,13 +487,49 @@ function ArrangementPageContent() {
           const placementData = await placementRes.json();
           const placementsList = placementData.placements || [];
           
+          console.log("Loaded placements:", placementsList.length);
+          
           // Create a map: location__slotLabel__slotDate -> { capacity, lanes }
           placementsList.forEach((p: { location: string; slotLabel: string; slotDate?: string; lanes: Array<{ capacity: number }> }) => {
-            const key = `${p.location}__${p.slotLabel}__${p.slotDate || ""}`;
+            // Normalize slotDate format (convert YYYY-MM-DD to MM/DD/YYYY if needed)
+            let normalizedDate = p.slotDate || "";
+            if (normalizedDate && /^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+              const [year, month, day] = normalizedDate.split('-');
+              normalizedDate = `${month}/${day}/${year}`;
+            }
+            
+            // Normalize slotLabel - remove any date prefix if present
+            let normalizedLabel = p.slotLabel.trim();
+            if (normalizedLabel.includes(" - ")) {
+              const parts = normalizedLabel.split(" - ");
+              // If first part looks like a date, remove it
+              if (parts.length > 1 && /^\d{2}\/\d{2}\/\d{4}/.test(parts[0])) {
+                normalizedLabel = parts.slice(1).join(" - ").trim();
+              }
+            }
+            
+            // Create multiple keys for flexible matching
+            const keys = [
+              `${p.location}__${normalizedLabel}__${normalizedDate}`, // location__label__date
+              `${p.location}__${p.slotLabel}__${normalizedDate}`, // location__originalLabel__date
+              `${p.location}__${normalizedLabel}__`, // location__label (no date)
+              `${p.location}__${p.slotLabel}__`, // location__originalLabel (no date)
+            ];
+            
             const totalCapacity = p.lanes?.reduce((sum: number, lane: { capacity: number }) => sum + lane.capacity, 0) || 0;
             const numLanes = p.lanes?.length || 0;
-            placementsMap[key] = { capacity: totalCapacity, lanes: numLanes };
+            
+            console.log(`Placement: ${p.location} - ${p.slotLabel} - ${normalizedDate || 'no date'}: ${totalCapacity} capacity, ${numLanes} lanes`);
+            console.log(`  Normalized label: "${normalizedLabel}"`);
+            console.log(`  Keys created:`, keys);
+            
+            // Store for all key variations
+            keys.forEach(key => {
+              placementsMap[key] = { capacity: totalCapacity, lanes: numLanes };
+            });
           });
+          
+          console.log("Placements map keys:", Object.keys(placementsMap));
         }
       }
       
@@ -503,27 +539,40 @@ function ArrangementPageContent() {
           // Try to match placement by location and label
           // First try with date if available in label
           const labelParts = row.label.split(" - ");
-          const slotDate = labelParts.length > 1 && /^\d{2}\/\d{2}\/\d{4}/.test(labelParts[0]) 
-            ? labelParts[0] 
-            : undefined;
-          const slotLabel = slotDate ? labelParts.slice(1).join(" - ") : row.label;
+          let slotDate: string | undefined;
+          let slotLabel: string;
+          
+          // Check if first part is a date (MM/DD/YYYY format)
+          if (labelParts.length > 1 && /^\d{2}\/\d{2}\/\d{4}/.test(labelParts[0])) {
+            slotDate = labelParts[0];
+            slotLabel = labelParts.slice(1).join(" - ").trim();
+          } else {
+            slotLabel = row.label.trim();
+          }
           
           // Try multiple key formats
           const keys = [
-            `${row.location}__${row.label}__${slotDate || ""}`,
-            `${row.location}__${slotLabel}__${slotDate || ""}`,
-            `${row.location}__${row.label}__`,
-            `${row.location}__${slotLabel}__`,
+            `${row.location}__${slotLabel}__${slotDate || ""}`, // location__label__date
+            `${row.location}__${row.label}__${slotDate || ""}`, // location__fullLabel__date
+            `${row.location}__${slotLabel}__`, // location__label (no date)
+            `${row.location}__${row.label}__`, // location__fullLabel (no date)
           ];
           
+          let matched = false;
           for (const key of keys) {
             if (placementsMap[key]) {
+              console.log(`Matched row: ${row.location} - ${row.label} with key: ${key}, capacity: ${placementsMap[key].capacity}`);
+              matched = true;
               return {
                 ...row,
                 capacity: placementsMap[key].capacity,
                 lanes: placementsMap[key].lanes,
               };
             }
+          }
+          
+          if (!matched) {
+            console.log(`No match for row: ${row.location} - ${row.label}, tried keys:`, keys);
           }
           
           return row;
