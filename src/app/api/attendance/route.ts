@@ -6,18 +6,9 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { getAuth } from "firebase-admin/auth";
 import { Timestamp } from "firebase-admin/firestore";
 
-interface AttendanceRecord {
-  id?: string;
-  date: string; // YYYY-MM-DD format
-  swimmerId: string;
-  swimmerName: string;
-  status: "attended" | "absent" | "make-up" | "trial";
-  location?: string;
-  timeSlot?: string;
-  notes?: string;
-  markedBy: string; // Admin email
-  markedAt: Timestamp;
-}
+// Optimized: shorter field names to save storage
+// Field mapping: d=date, sId=swimmerId, sN=swimmerName, st=status (a/x/m/t), 
+// l=location, t=timeSlot, n=notes, mBy=markedBy, mAt=markedAt
 
 // GET: 获取考勤记录
 export async function GET(req: Request) {
@@ -43,39 +34,52 @@ export async function GET(req: Request) {
     let queryRef: FirebaseFirestore.Query = adminDb.collection("attendance");
 
     if (date) {
-      queryRef = queryRef.where("date", "==", date);
+      queryRef = queryRef.where("d", "==", date);
     } else if (month) {
       // Query for all dates in the month
       const startDate = `${month}-01`;
       // Get last day of month
-      const [year, monthNum] = month.split('-').map(Number);
-      const lastDay = new Date(year, monthNum, 0).getDate();
+      const [yearNum, monthNum] = month.split('-').map(Number);
+      const lastDay = new Date(yearNum, monthNum, 0).getDate();
       const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
-      queryRef = queryRef.where("date", ">=", startDate).where("date", "<=", endDate);
+      queryRef = queryRef.where("d", ">=", startDate).where("d", "<=", endDate);
     } else if (year) {
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
-      queryRef = queryRef.where("date", ">=", startDate).where("date", "<=", endDate);
+      queryRef = queryRef.where("d", ">=", startDate).where("d", "<=", endDate);
     }
 
     if (swimmerId) {
-      queryRef = queryRef.where("swimmerId", "==", swimmerId);
+      queryRef = queryRef.where("sId", "==", swimmerId);
     }
 
     // Try to order by date and markedAt, but if index doesn't exist, just order by date
     let snap;
     try {
-      snap = await queryRef.orderBy("date", "desc").orderBy("markedAt", "desc").get();
+      snap = await queryRef.orderBy("d", "desc").orderBy("mAt", "desc").get();
     } catch {
       // If composite index doesn't exist, just order by date
       console.log("Composite index not found, ordering by date only");
-      snap = await queryRef.orderBy("date", "desc").get();
+      snap = await queryRef.orderBy("d", "desc").get();
     }
     
-    const records = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // Convert optimized fields back to readable format for frontend
+    const records = snap.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        // Support both old and new field names
+        date: data.d || data.date,
+        swimmerId: data.sId || data.swimmerId,
+        swimmerName: data.sN || data.swimmerName,
+        status: data.st === "a" ? "attended" : data.st === "x" ? "absent" : data.st === "m" ? "make-up" : data.st === "t" ? "trial" : data.status,
+        location: data.l || data.location,
+        timeSlot: data.t || data.timeSlot,
+        notes: data.n || data.notes,
+        markedBy: data.mBy || data.markedBy,
+        markedAt: data.mAt || data.markedAt,
+      };
+    });
 
     console.log(`Found ${records.length} attendance records for query`);
     return NextResponse.json({ records });
@@ -100,39 +104,76 @@ export async function POST(req: Request) {
     const adminDoc = await adminDb.collection("admin").doc(email).get();
     if (!adminDoc.exists) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
-    const body = await req.json() as AttendanceRecord & { id?: string };
+    const body = await req.json() as {
+      id?: string;
+      date?: string;
+      d?: string;
+      swimmerId?: string;
+      sId?: string;
+      swimmerName?: string;
+      sN?: string;
+      status?: "attended" | "absent" | "make-up" | "trial";
+      st?: "a" | "x" | "m" | "t";
+      location?: string;
+      l?: string;
+      timeSlot?: string;
+      t?: string;
+      notes?: string;
+      n?: string;
+    };
     
-    if (!body.date || !body.swimmerId || !body.swimmerName || !body.status) {
+    // Support both old and new field names for backward compatibility
+    const date = body.date || body.d;
+    const swimmerId = body.swimmerId || body.sId;
+    const swimmerName = body.swimmerName || body.sN;
+    const statusInput = body.status || body.st;
+    
+    if (!date || !swimmerId || !swimmerName || !statusInput) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Validate status
-    const validStatuses = ["attended", "absent", "make-up", "trial"];
-    if (!validStatuses.includes(body.status)) {
+    // Convert status to short form
+    const statusMap: Record<string, "a" | "x" | "m" | "t"> = {
+      "attended": "a",
+      "absent": "x",
+      "make-up": "m",
+      "trial": "t",
+      "a": "a",
+      "x": "x",
+      "m": "m",
+      "t": "t",
+    };
+    
+    const status = statusMap[statusInput];
+    if (!status) {
       return NextResponse.json({ 
-        error: `Invalid status: ${body.status}. Must be one of: ${validStatuses.join(", ")}` 
+        error: `Invalid status: ${statusInput}` 
       }, { status: 400 });
     }
 
-    // Build record data, only including defined fields
+    // Build record data with optimized field names
     const recordData: Record<string, unknown> = {
-      date: body.date,
-      swimmerId: body.swimmerId,
-      swimmerName: body.swimmerName,
-      status: body.status,
-      markedBy: email,
-      markedAt: Timestamp.now(),
+      d: date,
+      sId: swimmerId,
+      sN: swimmerName,
+      st: status,
+      mBy: email,
+      mAt: Timestamp.now(),
     };
 
     // Only add optional fields if they are defined
-    if (body.location !== undefined && body.location !== null && body.location !== "") {
-      recordData.location = body.location;
+    const location = body.location || body.l;
+    const timeSlot = body.timeSlot || body.t;
+    const notes = body.notes || body.n;
+    
+    if (location !== undefined && location !== null && location !== "") {
+      recordData.l = location;
     }
-    if (body.timeSlot !== undefined && body.timeSlot !== null && body.timeSlot !== "") {
-      recordData.timeSlot = body.timeSlot;
+    if (timeSlot !== undefined && timeSlot !== null && timeSlot !== "") {
+      recordData.t = timeSlot;
     }
-    if (body.notes !== undefined && body.notes !== null && body.notes !== "") {
-      recordData.notes = body.notes;
+    if (notes !== undefined && notes !== null && notes !== "") {
+      recordData.n = notes;
     }
 
     if (body.id) {
@@ -143,8 +184,8 @@ export async function POST(req: Request) {
       // Check if record already exists for this date and swimmer
       const existing = await adminDb
         .collection("attendance")
-        .where("date", "==", body.date)
-        .where("swimmerId", "==", body.swimmerId)
+        .where("d", "==", date)
+        .where("sId", "==", swimmerId)
         .get();
 
       if (!existing.empty) {

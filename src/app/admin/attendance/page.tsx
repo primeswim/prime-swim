@@ -19,6 +19,16 @@ interface Swimmer {
   childFirstName: string;
   childLastName: string;
   level?: string;
+  createdAt?: { toDate: () => Date } | Date | string;
+}
+
+interface TryoutSwimmer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  submittedAt?: { toDate: () => Date } | Date | string;
 }
 
 interface AttendanceRecord {
@@ -35,6 +45,7 @@ interface AttendanceRecord {
 export default function AttendancePage() {
   const isAdmin = useIsAdminFromDB();
   const [swimmers, setSwimmers] = useState<Swimmer[]>([]);
+  const [tryoutSwimmers, setTryoutSwimmers] = useState<TryoutSwimmer[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split("T")[0]; // YYYY-MM-DD
@@ -44,20 +55,30 @@ export default function AttendancePage() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ message: string; success: boolean } | null>(null);
 
-  // Load swimmers
+  // Load swimmers and tryout swimmers
   useEffect(() => {
     const loadSwimmers = async () => {
       try {
-        const snap = await getDocs(collection(db, "swimmers"));
-        const data = snap.docs.map((doc) => ({
+        // Load registered swimmers
+        const swimmersSnap = await getDocs(collection(db, "swimmers"));
+        const swimmersData = swimmersSnap.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Swimmer[];
-        setSwimmers(data.sort((a, b) => {
+
+        // Load tryout swimmers (who haven't registered yet)
+        const tryoutsSnap = await getDocs(collection(db, "tryouts"));
+        const tryoutsData = tryoutsSnap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as TryoutSwimmer[];
+
+        setSwimmers(swimmersData.sort((a, b) => {
           const nameA = `${a.childFirstName} ${a.childLastName}`;
           const nameB = `${b.childFirstName} ${b.childLastName}`;
           return nameA.localeCompare(nameB);
         }));
+        setTryoutSwimmers(tryoutsData);
       } catch (err) {
         console.error("Load swimmers error:", err);
       } finally {
@@ -70,7 +91,7 @@ export default function AttendancePage() {
     }
   }, [isAdmin]);
 
-  // Load attendance for selected date
+  // Load attendance for selected date and check for new swimmers
   useEffect(() => {
     const loadAttendance = async () => {
       if (!selectedDate || !isAdmin) return;
@@ -91,6 +112,38 @@ export default function AttendancePage() {
             recordsMap[r.swimmerId] = r;
           });
           setAttendance(recordsMap);
+
+          // Check for new swimmers (registered within last 30 days) and mark as trial if no attendance record
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          
+          swimmers.forEach((swimmer) => {
+            if (!recordsMap[swimmer.id]) {
+              let createdAt: Date | null = null;
+              if (swimmer.createdAt) {
+                if (typeof swimmer.createdAt === 'object' && 'toDate' in swimmer.createdAt) {
+                  createdAt = (swimmer.createdAt as { toDate: () => Date }).toDate();
+                } else if (swimmer.createdAt instanceof Date) {
+                  createdAt = swimmer.createdAt;
+                } else if (typeof swimmer.createdAt === 'string') {
+                  createdAt = new Date(swimmer.createdAt);
+                }
+              }
+              
+              // If swimmer is new (registered within 30 days), auto-mark as trial
+              if (createdAt && createdAt >= thirtyDaysAgo) {
+                setAttendance((prev) => ({
+                  ...prev,
+                  [swimmer.id]: {
+                    date: selectedDate,
+                    swimmerId: swimmer.id,
+                    swimmerName: `${swimmer.childFirstName} ${swimmer.childLastName}`,
+                    status: "trial",
+                  },
+                }));
+              }
+            }
+          });
         }
       } catch (err) {
         console.error("Load attendance error:", err);
@@ -98,19 +151,16 @@ export default function AttendancePage() {
     };
 
     loadAttendance();
-  }, [selectedDate, isAdmin]);
+  }, [selectedDate, isAdmin, swimmers]);
 
-  const updateAttendance = (swimmerId: string, status: "attended" | "absent" | "make-up" | "trial") => {
-    const swimmer = swimmers.find((s) => s.id === swimmerId);
-    if (!swimmer) return;
-
+  const updateAttendance = (swimmerId: string, swimmerName: string, status: "attended" | "absent" | "make-up" | "trial") => {
     setAttendance((prev) => ({
       ...prev,
       [swimmerId]: {
         ...prev[swimmerId],
         date: selectedDate,
         swimmerId,
-        swimmerName: `${swimmer.childFirstName} ${swimmer.childLastName}`,
+        swimmerName,
         status,
       },
     }));
@@ -149,6 +199,22 @@ export default function AttendancePage() {
 
       setStatus({ message: "Attendance saved successfully!", success: true });
       setTimeout(() => setStatus(null), 3000);
+      
+      // Reset attendance state after successful save
+      setAttendance({});
+      
+      // Reload attendance to show saved records
+      const res = await fetch(`/api/attendance?date=${encodeURIComponent(selectedDate)}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const recordsMap: Record<string, AttendanceRecord> = {};
+        data.records.forEach((r: AttendanceRecord) => {
+          recordsMap[r.swimmerId] = r;
+        });
+        setAttendance(recordsMap);
+      }
     } catch (err) {
       console.error("Save attendance error:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to save attendance";
@@ -171,19 +237,19 @@ export default function AttendancePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       <Header />
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2 flex items-center gap-3">
-            <Calendar className="w-8 h-8 text-blue-600" />
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <Calendar className="w-7 h-7 text-blue-600" />
             Attendance Management
           </h1>
-          <p className="text-slate-600">Mark daily attendance for swimmers</p>
+          <p className="text-slate-600 text-sm">Mark daily attendance for swimmers</p>
         </div>
 
         {status && (
           <Alert
             variant={status.success ? "default" : "destructive"}
-            className={`mb-6 ${status.success ? "border-green-200 bg-green-50" : ""}`}
+            className={`mb-4 ${status.success ? "border-green-200 bg-green-50" : ""}`}
           >
             {status.success ? (
               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -196,32 +262,30 @@ export default function AttendancePage() {
           </Alert>
         )}
 
-        {/* Date Selector */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Select Date</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-4">
+        {/* Date Selector - Compact */}
+        <Card className="mb-4">
+          <CardContent className="pt-4">
+            <div className="flex items-end gap-3">
               <div className="flex-1">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date" className="text-sm">Date</Label>
                 <Input
                   id="date"
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
+                  className="h-9"
                 />
               </div>
-              <Button onClick={saveAttendance} disabled={saving || !selectedDate}>
+              <Button onClick={saveAttendance} disabled={saving || !selectedDate} size="sm">
                 {saving ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Attendance
+                    <Save className="w-3 h-3 mr-1" />
+                    Save
                   </>
                 )}
               </Button>
@@ -235,20 +299,21 @@ export default function AttendancePage() {
             <p className="text-slate-600">Loading swimmers...</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-3">
+            {/* Registered Swimmers by Level */}
             {Object.entries(swimmersByLevel)
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([level, levelSwimmers]) => {
                 return (
-                  <Card key={level}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Users className="w-5 h-5" />
-                        {level} ({levelSwimmers.length} swimmers)
+                  <Card key={level} className="border-slate-200">
+                    <CardHeader className="pb-2 pt-3 px-4">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        {level} ({levelSwimmers.length})
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
+                    <CardContent className="px-4 pb-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                         {levelSwimmers.map((swimmer) => {
                           const record = attendance[swimmer.id];
                           const currentStatus = record?.status || null;
@@ -257,47 +322,47 @@ export default function AttendancePage() {
                           return (
                             <div
                               key={swimmer.id}
-                              className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50"
+                              className="flex items-center justify-between p-2 border rounded hover:bg-slate-50 text-sm"
                             >
-                              <div className="flex-1">
-                                <div className="font-semibold text-slate-800">{swimmerName}</div>
+                              <div className="flex-1 min-w-0 mr-2">
+                                <div className="font-medium text-slate-800 truncate">{swimmerName}</div>
                               </div>
-                              <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center gap-1 flex-shrink-0">
                                 <Button
                                   variant={currentStatus === "attended" ? "default" : "outline"}
                                   size="sm"
-                                  onClick={() => updateAttendance(swimmer.id, "attended")}
-                                  className={currentStatus === "attended" ? "bg-green-600 hover:bg-green-700" : ""}
+                                  onClick={() => updateAttendance(swimmer.id, swimmerName, "attended")}
+                                  className={`h-7 px-2 text-xs ${currentStatus === "attended" ? "bg-green-600 hover:bg-green-700" : ""}`}
                                 >
-                                  <CheckCircle2 className="w-4 h-4 mr-1" />
-                                  Attended
+                                  <CheckCircle2 className="w-3 h-3 mr-0.5" />
+                                  A
                                 </Button>
                                 <Button
                                   variant={currentStatus === "absent" ? "default" : "outline"}
                                   size="sm"
-                                  onClick={() => updateAttendance(swimmer.id, "absent")}
-                                  className={currentStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}
+                                  onClick={() => updateAttendance(swimmer.id, swimmerName, "absent")}
+                                  className={`h-7 px-2 text-xs ${currentStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}`}
                                 >
-                                  <XCircle className="w-4 h-4 mr-1" />
-                                  Absent
+                                  <XCircle className="w-3 h-3 mr-0.5" />
+                                  X
                                 </Button>
                                 <Button
                                   variant={currentStatus === "make-up" ? "default" : "outline"}
                                   size="sm"
-                                  onClick={() => updateAttendance(swimmer.id, "make-up")}
-                                  className={currentStatus === "make-up" ? "bg-blue-600 hover:bg-blue-700" : ""}
+                                  onClick={() => updateAttendance(swimmer.id, swimmerName, "make-up")}
+                                  className={`h-7 px-2 text-xs ${currentStatus === "make-up" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
                                 >
-                                  <Clock className="w-4 h-4 mr-1" />
-                                  Make-up
+                                  <Clock className="w-3 h-3 mr-0.5" />
+                                  M
                                 </Button>
                                 <Button
                                   variant={currentStatus === "trial" ? "default" : "outline"}
                                   size="sm"
-                                  onClick={() => updateAttendance(swimmer.id, "trial")}
-                                  className={currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}
+                                  onClick={() => updateAttendance(swimmer.id, swimmerName, "trial")}
+                                  className={`h-7 px-2 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
                                 >
-                                  <Users className="w-4 h-4 mr-1" />
-                                  Trial
+                                  <Users className="w-3 h-3 mr-0.5" />
+                                  T
                                 </Button>
                               </div>
                             </div>
@@ -308,6 +373,50 @@ export default function AttendancePage() {
                   </Card>
                 );
               })}
+            
+            {/* Tryout Swimmers (Unregistered) */}
+            {tryoutSwimmers.length > 0 && (
+              <Card className="border-purple-200 bg-purple-50/30">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Trial (Unregistered) ({tryoutSwimmers.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {tryoutSwimmers.map((tryout) => {
+                      const record = attendance[`tryout-${tryout.id}`];
+                      const currentStatus = record?.status || null;
+                      const swimmerName = `${tryout.firstName} ${tryout.lastName}`;
+                      const tryoutId = `tryout-${tryout.id}`;
+
+                      return (
+                        <div
+                          key={tryoutId}
+                          className="flex items-center justify-between p-2 border rounded hover:bg-slate-50 text-sm"
+                        >
+                          <div className="flex-1 min-w-0 mr-2">
+                            <div className="font-medium text-slate-800 truncate">{swimmerName}</div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button
+                              variant={currentStatus === "trial" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => updateAttendance(tryoutId, swimmerName, "trial")}
+                              className={`h-7 px-2 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                            >
+                              <Users className="w-3 h-3 mr-0.5" />
+                              Trial
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
