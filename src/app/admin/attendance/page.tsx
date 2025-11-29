@@ -66,12 +66,37 @@ export default function AttendancePage() {
           ...doc.data(),
         })) as Swimmer[];
 
-        // Load tryout swimmers (who haven't registered yet)
+        // Load tryout swimmers from last 30 days only
         const tryoutsSnap = await getDocs(collection(db, "tryouts"));
-        const tryoutsData = tryoutsSnap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as TryoutSwimmer[];
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const tryoutsData: TryoutSwimmer[] = [];
+        tryoutsSnap.docs.forEach((doc) => {
+          const data = doc.data();
+          let submittedAt: Date | null = null;
+          if (data.submittedAt) {
+            if (typeof data.submittedAt === 'object' && 'toDate' in data.submittedAt) {
+              submittedAt = (data.submittedAt as { toDate: () => Date }).toDate();
+            } else if (data.submittedAt instanceof Date) {
+              submittedAt = data.submittedAt;
+            } else if (typeof data.submittedAt === 'string') {
+              submittedAt = new Date(data.submittedAt);
+            }
+          }
+          
+          // Only include tryouts from last 30 days
+          if (submittedAt && submittedAt >= thirtyDaysAgo) {
+            tryoutsData.push({
+              id: doc.id,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              phone: data.phone,
+              submittedAt: data.submittedAt,
+            } as TryoutSwimmer);
+          }
+        });
 
         setSwimmers(swimmersData.sort((a, b) => {
           const nameA = `${a.childFirstName} ${a.childLastName}`;
@@ -91,7 +116,7 @@ export default function AttendancePage() {
     }
   }, [isAdmin]);
 
-  // Load attendance for selected date and check for new swimmers
+  // Load attendance for selected date
   useEffect(() => {
     const loadAttendance = async () => {
       if (!selectedDate || !isAdmin) return;
@@ -112,38 +137,6 @@ export default function AttendancePage() {
             recordsMap[r.swimmerId] = r;
           });
           setAttendance(recordsMap);
-
-          // Check for new swimmers (registered within last 30 days) and mark as trial if no attendance record
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          
-          swimmers.forEach((swimmer) => {
-            if (!recordsMap[swimmer.id]) {
-              let createdAt: Date | null = null;
-              if (swimmer.createdAt) {
-                if (typeof swimmer.createdAt === 'object' && 'toDate' in swimmer.createdAt) {
-                  createdAt = (swimmer.createdAt as { toDate: () => Date }).toDate();
-                } else if (swimmer.createdAt instanceof Date) {
-                  createdAt = swimmer.createdAt;
-                } else if (typeof swimmer.createdAt === 'string') {
-                  createdAt = new Date(swimmer.createdAt);
-                }
-              }
-              
-              // If swimmer is new (registered within 30 days), auto-mark as trial
-              if (createdAt && createdAt >= thirtyDaysAgo) {
-                setAttendance((prev) => ({
-                  ...prev,
-                  [swimmer.id]: {
-                    date: selectedDate,
-                    swimmerId: swimmer.id,
-                    swimmerName: `${swimmer.childFirstName} ${swimmer.childLastName}`,
-                    status: "trial",
-                  },
-                }));
-              }
-            }
-          });
         }
       } catch (err) {
         console.error("Load attendance error:", err);
@@ -151,7 +144,7 @@ export default function AttendancePage() {
     };
 
     loadAttendance();
-  }, [selectedDate, isAdmin, swimmers]);
+  }, [selectedDate, isAdmin]);
 
   const updateAttendance = (swimmerId: string, swimmerName: string, status: "attended" | "absent" | "make-up" | "trial") => {
     setAttendance((prev) => ({
@@ -407,7 +400,7 @@ export default function AttendancePage() {
                               className={`h-7 px-2 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
                             >
                               <Users className="w-3 h-3 mr-0.5" />
-                              Trial
+                              T
                             </Button>
                           </div>
                         </div>
