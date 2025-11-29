@@ -104,21 +104,30 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const recordData: AttendanceRecord = {
+    // Build record data, only including defined fields
+    const recordData: Record<string, unknown> = {
       date: body.date,
       swimmerId: body.swimmerId,
       swimmerName: body.swimmerName,
       status: body.status,
-      location: body.location,
-      timeSlot: body.timeSlot,
-      notes: body.notes,
       markedBy: email,
       markedAt: Timestamp.now(),
     };
 
+    // Only add optional fields if they are defined
+    if (body.location !== undefined && body.location !== null && body.location !== "") {
+      recordData.location = body.location;
+    }
+    if (body.timeSlot !== undefined && body.timeSlot !== null && body.timeSlot !== "") {
+      recordData.timeSlot = body.timeSlot;
+    }
+    if (body.notes !== undefined && body.notes !== null && body.notes !== "") {
+      recordData.notes = body.notes;
+    }
+
     if (body.id) {
       // Update existing
-      await adminDb.collection("attendance").doc(body.id).update(recordData as unknown as Record<string, unknown>);
+      await adminDb.collection("attendance").doc(body.id).update(recordData);
       return NextResponse.json({ id: body.id, ...recordData });
     } else {
       // Check if record already exists for this date and swimmer
@@ -131,11 +140,11 @@ export async function POST(req: Request) {
       if (!existing.empty) {
         // Update existing record
         const docId = existing.docs[0].id;
-        await adminDb.collection("attendance").doc(docId).update(recordData as unknown as Record<string, unknown>);
+        await adminDb.collection("attendance").doc(docId).update(recordData);
         return NextResponse.json({ id: docId, ...recordData });
       } else {
         // Create new record
-        const docRef = await adminDb.collection("attendance").add(recordData as unknown as Record<string, unknown>);
+        const docRef = await adminDb.collection("attendance").add(recordData);
         return NextResponse.json({ id: docRef.id, ...recordData });
       }
     }
