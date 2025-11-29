@@ -207,13 +207,15 @@ export default function AttendancePage() {
 
   if (!isAdmin) return null;
 
-  // Group swimmers by level
-  const swimmersByLevel = swimmers.reduce((acc, swimmer) => {
-    const level = swimmer.level || "Unknown";
-    if (!acc[level]) acc[level] = [];
-    acc[level].push(swimmer);
-    return acc;
-  }, {} as Record<string, Swimmer[]>);
+  // Group swimmers by level (exclude frozen swimmers)
+  const swimmersByLevel = swimmers
+    .filter((swimmer) => !swimmer.isFrozen) // Exclude frozen swimmers
+    .reduce((acc, swimmer) => {
+      const level = swimmer.level || "Unknown";
+      if (!acc[level]) acc[level] = [];
+      acc[level].push(swimmer);
+      return acc;
+    }, {} as Record<string, Swimmer[]>);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
