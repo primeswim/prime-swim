@@ -62,12 +62,22 @@ export async function GET(req: Request) {
       queryRef = queryRef.where("swimmerId", "==", swimmerId);
     }
 
-    const snap = await queryRef.orderBy("date", "desc").orderBy("markedAt", "desc").get();
+    // Try to order by date and markedAt, but if index doesn't exist, just order by date
+    let snap;
+    try {
+      snap = await queryRef.orderBy("date", "desc").orderBy("markedAt", "desc").get();
+    } catch {
+      // If composite index doesn't exist, just order by date
+      console.log("Composite index not found, ordering by date only");
+      snap = await queryRef.orderBy("date", "desc").get();
+    }
+    
     const records = snap.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
 
+    console.log(`Found ${records.length} attendance records for query`);
     return NextResponse.json({ records });
   } catch (e) {
     console.error("Get attendance error:", e);

@@ -93,13 +93,20 @@ export default function AttendanceReportPage() {
 
         const idToken = await user.getIdToken();
         const param = viewMode === "month" ? `month=${encodeURIComponent(selectedMonth)}` : `year=${encodeURIComponent(selectedYear)}`;
-        const res = await fetch(`/api/attendance?${param}`, {
+        const url = `/api/attendance?${param}`;
+        console.log("Loading attendance with URL:", url);
+        const res = await fetch(url, {
           headers: { Authorization: `Bearer ${idToken}` },
         });
 
         if (res.ok) {
           const data = await res.json();
+          console.log("Attendance data loaded:", data.records?.length || 0, "records");
+          console.log("Sample records:", data.records?.slice(0, 3));
           setAttendance(data.records || []);
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          console.error("Failed to load attendance:", errorData);
         }
       } catch (err) {
         console.error("Load attendance error:", err);
@@ -131,6 +138,7 @@ export default function AttendanceReportPage() {
     });
 
     // Count attendance
+    console.log("Processing attendance records:", attendance.length);
     attendance.forEach((record) => {
       if (!statsMap[record.swimmerId]) {
         statsMap[record.swimmerId] = {
@@ -158,6 +166,7 @@ export default function AttendanceReportPage() {
         statsMap[record.swimmerId].trial++;
       }
     });
+    console.log("Stats map after processing:", Object.keys(statsMap).length, "swimmers");
 
     // Calculate net absent (absent - make-up) and attendance rate
     Object.values(statsMap).forEach((stat) => {
