@@ -26,7 +26,7 @@ interface AttendanceRecord {
   date: string;
   swimmerId: string;
   swimmerName: string;
-  status: "present" | "absent" | "excused";
+  status: "attended" | "absent" | "make-up" | "trial";
   location?: string;
   timeSlot?: string;
   notes?: string;
@@ -100,7 +100,7 @@ export default function AttendancePage() {
     loadAttendance();
   }, [selectedDate, isAdmin]);
 
-  const updateAttendance = (swimmerId: string, status: "present" | "absent" | "excused") => {
+  const updateAttendance = (swimmerId: string, status: "attended" | "absent" | "make-up" | "trial") => {
     const swimmer = swimmers.find((s) => s.id === swimmerId);
     if (!swimmer) return;
 
@@ -156,6 +156,14 @@ export default function AttendancePage() {
   };
 
   if (!isAdmin) return null;
+
+  // Group swimmers by level
+  const swimmersByLevel = swimmers.reduce((acc, swimmer) => {
+    const level = swimmer.level || "Unknown";
+    if (!acc[level]) acc[level] = [];
+    acc[level].push(swimmer);
+    return acc;
+  }, {} as Record<string, Swimmer[]>);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
@@ -224,69 +232,82 @@ export default function AttendancePage() {
             <p className="text-slate-600">Loading swimmers...</p>
           </div>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Swimmers ({swimmers.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {swimmers.map((swimmer) => {
-                  const record = attendance[swimmer.id];
-                  const currentStatus = record?.status || null;
-                  const swimmerName = `${swimmer.childFirstName} ${swimmer.childLastName}`;
+          <div className="space-y-6">
+            {Object.entries(swimmersByLevel)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([level, levelSwimmers]) => {
+                return (
+                  <Card key={level}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="w-5 h-5" />
+                        {level} ({levelSwimmers.length} swimmers)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {levelSwimmers.map((swimmer) => {
+                          const record = attendance[swimmer.id];
+                          const currentStatus = record?.status || null;
+                          const swimmerName = `${swimmer.childFirstName} ${swimmer.childLastName}`;
 
-                  return (
-                    <div
-                      key={swimmer.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50"
-                    >
-                      <div className="flex-1">
-                        <div className="font-semibold text-slate-800">{swimmerName}</div>
-                        {swimmer.level && (
-                          <div className="text-sm text-slate-600">{swimmer.level}</div>
-                        )}
+                          return (
+                            <div
+                              key={swimmer.id}
+                              className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50"
+                            >
+                              <div className="flex-1">
+                                <div className="font-semibold text-slate-800">{swimmerName}</div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Button
+                                  variant={currentStatus === "attended" ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => updateAttendance(swimmer.id, "attended")}
+                                  className={currentStatus === "attended" ? "bg-green-600 hover:bg-green-700" : ""}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                                  Attended
+                                </Button>
+                                <Button
+                                  variant={currentStatus === "absent" ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => updateAttendance(swimmer.id, "absent")}
+                                  className={currentStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}
+                                >
+                                  <XCircle className="w-4 h-4 mr-1" />
+                                  Absent
+                                </Button>
+                                <Button
+                                  variant={currentStatus === "make-up" ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => updateAttendance(swimmer.id, "make-up")}
+                                  className={currentStatus === "make-up" ? "bg-blue-600 hover:bg-blue-700" : ""}
+                                >
+                                  <Clock className="w-4 h-4 mr-1" />
+                                  Make-up
+                                </Button>
+                                <Button
+                                  variant={currentStatus === "trial" ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => updateAttendance(swimmer.id, "trial")}
+                                  className={currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}
+                                >
+                                  <Users className="w-4 h-4 mr-1" />
+                                  Trial
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant={currentStatus === "present" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateAttendance(swimmer.id, "present")}
-                          className={currentStatus === "present" ? "bg-green-600 hover:bg-green-700" : ""}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Present
-                        </Button>
-                        <Button
-                          variant={currentStatus === "absent" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateAttendance(swimmer.id, "absent")}
-                          className={currentStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Absent
-                        </Button>
-                        <Button
-                          variant={currentStatus === "excused" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateAttendance(swimmer.id, "excused")}
-                          className={currentStatus === "excused" ? "bg-amber-600 hover:bg-amber-700" : ""}
-                        >
-                          <Clock className="w-4 h-4 mr-1" />
-                          Excused
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+          </div>
         )}
       </div>
     </div>
   );
 }
-

@@ -26,16 +26,19 @@ interface AttendanceRecord {
   date: string;
   swimmerId: string;
   swimmerName: string;
-  status: "present" | "absent" | "excused";
+  status: "attended" | "absent" | "make-up" | "trial";
 }
 
 interface AttendanceStats {
   swimmerId: string;
   swimmerName: string;
+  level?: string;
   totalDays: number;
-  present: number;
+  attended: number;
   absent: number;
-  excused: number;
+  makeUp: number;
+  trial: number;
+  netAbsent: number; // absent - make-up (can be negative)
   attendanceRate: number;
 }
 
@@ -116,10 +119,13 @@ export default function AttendanceReportPage() {
       statsMap[swimmer.id] = {
         swimmerId: swimmer.id,
         swimmerName,
+        level: swimmer.level,
         totalDays: 0,
-        present: 0,
+        attended: 0,
         absent: 0,
-        excused: 0,
+        makeUp: 0,
+        trial: 0,
+        netAbsent: 0,
         attendanceRate: 0,
       };
     });
@@ -130,34 +136,43 @@ export default function AttendanceReportPage() {
         statsMap[record.swimmerId] = {
           swimmerId: record.swimmerId,
           swimmerName: record.swimmerName,
+          level: undefined,
           totalDays: 0,
-          present: 0,
+          attended: 0,
           absent: 0,
-          excused: 0,
+          makeUp: 0,
+          trial: 0,
+          netAbsent: 0,
           attendanceRate: 0,
         };
       }
 
       statsMap[record.swimmerId].totalDays++;
-      if (record.status === "present") {
-        statsMap[record.swimmerId].present++;
+      if (record.status === "attended") {
+        statsMap[record.swimmerId].attended++;
       } else if (record.status === "absent") {
         statsMap[record.swimmerId].absent++;
-      } else if (record.status === "excused") {
-        statsMap[record.swimmerId].excused++;
+      } else if (record.status === "make-up") {
+        statsMap[record.swimmerId].makeUp++;
+      } else if (record.status === "trial") {
+        statsMap[record.swimmerId].trial++;
       }
     });
 
-    // Calculate attendance rate
+    // Calculate net absent (absent - make-up) and attendance rate
     Object.values(statsMap).forEach((stat) => {
-      const total = stat.present + stat.absent + stat.excused;
+      stat.netAbsent = stat.absent - stat.makeUp;
+      const total = stat.attended + stat.absent + stat.makeUp + stat.trial;
       if (total > 0) {
-        stat.attendanceRate = (stat.present / total) * 100;
+        stat.attendanceRate = (stat.attended / total) * 100;
       }
     });
 
     return Object.values(statsMap).sort((a, b) => {
-      // Sort by attendance rate (lowest first), then by name
+      // Sort by net absent (highest first), then by attendance rate (lowest first), then by name
+      if (a.netAbsent !== b.netAbsent) {
+        return b.netAbsent - a.netAbsent;
+      }
       if (a.attendanceRate !== b.attendanceRate) {
         return a.attendanceRate - b.attendanceRate;
       }
@@ -165,18 +180,34 @@ export default function AttendanceReportPage() {
     });
   }, [attendance, swimmers]);
 
+  // Group by level
+  const statsByLevel = useMemo(() => {
+    const grouped: Record<string, AttendanceStats[]> = {};
+    stats.forEach((stat) => {
+      const level = stat.level || "Unknown";
+      if (!grouped[level]) {
+        grouped[level] = [];
+      }
+      grouped[level].push(stat);
+    });
+    return grouped;
+  }, [stats]);
+
   const exportCSV = () => {
-    const header = ["Swimmer Name", "Total Days", "Present", "Absent", "Excused", "Attendance Rate (%)"];
+    const header = ["Swimmer Name", "Level", "Total Days", "Attended", "Absent", "Make-up", "Trial", "Net Absent", "Attendance Rate (%)"];
     const lines = [header.join(",")];
     
     stats.forEach((stat) => {
       lines.push(
         [
           stat.swimmerName,
+          stat.level || "",
           stat.totalDays,
-          stat.present,
+          stat.attended,
           stat.absent,
-          stat.excused,
+          stat.makeUp,
+          stat.trial,
+          stat.netAbsent,
           stat.attendanceRate.toFixed(1),
         ]
           .map((x) => `"${String(x ?? "").replaceAll('"', '""')}"`)
@@ -264,54 +295,77 @@ export default function AttendanceReportPage() {
             <p className="text-slate-600">Loading...</p>
           </div>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Statistics ({stats.length} swimmers)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-slate-600 border-b">
-                      <th className="p-3 font-semibold">Swimmer Name</th>
-                      <th className="p-3 font-semibold text-center">Total Days</th>
-                      <th className="p-3 font-semibold text-center">Present</th>
-                      <th className="p-3 font-semibold text-center">Absent</th>
-                      <th className="p-3 font-semibold text-center">Excused</th>
-                      <th className="p-3 font-semibold text-center">Attendance Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.map((stat, idx) => (
-                      <tr key={stat.swimmerId} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                        <td className="p-3 font-medium text-slate-800">{stat.swimmerName}</td>
-                        <td className="p-3 text-center">{stat.totalDays}</td>
-                        <td className="p-3 text-center text-green-600 font-medium">{stat.present}</td>
-                        <td className="p-3 text-center text-red-600 font-medium">{stat.absent}</td>
-                        <td className="p-3 text-center text-amber-600 font-medium">{stat.excused}</td>
-                        <td className="p-3 text-center">
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                              stat.attendanceRate >= 90
-                                ? "bg-green-100 text-green-700"
-                                : stat.attendanceRate >= 70
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {stat.attendanceRate.toFixed(1)}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* Grouped by Level */}
+            {Object.entries(statsByLevel)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([level, levelStats]) => (
+                <Card key={level}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      {level} ({levelStats.length} swimmers)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-slate-600 border-b">
+                            <th className="p-3 font-semibold">Swimmer Name</th>
+                            <th className="p-3 font-semibold text-center">Total Days</th>
+                            <th className="p-3 font-semibold text-center">Attended</th>
+                            <th className="p-3 font-semibold text-center">Absent</th>
+                            <th className="p-3 font-semibold text-center">Make-up</th>
+                            <th className="p-3 font-semibold text-center">Trial</th>
+                            <th className="p-3 font-semibold text-center">Net Absent</th>
+                            <th className="p-3 font-semibold text-center">Attendance Rate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {levelStats.map((stat, idx) => (
+                            <tr key={stat.swimmerId} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                              <td className="p-3 font-medium text-slate-800">{stat.swimmerName}</td>
+                              <td className="p-3 text-center">{stat.totalDays}</td>
+                              <td className="p-3 text-center text-green-600 font-medium">{stat.attended}</td>
+                              <td className="p-3 text-center text-red-600 font-medium">{stat.absent}</td>
+                              <td className="p-3 text-center text-blue-600 font-medium">{stat.makeUp}</td>
+                              <td className="p-3 text-center text-purple-600 font-medium">{stat.trial}</td>
+                              <td className="p-3 text-center">
+                                <span
+                                  className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                    stat.netAbsent > 0
+                                      ? "bg-red-100 text-red-700"
+                                      : stat.netAbsent < 0
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-slate-100 text-slate-700"
+                                  }`}
+                                >
+                                  {stat.netAbsent > 0 ? "+" : ""}{stat.netAbsent}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center">
+                                <span
+                                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                                    stat.attendanceRate >= 90
+                                      ? "bg-green-100 text-green-700"
+                                      : stat.attendanceRate >= 70
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {stat.attendanceRate.toFixed(1)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
         )}
       </div>
     </div>

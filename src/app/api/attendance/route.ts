@@ -11,7 +11,7 @@ interface AttendanceRecord {
   date: string; // YYYY-MM-DD format
   swimmerId: string;
   swimmerName: string;
-  status: "present" | "absent" | "excused";
+  status: "attended" | "absent" | "make-up" | "trial";
   location?: string;
   timeSlot?: string;
   notes?: string;
