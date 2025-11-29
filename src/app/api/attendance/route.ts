@@ -96,6 +96,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Validate status
+    const validStatuses = ["attended", "absent", "make-up", "trial"];
+    if (!validStatuses.includes(body.status)) {
+      return NextResponse.json({ 
+        error: `Invalid status: ${body.status}. Must be one of: ${validStatuses.join(", ")}` 
+      }, { status: 400 });
+    }
+
     const recordData: AttendanceRecord = {
       date: body.date,
       swimmerId: body.swimmerId,
@@ -133,7 +141,8 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     console.error("Create/update attendance error:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const errorMessage = e instanceof Error ? e.message : "Server error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

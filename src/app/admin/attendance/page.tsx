@@ -141,7 +141,9 @@ export default function AttendancePage() {
         });
 
         if (!res.ok) {
-          throw new Error(`Failed to save attendance for ${record.swimmerName}`);
+          const errorData = await res.json().catch(() => ({}));
+          const errorMessage = errorData.error || `HTTP ${res.status}`;
+          throw new Error(`Failed to save attendance for ${record.swimmerName}: ${errorMessage}`);
         }
       }
 
@@ -149,7 +151,8 @@ export default function AttendancePage() {
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
       console.error("Save attendance error:", err);
-      setStatus({ message: "Failed to save attendance", success: false });
+      const errorMessage = err instanceof Error ? err.message : "Failed to save attendance";
+      setStatus({ message: errorMessage, success: false });
     } finally {
       setSaving(false);
     }
