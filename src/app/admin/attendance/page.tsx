@@ -296,7 +296,7 @@ export default function AttendancePage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {levelSwimmers.map((swimmer) => {
                           const record = attendance[swimmer.id];
                           const currentStatus = record?.status || null;
@@ -305,10 +305,10 @@ export default function AttendancePage() {
                           return (
                             <div
                               key={swimmer.id}
-                              className="flex items-center justify-between p-2 border rounded hover:bg-slate-50 text-sm"
+                              className="flex items-center justify-between p-2.5 border rounded hover:bg-slate-50 text-sm"
                             >
-                              <div className="flex-1 min-w-0 mr-2">
-                                <div className="font-medium text-slate-800 truncate">{swimmerName}</div>
+                              <div className="flex-1 min-w-0 mr-3">
+                                <div className="font-medium text-slate-800">{swimmerName}</div>
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <Button
@@ -381,10 +381,10 @@ export default function AttendancePage() {
                       return (
                         <div
                           key={tryoutId}
-                          className="flex items-center justify-between p-2 border rounded hover:bg-slate-50 text-sm"
+                          className="flex items-center justify-between p-2.5 border rounded hover:bg-slate-50 text-sm"
                         >
-                          <div className="flex-1 min-w-0 mr-2">
-                            <div className="font-medium text-slate-800 truncate">{swimmerName}</div>
+                          <div className="flex-1 min-w-0 mr-3">
+                            <div className="font-medium text-slate-800">{swimmerName}</div>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <Button
