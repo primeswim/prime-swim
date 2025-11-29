@@ -19,6 +19,7 @@ interface Swimmer {
   childFirstName: string;
   childLastName: string;
   level?: string;
+  isFrozen?: boolean;
 }
 
 interface AttendanceRecord {
@@ -120,8 +121,11 @@ export default function AttendanceReportPage() {
   const stats = useMemo(() => {
     const statsMap: Record<string, AttendanceStats> = {};
 
-    // Initialize all swimmers
+    // Initialize all swimmers (exclude frozen swimmers)
     swimmers.forEach((swimmer) => {
+      // Skip frozen swimmers
+      if (swimmer.isFrozen) return;
+      
       const swimmerName = `${swimmer.childFirstName} ${swimmer.childLastName}`;
       statsMap[swimmer.id] = {
         swimmerId: swimmer.id,

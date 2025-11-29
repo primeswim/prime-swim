@@ -20,6 +20,7 @@ interface Swimmer {
   childLastName: string;
   level?: string;
   createdAt?: { toDate: () => Date } | Date | string;
+  isFrozen?: boolean;
 }
 
 interface TryoutSwimmer {
@@ -193,21 +194,8 @@ export default function AttendancePage() {
       setStatus({ message: "Attendance saved successfully!", success: true });
       setTimeout(() => setStatus(null), 3000);
       
-      // Reset attendance state after successful save
+      // Clear all attendance selections after successful save
       setAttendance({});
-      
-      // Reload attendance to show saved records
-      const res = await fetch(`/api/attendance?date=${encodeURIComponent(selectedDate)}`, {
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const recordsMap: Record<string, AttendanceRecord> = {};
-        data.records.forEach((r: AttendanceRecord) => {
-          recordsMap[r.swimmerId] = r;
-        });
-        setAttendance(recordsMap);
-      }
     } catch (err) {
       console.error("Save attendance error:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to save attendance";
