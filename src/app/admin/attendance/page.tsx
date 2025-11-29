@@ -315,37 +315,41 @@ export default function AttendancePage() {
                                   variant={currentStatus === "attended" ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => updateAttendance(swimmer.id, swimmerName, "attended")}
-                                  className={`h-7 px-2 text-xs ${currentStatus === "attended" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                                  className={`h-7 px-2.5 text-xs ${currentStatus === "attended" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                                  title="Attended"
                                 >
-                                  <CheckCircle2 className="w-3 h-3 mr-0.5" />
-                                  A
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  Attend
                                 </Button>
                                 <Button
                                   variant={currentStatus === "absent" ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => updateAttendance(swimmer.id, swimmerName, "absent")}
-                                  className={`h-7 px-2 text-xs ${currentStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}`}
+                                  className={`h-7 px-2.5 text-xs ${currentStatus === "absent" ? "bg-red-600 hover:bg-red-700" : ""}`}
+                                  title="Absent"
                                 >
-                                  <XCircle className="w-3 h-3 mr-0.5" />
-                                  X
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Absent
                                 </Button>
                                 <Button
                                   variant={currentStatus === "make-up" ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => updateAttendance(swimmer.id, swimmerName, "make-up")}
-                                  className={`h-7 px-2 text-xs ${currentStatus === "make-up" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                                  className={`h-7 px-2.5 text-xs ${currentStatus === "make-up" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                                  title="Make-up"
                                 >
-                                  <Clock className="w-3 h-3 mr-0.5" />
-                                  M
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Make-up
                                 </Button>
                                 <Button
                                   variant={currentStatus === "trial" ? "default" : "outline"}
                                   size="sm"
                                   onClick={() => updateAttendance(swimmer.id, swimmerName, "trial")}
-                                  className={`h-7 px-2 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                                  className={`h-7 px-2.5 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                                  title="Trial"
                                 >
-                                  <Users className="w-3 h-3 mr-0.5" />
-                                  T
+                                  <Users className="w-3 h-3 mr-1" />
+                                  Trial
                                 </Button>
                               </div>
                             </div>
@@ -387,10 +391,11 @@ export default function AttendancePage() {
                               variant={currentStatus === "trial" ? "default" : "outline"}
                               size="sm"
                               onClick={() => updateAttendance(tryoutId, swimmerName, "trial")}
-                              className={`h-7 px-2 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                              className={`h-7 px-2.5 text-xs ${currentStatus === "trial" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                              title="Trial"
                             >
-                              <Users className="w-3 h-3 mr-0.5" />
-                              T
+                              <Users className="w-3 h-3 mr-1" />
+                              Trial
                             </Button>
                           </div>
                         </div>
