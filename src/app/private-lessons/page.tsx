@@ -5,7 +5,7 @@ import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import { db, auth } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import Header from "@/components/header";
 import {
   Card,
@@ -82,6 +82,7 @@ export default function PrivateLessonCalendar() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [currentBooking, setCurrentBooking] = useState<{ id: string; swimmerId: string; swimmerName: string; notes?: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isAdmin = useIsAdminFromDB();
 
@@ -590,6 +591,102 @@ export default function PrivateLessonCalendar() {
     }
   };
 
+  const handleDeleteSlot = async () => {
+    if (!selectedSlot) {
+      setBookingStatus({ type: "error", message: "No slot selected" });
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete this slot?\n\n` +
+      `Time: ${selectedSlot.start.toLocaleString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })} - ${selectedSlot.end.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      })}\n` +
+      `Location: ${locations.find((l) => l.id === selectedSlot.locationId)?.name || "Unknown"}\n\n` +
+      (selectedSlot.status === "taken" 
+        ? `⚠️ This slot is currently booked. The booking will be cancelled and the slot will be deleted.\n\n`
+        : ``) +
+      `This action cannot be undone.`
+    );
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+    setBookingStatus(null);
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      const idToken = await user.getIdToken();
+
+      // Delete the slot
+      const response = await fetch(`/api/private-lessons/slot/delete?slotId=${selectedSlot.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete slot");
+      }
+
+      // Refresh slots
+      const querySnapshot = await getDocs(collection(db, "availableSlots"));
+      const slotsData = querySnapshot.docs.map((doc) => {
+        const slot = doc.data();
+        return {
+          id: doc.id,
+          title: slot.status === "taken" ? "Taken" : "Available",
+          start: slot.startTime.toDate(),
+          end: slot.endTime.toDate(),
+          coachId: slot.coachId,
+          locationId: slot.locationId,
+          status: slot.status,
+          priorityOnly: slot.priorityOnly || false,
+          bookingId: slot.bookingId || undefined,
+          bookedBySwimmerId: slot.bookedBySwimmerId || undefined,
+          bookedBySwimmerName: slot.bookedBySwimmerName || undefined,
+          adminNotes: slot.adminNotes || undefined,
+        };
+      });
+      setSlots(slotsData);
+
+      setBookingStatus({
+        type: "success",
+        message: "Slot deleted successfully.",
+      });
+
+      // Close dialog after 2 seconds
+      setTimeout(() => {
+        setIsDialogOpen(false);
+        setSelectedSwimmerId("");
+        setBookingNotes("");
+        setAdminNotes("");
+        setBookingStatus(null);
+        setCurrentBooking(null);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to delete slot:", error);
+      setBookingStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to delete slot",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 pb-16">
       <Header />
@@ -821,12 +918,31 @@ export default function PrivateLessonCalendar() {
             </div>
           )}
           <DialogFooter className="flex justify-between">
-            <div>
+            <div className="flex gap-2">
+              {isAdmin && (
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteSlot}
+                  disabled={isDeleting || isBooking}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Slot
+                    </>
+                  )}
+                </Button>
+              )}
               {selectedSlot?.status === "taken" && currentBooking && currentBooking.id && (
                 <Button
                   variant="destructive"
                   onClick={handleCancelBooking}
-                  disabled={isBooking}
+                  disabled={isBooking || isDeleting}
                 >
                   {isBooking ? (
                     <>
@@ -850,12 +966,12 @@ export default function PrivateLessonCalendar() {
                   setBookingStatus(null);
                   setCurrentBooking(null);
                 }}
-                disabled={isBooking}
+                disabled={isBooking || isDeleting}
               >
                 Close
               </Button>
               {selectedSlot?.status === "available" && (
-                <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+                <Button onClick={handleSetTaken} disabled={isBooking || isDeleting || !selectedSwimmerId}>
                   {isBooking ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -867,7 +983,7 @@ export default function PrivateLessonCalendar() {
                 </Button>
               )}
               {selectedSlot?.status === "taken" && (
-                <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+                <Button onClick={handleSetTaken} disabled={isBooking || isDeleting || !selectedSwimmerId}>
                   {isBooking ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
