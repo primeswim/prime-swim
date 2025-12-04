@@ -140,7 +140,9 @@ export async function POST(req: Request) {
 
     const swimmerName = `${swimmerData?.firstName || ""} ${swimmerData?.lastName || ""}`.trim();
     const parentEmail = swimmerData?.email || "";
-    const parentName = swimmerData?.firstName || "";
+    // Note: privatelessonstudents doesn't have a separate parentName field
+    // The email is the parent's email, but we don't have the parent's name
+    const parentName = ""; // Leave empty since we don't have parent name in the data
     const parentPhone = swimmerData?.phone || "";
 
     if (!parentEmail) {
@@ -267,7 +269,8 @@ export async function PUT(req: Request) {
         const swimmerData = swimmerDoc.data();
         const swimmerName = `${swimmerData?.firstName || ""} ${swimmerData?.lastName || ""}`.trim();
         const parentEmail = swimmerData?.email || "";
-        const parentName = swimmerData?.firstName || "";
+        // Note: privatelessonstudents doesn't have a separate parentName field
+        const parentName = ""; // Leave empty since we don't have parent name in the data
         
         updateData.swimmerId = swimmerId;
         updateData.swimmerName = swimmerName;
