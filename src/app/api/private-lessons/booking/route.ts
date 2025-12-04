@@ -34,6 +34,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const slotId = searchParams.get("slotId");
     const swimmerId = searchParams.get("swimmerId");
+    const swimmerName = searchParams.get("swimmerName");
     const status = searchParams.get("status");
 
     let query: Query = adminDb.collection("privateLessonBookings");
@@ -43,6 +44,9 @@ export async function GET(req: Request) {
     }
     if (swimmerId) {
       query = query.where("swimmerId", "==", swimmerId);
+    }
+    if (swimmerName) {
+      query = query.where("swimmerName", "==", swimmerName);
     }
     if (status) {
       query = query.where("status", "==", status);
@@ -57,10 +61,39 @@ export async function GET(req: Request) {
       console.warn("orderBy failed, fetching without order:", e);
       snapshot = await query.get();
     }
-    const bookings = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const bookings = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      // Convert Firestore Timestamps to ISO strings for JSON serialization
+      let startTime: string | Date | null = null;
+      let endTime: string | Date | null = null;
+      
+      if (data.startTime) {
+        if (data.startTime.toDate && typeof data.startTime.toDate === "function") {
+          startTime = data.startTime.toDate().toISOString();
+        } else if (data.startTime.seconds) {
+          startTime = new Date(data.startTime.seconds * 1000).toISOString();
+        } else if (data.startTime instanceof Date) {
+          startTime = data.startTime.toISOString();
+        }
+      }
+      
+      if (data.endTime) {
+        if (data.endTime.toDate && typeof data.endTime.toDate === "function") {
+          endTime = data.endTime.toDate().toISOString();
+        } else if (data.endTime.seconds) {
+          endTime = new Date(data.endTime.seconds * 1000).toISOString();
+        } else if (data.endTime instanceof Date) {
+          endTime = data.endTime.toISOString();
+        }
+      }
+      
+      return {
+        id: doc.id,
+        ...data,
+        startTime: startTime || data.startTime,
+        endTime: endTime || data.endTime,
+      };
+    });
 
     return NextResponse.json({ bookings });
   } catch (e) {
@@ -255,9 +288,10 @@ export async function PUT(req: Request) {
         // Send confirmation email to new swimmer's parent if email exists
         if (parentEmail) {
           try {
-            const locationName = getLocationName(slotData?.locationId || 0);
-            const startDate = slotData?.startTime?.toDate() || new Date();
-            const endDate = slotData?.endTime?.toDate() || new Date();
+            // Use booking data for time (booking has the correct time from when it was created)
+            const locationName = getLocationName(bookingData?.locationId || slotData?.locationId || 0);
+            const startDate = bookingData?.startTime?.toDate() || new Date();
+            const endDate = bookingData?.endTime?.toDate() || new Date();
 
             const emailHtml = buildConfirmationEmail({
               swimmerName,

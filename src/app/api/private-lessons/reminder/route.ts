@@ -39,7 +39,6 @@ export async function POST(req: Request) {
     }
 
     // Send reminder email
-    const coachName = getCoachName(booking.coachId || 0);
     const locationName = getLocationName(booking.locationId || 0);
     const startDate = booking.startTime?.toDate() || new Date();
     const endDate = booking.endTime?.toDate() || new Date();
@@ -47,7 +46,6 @@ export async function POST(req: Request) {
     const emailHtml = buildReminderEmail({
       swimmerName: booking.swimmerName || "",
       parentName: booking.parentName || "Parent",
-      coachName,
       locationName,
       startDate,
       endDate,
@@ -81,15 +79,31 @@ export async function GET(req: Request) {
     const authz = req.headers.get("authorization") || "";
     const isCron = req.headers.get("x-vercel-cron") === "1";
     
-    if (!isCron && authz) {
+    if (!isCron) {
+      // If not cron, require admin auth
+      if (!authz) {
+        return NextResponse.json({ error: "UNAUTHORIZED", message: "Missing authorization header" }, { status: 401 });
+      }
+      
       const m = /^Bearer\s+(.+)$/.exec(authz);
-      if (m) {
+      if (!m) {
+        return NextResponse.json({ error: "UNAUTHORIZED", message: "Invalid authorization format" }, { status: 401 });
+      }
+      
+      try {
         const decoded = await getAuth().verifyIdToken(m[1]);
         const email = (decoded.email || "").toLowerCase();
+        if (!email) {
+          return NextResponse.json({ error: "UNAUTHORIZED", message: "No email in token" }, { status: 401 });
+        }
+        
         const adminDoc = await adminDb.collection("admin").doc(email).get();
         if (!adminDoc.exists) {
-          return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+          return NextResponse.json({ error: "FORBIDDEN", message: "Not an admin" }, { status: 403 });
         }
+      } catch (tokenError) {
+        console.error("Token verification error:", tokenError);
+        return NextResponse.json({ error: "UNAUTHORIZED", message: "Invalid token" }, { status: 401 });
       }
     }
 
@@ -115,7 +129,6 @@ export async function GET(req: Request) {
     const results = await Promise.allSettled(
       bookingsSnapshot.docs.map(async (doc) => {
         const booking = doc.data();
-        const coachName = getCoachName(booking.coachId || 0);
         const locationName = getLocationName(booking.locationId || 0);
         const startDate = booking.startTime?.toDate() || new Date();
         const endDate = booking.endTime?.toDate() || new Date();
@@ -123,7 +136,6 @@ export async function GET(req: Request) {
         const emailHtml = buildReminderEmail({
           swimmerName: booking.swimmerName || "",
           parentName: booking.parentName || "Parent",
-          coachName,
           locationName,
           startDate,
           endDate,
@@ -156,17 +168,13 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error("Auto-send reminders error:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const errorMessage = e instanceof Error ? e.message : "Unknown server error";
+    return NextResponse.json({ 
+      error: "Server error",
+      message: errorMessage,
+      details: process.env.NODE_ENV === "development" ? String(e) : undefined
+    }, { status: 500 });
   }
-}
-
-function getCoachName(coachId: number): string {
-  const coaches: Record<number, string> = {
-    1: "Coach Lara",
-    2: "Coach Moe",
-    3: "Coach Emma",
-  };
-  return coaches[coachId] || "Coach";
 }
 
 function getLocationName(locationId: number): string {
@@ -181,12 +189,11 @@ function getLocationName(locationId: number): string {
 function buildReminderEmail(params: {
   swimmerName: string;
   parentName: string;
-  coachName: string;
   locationName: string;
   startDate: Date;
   endDate: Date;
 }): string {
-  const { swimmerName, parentName, coachName, locationName, startDate, endDate } = params;
+  const { swimmerName, parentName, locationName, startDate, endDate } = params;
   const dateStr = startDate.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -218,12 +225,26 @@ function buildReminderEmail(params: {
           <h2 style="margin-top: 0; color: #059669; font-size: 20px;">Lesson Details</h2>
           <p style="margin: 10px 0;"><strong>Date:</strong> ${dateStr}</p>
           <p style="margin: 10px 0;"><strong>Time:</strong> ${timeStr}</p>
-          <p style="margin: 10px 0;"><strong>Coach:</strong> ${coachName}</p>
           <p style="margin: 10px 0;"><strong>Location:</strong> ${locationName}</p>
         </div>
         <p style="font-size: 16px; margin-top: 20px;">
           Please arrive 5-10 minutes early. If you need to cancel or reschedule, please contact us as soon as possible.
         </p>
+        
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 25px 0;">
+          <h3 style="margin-top: 0; color: #92400e; font-size: 18px; font-weight: 700;">📋 Cancellation Policy</h3>
+          <p style="margin: 10px 0; color: #78350f; font-size: 15px; line-height: 1.6;">
+            To be eligible for reschedule or credit, please notify us at least <strong style='color: #dc2626;'>${locationName === "Mary Wayte Swimming Pool" ? "14 days" : "7 days"}</strong> before your scheduled lesson. This advance notice helps us manage our schedule and accommodate other families.
+          </p>
+          ${locationName === "Mary Wayte Swimming Pool" ? 
+            "<p style='margin: 10px 0; color: #78350f; font-size: 15px; line-height: 1.6;'>For lessons at <strong>Mary Wayte Swimming Pool</strong>, we require <strong style='color: #dc2626;'>14 days</strong> advance notice due to the facility's scheduling constraints.</p>" : 
+            ""
+          }
+          <p style="margin: 10px 0; color: #78350f; font-size: 15px; line-height: 1.6;">
+            Cancellations made after the deadline will be considered a forfeiture of the session without refund or makeup. We understand that unexpected situations arise, and in cases of documented <strong>medical emergencies</strong>, we may make exceptions at our discretion. Please note that even in approved medical-emergency cases, families remain responsible for the lane rental fee incurred for the scheduled session.
+          </p>
+        </div>
+        
         <p style="font-size: 16px; margin-top: 20px;">
           We look forward to seeing you tomorrow!
         </p>
