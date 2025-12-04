@@ -236,12 +236,21 @@ export default function PrivateLessonCalendar() {
   
 
   const EventComponent = ({ event }: { event: SlotEvent }) => {
-    if (event.status === "taken" && event.bookedBySwimmerName) {
+    if (event.status === "taken") {
+      // Only show swimmer name to admin users
+      if (isAdmin && event.bookedBySwimmerName) {
+        return (
+          <div className="text-xs p-1">
+            <div className="font-semibold truncate" title={event.bookedBySwimmerName}>
+              {event.bookedBySwimmerName}
+            </div>
+          </div>
+        );
+      }
+      // Non-admin users just see "Booked"
       return (
         <div className="text-xs p-1">
-          <div className="font-semibold truncate" title={event.bookedBySwimmerName}>
-            {event.bookedBySwimmerName}
-          </div>
+          <div className="font-semibold">Booked</div>
         </div>
       );
     }
@@ -495,6 +504,92 @@ export default function PrivateLessonCalendar() {
     }
   };
 
+  const handleCancelBooking = async () => {
+    if (!selectedSlot || !currentBooking || !currentBooking.id) {
+      setBookingStatus({ type: "error", message: "No booking to cancel" });
+      return;
+    }
+
+    const confirmCancel = window.confirm(
+      `Are you sure you want to cancel the booking for ${currentBooking.swimmerName}? The slot will become available again.`
+    );
+    if (!confirmCancel) return;
+
+    setIsBooking(true);
+    setBookingStatus(null);
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      const idToken = await user.getIdToken();
+
+      // Cancel the booking
+      const response = await fetch("/api/private-lessons/booking", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: currentBooking.id,
+          status: "cancelled",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to cancel booking");
+      }
+
+      // Refresh slots
+      const querySnapshot = await getDocs(collection(db, "availableSlots"));
+      const slotsData = querySnapshot.docs.map((doc) => {
+        const slot = doc.data();
+        return {
+          id: doc.id,
+          title: slot.status === "taken" ? "Taken" : "Available",
+          start: slot.startTime.toDate(),
+          end: slot.endTime.toDate(),
+          coachId: slot.coachId,
+          locationId: slot.locationId,
+          status: slot.status,
+          priorityOnly: slot.priorityOnly || false,
+          bookingId: slot.bookingId || undefined,
+          bookedBySwimmerId: slot.bookedBySwimmerId || undefined,
+          bookedBySwimmerName: slot.bookedBySwimmerName || undefined,
+          adminNotes: slot.adminNotes || undefined,
+        };
+      });
+      setSlots(slotsData);
+
+      setBookingStatus({
+        type: "success",
+        message: "Booking cancelled successfully. Slot is now available.",
+      });
+
+      // Close dialog after 2 seconds
+      setTimeout(() => {
+        setIsDialogOpen(false);
+        setSelectedSwimmerId("");
+        setBookingNotes("");
+        setAdminNotes("");
+        setBookingStatus(null);
+        setCurrentBooking(null);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to cancel booking:", error);
+      setBookingStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to cancel booking",
+      });
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 pb-16">
       <Header />
@@ -607,13 +702,19 @@ export default function PrivateLessonCalendar() {
                   agenda: {
                     event: ({ event }: { event: SlotEvent }) => (
                       <div className="p-2 text-sm">
-                        {event.status === "taken" && event.bookedBySwimmerName ? (
-                          <>
-                            <span className="font-medium">{event.bookedBySwimmerName}</span>
-                            {isAdmin && event.adminNotes && (
-                              <span className="text-slate-500 ml-2 italic">📝 {event.adminNotes}</span>
-                            )}
-                          </>
+                        {event.status === "taken" ? (
+                          isAdmin ? (
+                            <>
+                              {event.bookedBySwimmerName && (
+                                <span className="font-medium">{event.bookedBySwimmerName}</span>
+                              )}
+                              {event.adminNotes && (
+                                <span className="text-slate-500 ml-2 italic">📝 {event.adminNotes}</span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-500">Booked</span>
+                          )
                         ) : (
                           <span className="text-slate-500">Available</span>
                         )}
@@ -719,31 +820,65 @@ export default function PrivateLessonCalendar() {
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setIsDialogOpen(false);
-                setSelectedSwimmerId("");
-                setBookingNotes("");
-                setAdminNotes("");
-                setBookingStatus(null);
-                setCurrentBooking(null);
-              }}
-              disabled={isBooking}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
-              {isBooking ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {selectedSlot?.status === "taken" ? "Updating..." : "Booking..."}
-                </>
-              ) : (
-                selectedSlot?.status === "taken" ? "Update Booking" : "Confirm Booking"
+          <DialogFooter className="flex justify-between">
+            <div>
+              {selectedSlot?.status === "taken" && currentBooking && currentBooking.id && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelBooking}
+                  disabled={isBooking}
+                >
+                  {isBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    "Cancel Booking"
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsDialogOpen(false);
+                  setSelectedSwimmerId("");
+                  setBookingNotes("");
+                  setAdminNotes("");
+                  setBookingStatus(null);
+                  setCurrentBooking(null);
+                }}
+                disabled={isBooking}
+              >
+                Close
+              </Button>
+              {selectedSlot?.status === "available" && (
+                <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+                  {isBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Booking...
+                    </>
+                  ) : (
+                    "Confirm Booking"
+                  )}
+                </Button>
+              )}
+              {selectedSlot?.status === "taken" && (
+                <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+                  {isBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Booking"
+                  )}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
