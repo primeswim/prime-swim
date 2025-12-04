@@ -3,6 +3,10 @@
     {
       "path": "/api/admin/send-renewal-reminders-auto",
       "schedule": "0 10 * * 1"
+    },
+    {
+      "path": "/api/private-lessons/reminder",
+      "schedule": "0 9 * * *"
     }
   ]
 }

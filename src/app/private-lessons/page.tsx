@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
-import { db } from "@/lib/firebase";
-import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
-import { CalendarIcon, Filter, AlertTriangle } from "lucide-react";
+import { db, auth } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
 import Header from "@/components/header";
 import {
   Card,
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import {
   Dialog,
@@ -29,9 +30,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type SlotEvent = {
   id: string;
@@ -42,15 +45,13 @@ type SlotEvent = {
   locationId: number;
   status: string;
   priorityOnly: boolean;
+  bookingId?: string;
+  bookedBySwimmerId?: string;
+  bookedBySwimmerName?: string;
+  adminNotes?: string;
 };
 
 const localizer = momentLocalizer(moment);
-
-const coaches = [
-  { id: 1, name: "Coach Lara" },
-  { id: 2, name: "Coach Moe" },
-  { id: 3, name: "Coach Emma" },
-];
 
 const locations = [
   { id: 1, name: "Bellevue Aquatic Center" },
@@ -58,109 +59,439 @@ const locations = [
   { id: 3, name: "Mary Wayte Swimming Pool" },
 ];
 
+interface Swimmer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+}
+
 export default function PrivateLessonCalendar() {
   const [slots, setSlots] = useState<SlotEvent[]>([]);
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
-  const [selectedCoach, setSelectedCoach] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<SlotEvent | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [swimmers, setSwimmers] = useState<Swimmer[]>([]);
+  const [selectedSwimmerId, setSelectedSwimmerId] = useState<string>("");
+  const [bookingNotes, setBookingNotes] = useState<string>("");
+  const [adminNotes, setAdminNotes] = useState<string>("");
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [currentBooking, setCurrentBooking] = useState<{ id: string; swimmerId: string; swimmerName: string; notes?: string } | null>(null);
 
   const isAdmin = useIsAdminFromDB();
 
   useEffect(() => {
     const fetchSlots = async () => {
       const querySnapshot = await getDocs(collection(db, "availableSlots"));
-      const data = querySnapshot.docs.map((doc) => {
+      const slotsData = querySnapshot.docs.map((doc) => {
         const slot = doc.data();
         return {
           id: doc.id,
-          title: "Available",
+          title: slot.status === "taken" ? "Taken" : "Available",
           start: slot.startTime.toDate(),
           end: slot.endTime.toDate(),
           coachId: slot.coachId,
           locationId: slot.locationId,
           status: slot.status,
           priorityOnly: slot.priorityOnly || false,
+          bookingId: slot.bookingId || undefined,
+          bookedBySwimmerId: slot.bookedBySwimmerId || undefined,
+          bookedBySwimmerName: slot.bookedBySwimmerName || undefined,
+          adminNotes: slot.adminNotes || undefined,
         };
       });
-      setSlots(data);
+      setSlots(slotsData);
     };
 
     fetchSlots();
   }, []);
 
+  // Fetch booking details when slot is selected (for admin update)
+  useEffect(() => {
+    const fetchBookingDetails = async () => {
+      if (!selectedSlot || !isAdmin) {
+        setCurrentBooking(null);
+        return;
+      }
+
+      // If slot is taken, fetch booking details
+      if (selectedSlot.status === "taken") {
+        try {
+          const user = auth.currentUser;
+          if (!user) {
+            setCurrentBooking(null);
+            return;
+          }
+
+          const idToken = await user.getIdToken();
+          const response = await fetch(`/api/private-lessons/booking?slotId=${selectedSlot.id}&status=confirmed`, {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.bookings && data.bookings.length > 0) {
+              const booking = data.bookings[0];
+              setCurrentBooking({
+                id: booking.id,
+                swimmerId: booking.swimmerId,
+                swimmerName: booking.swimmerName,
+                notes: booking.notes || "",
+              });
+              setSelectedSwimmerId(booking.swimmerId);
+              setBookingNotes(booking.notes || "");
+            } else {
+              // No booking found, but slot is marked as taken - might be a data inconsistency
+              console.warn("Slot is marked as taken but no booking found");
+              setCurrentBooking(null);
+            }
+          } else {
+            const errorText = await response.text().catch(() => "");
+            console.error("Failed to fetch booking details:", response.status, errorText);
+            setCurrentBooking(null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch booking details:", error);
+          setCurrentBooking(null);
+        }
+      } else {
+        // Slot is available, no booking exists
+        setCurrentBooking(null);
+        setSelectedSwimmerId("");
+        setBookingNotes("");
+      }
+    };
+
+    fetchBookingDetails();
+  }, [selectedSlot, isAdmin]);
+
+  useEffect(() => {
+    const fetchSwimmers = async () => {
+      if (!isAdmin) return;
+      try {
+        const querySnapshot = await getDocs(collection(db, "privatelessonstudents"));
+        const data = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          firstName: doc.data().firstName || "",
+          lastName: doc.data().lastName || "",
+          email: doc.data().email || "",
+          phone: doc.data().phone || "",
+        })) as Swimmer[];
+        setSwimmers(data.sort((a, b) => {
+          const nameA = `${a.firstName} ${a.lastName}`;
+          const nameB = `${b.firstName} ${b.lastName}`;
+          return nameA.localeCompare(nameB);
+        }));
+      } catch (error) {
+        console.error("Failed to fetch swimmers:", error);
+      }
+    };
+
+    fetchSwimmers();
+  }, [isAdmin]);
+
   const filteredEvents = useMemo(() => {
     return slots.filter((slot) => {
-      if (slot.status !== "available") return false;
+      // Admin can see all slots, non-admin only see available
+      if (!isAdmin && slot.status !== "available") return false;
 
-      const coachMatch =
-        selectedCoach === "all" || slot.coachId.toString() === selectedCoach;
       const locationMatch =
         selectedLocation === "all" ||
         slot.locationId.toString() === selectedLocation;
       const searchMatch =
         searchTerm === "" ||
-        coaches
-          .find((c) => c.id === slot.coachId)
-          ?.name.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
         locations
           .find((l) => l.id === slot.locationId)
           ?.name.toLowerCase()
           .includes(searchTerm.toLowerCase());
 
-      return coachMatch && locationMatch && searchMatch;
+      return locationMatch && searchMatch;
     });
-  }, [slots, selectedCoach, selectedLocation, searchTerm]);
+  }, [slots, selectedLocation, searchTerm, isAdmin]);
 
-  const eventStyleGetter = () => {
-    const backgroundColor = "#FDF6F0"; // use const instead of let
+  const eventStyleGetter = (event: SlotEvent) => {
+    const backgroundColor = event.status === "taken" ? "#fee2e2" : "#FDF6F0";
+    const color = event.status === "taken" ? "#991b1b" : "#5E4B3C";
     return {
       style: {
         backgroundColor,
-        color: "#5E4B3C",
+        color,
         borderRadius: "4px",
-        padding: "2px 4px",
+        padding: "4px 6px",
         fontSize: "12px",
+        minHeight: event.status === "taken" ? "50px" : undefined,
+        display: "flex",
+        flexDirection: "column" as const,
+        justifyContent: "flex-start",
       },
     };
   };
   
 
-  const EventComponent = () => {
+  const EventComponent = ({ event }: { event: SlotEvent }) => {
+    if (event.status === "taken" && event.bookedBySwimmerName) {
+      return (
+        <div className="text-xs p-1">
+          <div className="font-semibold truncate" title={event.bookedBySwimmerName}>
+            {event.bookedBySwimmerName}
+          </div>
+        </div>
+      );
+    }
     return (
-      <div className="text-xs">
-        <div className="font-medium">Available</div>
+      <div className="text-xs p-1">
+        <div className="font-semibold">Available</div>
       </div>
     );
   };
 
   const handleEventClick = (event: SlotEvent) => {
-    if (isAdmin) {
-      setSelectedSlot(event);
-      setIsDialogOpen(true);
-    }
+    // Only admin can click on slots
+    if (!isAdmin) return;
+    
+    setSelectedSlot(event);
+    setSelectedSwimmerId("");
+    setBookingNotes("");
+    setAdminNotes(event.adminNotes || "");
+    setBookingStatus(null);
+    setCurrentBooking(null);
+    setIsDialogOpen(true);
   };
 
   const handleSetTaken = async () => {
-    if (!selectedSlot) return;
+    if (!selectedSlot || !selectedSwimmerId) {
+      setBookingStatus({ type: "error", message: "Please select a swimmer" });
+      return;
+    }
+
+    setIsBooking(true);
+    setBookingStatus(null);
+
     try {
-      const slotRef = doc(db, "availableSlots", selectedSlot.id);
-      await updateDoc(slotRef, { status: "taken" });
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
 
-      // Update local state
-      setSlots((prev) =>
-        prev.map((slot) =>
-          slot.id === selectedSlot.id ? { ...slot, status: "taken" } : slot
-        )
-      );
+      const idToken = await user.getIdToken();
 
-      setIsDialogOpen(false);
+      // If updating existing booking (slot is taken)
+      // Check slot status first, then try to get booking if needed
+      if (selectedSlot.status === "taken") {
+        // If we don't have currentBooking yet, fetch it first
+        if (!currentBooking || !currentBooking.id) {
+          try {
+            const bookingResponse = await fetch(`/api/private-lessons/booking?slotId=${selectedSlot.id}&status=confirmed`, {
+              headers: {
+                Authorization: `Bearer ${idToken}`,
+              },
+            });
+
+            if (!bookingResponse.ok) {
+              const errorText = await bookingResponse.text().catch(() => "");
+              throw new Error(`Failed to fetch booking: ${bookingResponse.status} ${errorText}`);
+            }
+
+            const bookingData = await bookingResponse.json();
+            if (bookingData.bookings && bookingData.bookings.length > 0) {
+              const booking = bookingData.bookings[0];
+              // Update booking
+              const updateResponse = await fetch("/api/private-lessons/booking", {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${idToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  id: booking.id,
+                  swimmerId: selectedSwimmerId,
+                  notes: bookingNotes,
+                }),
+              });
+
+              if (!updateResponse.ok) {
+                const errorData = await updateResponse.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to update booking");
+              }
+
+              // Update slot admin notes
+              await fetch("/api/private-lessons/slot", {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${idToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  slotId: selectedSlot.id,
+                  adminNotes: adminNotes,
+                }),
+              });
+
+              setBookingStatus({
+                type: "success",
+                message: "Booking updated successfully!",
+              });
+              // Refresh slots and close dialog
+              const querySnapshot = await getDocs(collection(db, "availableSlots"));
+              const slotsData = querySnapshot.docs.map((doc) => {
+                const slot = doc.data();
+                return {
+                  id: doc.id,
+                  title: slot.status === "taken" ? "Taken" : "Available",
+                  start: slot.startTime.toDate(),
+                  end: slot.endTime.toDate(),
+                  coachId: slot.coachId,
+                  locationId: slot.locationId,
+                  status: slot.status,
+                  priorityOnly: slot.priorityOnly || false,
+                  bookingId: slot.bookingId || undefined,
+                  bookedBySwimmerId: slot.bookedBySwimmerId || undefined,
+                  bookedBySwimmerName: slot.bookedBySwimmerName || undefined,
+                  adminNotes: slot.adminNotes || undefined,
+                };
+              });
+              setSlots(slotsData);
+              setTimeout(() => {
+                setIsDialogOpen(false);
+                setSelectedSwimmerId("");
+                setBookingNotes("");
+                setAdminNotes("");
+                setBookingStatus(null);
+                setCurrentBooking(null);
+              }, 2000);
+              return;
+            } else {
+              throw new Error("Booking not found for this slot");
+            }
+          } catch (fetchError) {
+            console.error("Error fetching booking:", fetchError);
+            throw new Error(fetchError instanceof Error ? fetchError.message : "Failed to fetch booking details");
+          }
+        } else {
+          // We have currentBooking, update it
+          const updateResponse = await fetch("/api/private-lessons/booking", {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: currentBooking.id,
+              swimmerId: selectedSwimmerId,
+              notes: bookingNotes,
+            }),
+          });
+
+          if (!updateResponse.ok) {
+            const errorData = await updateResponse.json().catch(() => ({}));
+            throw new Error(errorData.error || "Failed to update booking");
+          }
+
+          // Update slot admin notes
+          await fetch("/api/private-lessons/slot", {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              slotId: selectedSlot.id,
+              adminNotes: adminNotes,
+            }),
+          });
+
+          setBookingStatus({
+            type: "success",
+            message: "Booking updated successfully!",
+          });
+        }
+      } else if (selectedSlot.status === "available") {
+        // Create new booking (only for available slots)
+        const response = await fetch("/api/private-lessons/booking", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            slotId: selectedSlot.id,
+            swimmerId: selectedSwimmerId,
+            notes: bookingNotes,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to create booking");
+        }
+
+        // Update slot admin notes
+        await fetch("/api/private-lessons/slot", {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            slotId: selectedSlot.id,
+            adminNotes: adminNotes,
+          }),
+        });
+
+        setBookingStatus({
+          type: "success",
+          message: "Booking confirmed! Confirmation email sent to parent.",
+        });
+      } else {
+        // Slot status is neither "taken" nor "available" - shouldn't happen
+        throw new Error("Invalid slot status");
+      }
+
+      // Refresh slots
+      const querySnapshot = await getDocs(collection(db, "availableSlots"));
+      const slotsData = querySnapshot.docs.map((doc) => {
+        const slot = doc.data();
+        return {
+          id: doc.id,
+          title: slot.status === "taken" ? "Taken" : "Available",
+          start: slot.startTime.toDate(),
+          end: slot.endTime.toDate(),
+          coachId: slot.coachId,
+          locationId: slot.locationId,
+          status: slot.status,
+          priorityOnly: slot.priorityOnly || false,
+          bookingId: slot.bookingId || undefined,
+          bookedBySwimmerId: slot.bookedBySwimmerId || undefined,
+          bookedBySwimmerName: slot.bookedBySwimmerName || undefined,
+          adminNotes: slot.adminNotes || undefined,
+        };
+      });
+      setSlots(slotsData);
+
+      // Close dialog after 2 seconds
+      setTimeout(() => {
+        setIsDialogOpen(false);
+        setSelectedSwimmerId("");
+        setBookingNotes("");
+        setAdminNotes("");
+        setBookingStatus(null);
+        setCurrentBooking(null);
+      }, 2000);
     } catch (error) {
-      console.error("Failed to update slot status:", error);
+      console.error("Failed to save booking:", error);
+      setBookingStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to save booking",
+      });
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -179,7 +510,7 @@ export default function PrivateLessonCalendar() {
           <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm text-red-800 font-medium">
-              Please note: Lesson slots are first come, first served, and availability may change quickly as families finalize their bookings. Please check with Coach Lara to lock your spot.
+              Please note: Lesson slots are first come, first served, and availability may change quickly as families finalize their bookings. Please contact us to lock your spot.
             </p>
           </div>
         </div>
@@ -214,31 +545,15 @@ export default function PrivateLessonCalendar() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="search">Search</Label>
                 <Input
                   id="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search coaches or locations..."
+                  placeholder="Search locations..."
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="coach">Coach</Label>
-                <Select value={selectedCoach} onValueChange={setSelectedCoach}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Coaches" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Coaches</SelectItem>
-                    {coaches.map((coach) => (
-                      <SelectItem key={coach.id} value={coach.id.toString()}>
-                        {coach.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
@@ -287,12 +602,30 @@ export default function PrivateLessonCalendar() {
                 date={date}
                 onNavigate={setDate}
                 eventPropGetter={eventStyleGetter}
-                components={{ event: EventComponent }}
+                components={{ 
+                  event: EventComponent,
+                  agenda: {
+                    event: ({ event }: { event: SlotEvent }) => (
+                      <div className="p-2 text-sm">
+                        {event.status === "taken" && event.bookedBySwimmerName ? (
+                          <>
+                            <span className="font-medium">{event.bookedBySwimmerName}</span>
+                            {isAdmin && event.adminNotes && (
+                              <span className="text-slate-500 ml-2 italic">📝 {event.adminNotes}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-slate-500">Available</span>
+                        )}
+                      </div>
+                    ),
+                  },
+                }}
                 step={60}
                 timeslots={1}
                 min={new Date(2025, 0, 1, 6, 0)}
                 max={new Date(2025, 0, 1, 22, 0)}
-                onSelectEvent={handleEventClick}
+                onSelectEvent={isAdmin ? handleEventClick : undefined}
               />
             </div>
           </CardContent>
@@ -300,19 +633,117 @@ export default function PrivateLessonCalendar() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Edit Slot</DialogTitle>
+            <DialogTitle>
+              {selectedSlot?.status === "taken" ? "Update Booking" : "Book Private Lesson"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedSlot?.status === "taken" 
+                ? "Update the booking or change the swimmer assigned to this slot."
+                : "Select a registered swimmer to book this slot. A confirmation email will be sent automatically."}
+            </DialogDescription>
           </DialogHeader>
-          <p>
-            Mark this slot by <strong>{selectedSlot?.title}</strong> as{" "}
-            <code>taken</code>?
-          </p>
+          {selectedSlot && (
+            <div className="space-y-4 py-4">
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <p className="text-sm text-slate-600">
+                  <strong>Time:</strong> {selectedSlot.start.toLocaleString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })} - {selectedSlot.end.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+                <p className="text-sm text-slate-600">
+                  <strong>Location:</strong> {locations.find((l) => l.id === selectedSlot.locationId)?.name || "Unknown"}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="swimmer">Select Swimmer *</Label>
+                <Select value={selectedSwimmerId} onValueChange={setSelectedSwimmerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a registered swimmer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {swimmers.map((swimmer) => (
+                      <SelectItem key={swimmer.id} value={swimmer.id}>
+                        {swimmer.firstName} {swimmer.lastName}
+                        {swimmer.email ? ` (${swimmer.email})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {swimmers.length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    No registered swimmers found. Please register a swimmer first.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes for Parent (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={bookingNotes}
+                  onChange={(e) => setBookingNotes(e.target.value)}
+                  placeholder="Add any special notes or instructions for the parent..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminNotes">Admin Notes (Internal Only)</Label>
+                <Textarea
+                  id="adminNotes"
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Internal notes for admin use only (not visible to parents)..."
+                  rows={2}
+                />
+                <p className="text-xs text-slate-500">These notes are only visible to admins and can be used for audit purposes.</p>
+              </div>
+
+              {bookingStatus && (
+                <Alert variant={bookingStatus.type === "error" ? "destructive" : "default"}>
+                  <AlertDescription className="flex items-center gap-2">
+                    {bookingStatus.type === "success" && <CheckCircle2 className="w-4 h-4" />}
+                    {bookingStatus.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setIsDialogOpen(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsDialogOpen(false);
+                setSelectedSwimmerId("");
+                setBookingNotes("");
+                setAdminNotes("");
+                setBookingStatus(null);
+                setCurrentBooking(null);
+              }}
+              disabled={isBooking}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSetTaken}>Mark as Taken</Button>
+            <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+              {isBooking ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {selectedSlot?.status === "taken" ? "Updating..." : "Booking..."}
+                </>
+              ) : (
+                selectedSlot?.status === "taken" ? "Update Booking" : "Confirm Booking"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
