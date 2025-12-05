@@ -192,9 +192,46 @@ export async function POST(req: Request) {
 
     // Send confirmation email
     try {
-      const locationName = getLocationName(slotData?.locationId || 0);
-      const startDate = slotData?.startTime?.toDate() || new Date();
-      const endDate = slotData?.endTime?.toDate() || new Date();
+      const locationName = getLocationName(bookingData.locationId || 0);
+      // Use bookingData times (which are already saved correctly) instead of slotData
+      // Firestore Timestamp.toDate() returns a Date object in UTC
+      // We need to convert it to PST/PDT for display
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (bookingData.startTime?.toDate) {
+        startDate = bookingData.startTime.toDate();
+      } else if (bookingData.startTime instanceof Date) {
+        startDate = bookingData.startTime;
+      } else {
+        startDate = new Date();
+      }
+      
+      if (bookingData.endTime?.toDate) {
+        endDate = bookingData.endTime.toDate();
+      } else if (bookingData.endTime instanceof Date) {
+        endDate = bookingData.endTime;
+      } else {
+        endDate = new Date();
+      }
+      
+      // Debug: Log the actual times
+      console.log("Email time debug:", {
+        startTimeUTC: startDate.toISOString(),
+        endTimeUTC: endDate.toISOString(),
+        startTimePST: startDate.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: "America/Los_Angeles",
+        }),
+        endTimePST: endDate.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: "America/Los_Angeles",
+        }),
+      });
+      
+      // Dates are in UTC, but we'll display them as PST using timeZone option in toLocaleString
 
       const emailHtml = buildConfirmationEmail({
         swimmerName,
@@ -356,16 +393,36 @@ function buildConfirmationEmail(params: {
   notes: string;
 }): string {
   const { swimmerName, parentName, locationName, startDate, endDate, notes } = params;
-  const dateStr = startDate.toLocaleDateString("en-US", {
+  
+  // Convert UTC Date to PST/PDT manually
+  // Firestore stores times in UTC, we need to convert to PST (UTC-8) or PDT (UTC-7)
+  // Use Intl.DateTimeFormat for reliable timezone conversion
+  const pstFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
-  const timeStr = `${startDate.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-  })} - ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    hour12: true,
+  });
+  
+  const timeFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  
+  // Format date and time
+  const startParts = pstFormatter.formatToParts(startDate);
+  const endTimeParts = timeFormatter.formatToParts(endDate);
+  
+  const dateStr = `${startParts.find(p => p.type === "weekday")?.value}, ${startParts.find(p => p.type === "month")?.value} ${startParts.find(p => p.type === "day")?.value}, ${startParts.find(p => p.type === "year")?.value}`;
+  const startTimeStr = `${startParts.find(p => p.type === "hour")?.value}:${startParts.find(p => p.type === "minute")?.value.padStart(2, "0")} ${startParts.find(p => p.type === "dayPeriod")?.value}`;
+  const endTimeStr = `${endTimeParts.find(p => p.type === "hour")?.value}:${endTimeParts.find(p => p.type === "minute")?.value.padStart(2, "0")} ${endTimeParts.find(p => p.type === "dayPeriod")?.value}`;
+  const timeStr = `${startTimeStr} - ${endTimeStr}`;
 
   return `
     <!DOCTYPE html>

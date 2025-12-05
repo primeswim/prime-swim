@@ -194,16 +194,33 @@ function buildReminderEmail(params: {
   endDate: Date;
 }): string {
   const { swimmerName, parentName, locationName, startDate, endDate } = params;
-  const dateStr = startDate.toLocaleDateString("en-US", {
+  // Convert UTC Date to PST/PDT manually using Intl.DateTimeFormat
+  const pstFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
-  const timeStr = `${startDate.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-  })} - ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    hour12: true,
+  });
+  
+  const timeFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  
+  // Format date and time
+  const startParts = pstFormatter.formatToParts(startDate);
+  const endTimeParts = timeFormatter.formatToParts(endDate);
+  
+  const dateStr = `${startParts.find(p => p.type === "weekday")?.value}, ${startParts.find(p => p.type === "month")?.value} ${startParts.find(p => p.type === "day")?.value}, ${startParts.find(p => p.type === "year")?.value}`;
+  const startTimeStr = `${startParts.find(p => p.type === "hour")?.value}:${startParts.find(p => p.type === "minute")?.value.padStart(2, "0")} ${startParts.find(p => p.type === "dayPeriod")?.value}`;
+  const endTimeStr = `${endTimeParts.find(p => p.type === "hour")?.value}:${endTimeParts.find(p => p.type === "minute")?.value.padStart(2, "0")} ${endTimeParts.find(p => p.type === "dayPeriod")?.value}`;
+  const timeStr = `${startTimeStr} - ${endTimeStr}`;
 
   return `
     <!DOCTYPE html>
