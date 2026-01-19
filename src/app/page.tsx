@@ -239,7 +239,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto justify-items-center">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardHeader className="text-center">
                 <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border">
@@ -286,27 +286,6 @@ export default function Home() {
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
                   <p>• Head Coach Certified</p>
-                </div>
-              </CardContent>
-            </Card>
-
-
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Users className="w-12 h-12 text-slate-600" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Emma</CardTitle>
-                <CardDescription className="text-slate-600">Youth Development Coach</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Specialized in youth swimming development and water safety. Creates engaging programs for young
-                  swimmers aged 6-14.
-                </p>
-                <div className="mt-4 text-xs text-slate-500">
-                  <p>• Youth Swimming Specialist</p>
-                  <p>• Water Safety Instructor</p>x
                 </div>
               </CardContent>
             </Card>
@@ -359,8 +338,8 @@ export default function Home() {
               <div className="space-y-1 text-sm text-slate-600">
                 <p>8:00-9:00 PM (Mon)</p>
                 <p>8:00-9:00 PM (Tue)</p>
+                <p>8:00-9:00 PM (Wed)</p>
                 <p>8:00-9:00 PM (Thu)</p>
-                <p>7:00-8:00 PM (Fri)</p>
               </div>
             </CardContent>
           </Card>
@@ -375,10 +354,14 @@ export default function Home() {
             <CardContent className="space-y-3">
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
-                <span className="text-sm">Mon-Fri</span>
+                <span className="text-sm">Weekdays & Weekend</span>
               </div>
-              <div className="pt-3 border-t">
-                <p className="text-xs text-slate-500">Weekend competition prep</p>
+              <div className="space-y-1 text-sm text-slate-600">
+                <p>8:00-9:00 PM (Mon)</p>
+                <p>8:00-9:00 PM (Tue)</p>
+                <p>8:00-9:00 PM (Wed)</p>
+                <p>8:00-9:00 PM (Thu)</p>
+                <p>10:00-11:00 AM (Sat)</p>
               </div>
             </CardContent>
           </Card>

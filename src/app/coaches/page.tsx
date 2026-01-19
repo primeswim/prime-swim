@@ -188,48 +188,6 @@ export default function CoachesPage() {
         </div>
       </section>
 
-      {/* Assistant Coaches Section */}
-      <section className="bg-slate-50 py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-800 mb-4">Assistant Coaches</h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Our dedicated team of assistant coaches who provide specialized instruction
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {/* Coach Emma */}
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 bg-emerald-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <Users className="w-12 h-12 text-emerald-600" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Emma</CardTitle>
-                <CardDescription className="text-slate-600">Youth Development Coach</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                  Specialized in youth swimming development and water safety. Creates engaging programs for young
-                  swimmers aged 6-14 with focus on fun and skill building.
-                </p>
-                <div className="space-y-2 text-xs text-slate-500 mb-4">
-                  <p>• Youth Swimming Specialist</p>
-                  <p>• Water Safety Instructor</p>
-                  <p>• 8 Years Experience</p>
-                </div>
-                <div className="flex flex-wrap gap-1 justify-center">
-                  <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs rounded">Youth Programs</span>
-                  <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs rounded">Water Safety</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            
-          </div>
-        </div>
-      </section>
-
       {/* Coaching Philosophy Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">

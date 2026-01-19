@@ -166,9 +166,8 @@ async function renderEmailHTML(data: Payload) {
       </div>
 
       <p style="font-size:16px;margin-bottom:24px;color:#475569;">
-        This is a friendly reminder that tuition for <strong>${safe.swimmerName}</strong>’s training in
-        <strong>${safe.months}</strong> is now due. Please submit payment by <strong>${safe.dueDate}</strong>
-        to keep ${safe.swimmerName}’s spot and avoid any interruption in attendance.
+        This is a friendly reminder that tuition for <strong>${safe.swimmerName}</strong>'s training${safe.months ? ` in <strong>${safe.months}</strong>` : ''} is now due. Please submit payment by <strong>${safe.dueDate}</strong>
+        to keep ${safe.swimmerName}'s spot and avoid any interruption in attendance.
         <span style="color:#b91c1c;">
           ⚠️ A $35 late fee will be applied if tuition is not paid by the due date via Zelle, or at the first practice for cash payments.
         </span>
@@ -183,7 +182,6 @@ async function renderEmailHTML(data: Payload) {
 
       <div class="tuition-details">
         <div class="detail-row"><span>Swimmer:</span><span><strong>${safe.swimmerName}</strong></span></div>
-        <div class="detail-row"><span>Training Period:</span><span>${safe.months}</span></div>
         <div class="detail-row"><span>Due Date:</span><span>${safe.dueDate}</span></div>
         <div class="detail-row"><span>Practice Schedule:</span><span>${practiceHtml}</span></div>
         <div class="detail-row"><span>Amount:</span><span><strong>$${safe.amount}</strong></span></div>
@@ -263,9 +261,15 @@ export async function POST(req: Request) {
     const data = (await req.json()) as Payload;
 
     const html = await renderEmailHTML(data);
-    const subject = `Prime Swim Academy — Tuition for ${monthsLabel(
-      data.months
-    )} (Due ${fmtDate(data.dueDate)})`;
+    // 修复标题格式：如果months为空，使用dueDate的月份
+    let monthLabel = monthsLabel(data.months);
+    if (!monthLabel && data.dueDate) {
+      const dueDate = new Date(data.dueDate);
+      if (!isNaN(dueDate.getTime())) {
+        monthLabel = dueDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      }
+    }
+    const subject = `Prime Swim Academy - Tuition for ${monthLabel || 'Training'} (Due ${fmtDate(data.dueDate)})`;
 
     const resp = await resend.emails.send({
       from: "Prime Swim Academy <noreply@primeswimacademy.com>",

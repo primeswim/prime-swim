@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { SWIMMER_LEVELS, type SwimmerLevel } from '@/lib/swimmer-levels'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
 interface Swimmer {
   id: string
@@ -55,6 +57,7 @@ interface Swimmer {
   emergencyContactName?: string
   emergencyContactPhone?: string
   level?: SwimmerLevel
+  practiceText?: string
 }
 
 type Row = Swimmer & {
@@ -80,6 +83,7 @@ export default function AdminSwimmerPage() {
 
   const [page, setPage] = useState(1)
   const pageSize = 20
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -811,22 +815,6 @@ export default function AdminSwimmerPage() {
         <div className="ml-auto flex flex-wrap gap-2">
           <Button 
             variant="outline" 
-            onClick={() => migrateExistingSwimmers(true)} 
-            disabled={migrating || selectedIds.size === 0}
-            className="bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
-          >
-            {migrating ? 'Migrating...' : `Migrate Selected (${selectedIds.size})`}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => migrateExistingSwimmers(false)} 
-            disabled={migrating}
-            className="bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
-          >
-            {migrating ? 'Migrating...' : 'Migrate All Swimmers'}
-          </Button>
-          <Button 
-            variant="outline" 
             onClick={sendTestEmail} 
             disabled={remindBusy}
             className="bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
@@ -1030,6 +1018,7 @@ export default function AdminSwimmerPage() {
                           </div>
                         </div>
                       </div>
+
                     </TableCell>
                   </TableRow>
                 )}
@@ -1050,6 +1039,8 @@ export default function AdminSwimmerPage() {
           <Button variant="outline" onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(rows.length / pageSize)), p + 1))} disabled={page >= Math.max(1, Math.ceil(rows.length / pageSize))}>Next</Button>
         </div>
       </div>
+
     </div>
   )
 }
+
