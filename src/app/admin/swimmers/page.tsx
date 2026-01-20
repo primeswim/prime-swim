@@ -20,8 +20,6 @@ import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { SWIMMER_LEVELS, type SwimmerLevel } from '@/lib/swimmer-levels'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 
 interface Swimmer {
   id: string
@@ -79,7 +77,6 @@ export default function AdminSwimmerPage() {
   const [statusFilter, setStatusFilter] = useState<MembershipStatus | 'pending' | 'frozen' | null>('active')
   const [levelFilter, setLevelFilter] = useState<SwimmerLevel | 'all' | null>(null)
   const [remindBusy, setRemindBusy] = useState(false)
-  const [migrating, setMigrating] = useState(false)
 
   const [page, setPage] = useState(1)
   const pageSize = 20
@@ -540,68 +537,6 @@ export default function AdminSwimmerPage() {
       console.error(error)
     } finally {
       setRemindBusy(false)
-    }
-  }
-
-  // Migrate existing swimmers - set proper membership dates and status
-  const migrateExistingSwimmers = async (selectedOnly: boolean = false) => {
-    const targetSwimmers = selectedOnly && selectedIds.size > 0 
-      ? Array.from(selectedIds) 
-      : null
-    
-    const confirmMessage = selectedOnly && targetSwimmers
-      ? `This will migrate ${targetSwimmers.length} selected swimmer(s) with missing membership dates and status. Continue?`
-      : 'This will update all existing swimmers with missing membership dates and status. Continue?'
-    
-    if (!confirm(confirmMessage)) {
-      return
-    }
-    
-    setMigrating(true)
-    try {
-      const authToken = await auth.currentUser?.getIdToken()
-      if (!authToken) {
-        alert('Not authenticated')
-        return
-      }
-
-      const body = targetSwimmers ? { swimmerIds: targetSwimmers } : {}
-      
-      const res = await fetch('/api/admin/migrate-existing-swimmers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(body),
-      })
-
-      const data = await res.json()
-      if (res.ok && data.ok) {
-        const { results } = data
-        const message = `Migration completed!\n` +
-          `Total processed: ${results.total}\n` +
-          `Migrated: ${results.migrated}\n` +
-          `Skipped: ${results.skipped}\n` +
-          (results.errors.length > 0 ? `Errors: ${results.errors.length}` : '')
-        alert(message)
-        if (results.errors.length > 0) {
-          console.error('Migration errors:', results.errors)
-        }
-        // Refresh swimmers list
-        await fetchSwimmers()
-        // Clear selection after migration
-        if (selectedOnly) {
-          setSelectedIds(new Set())
-        }
-      } else {
-        alert(`Migration failed: ${data.error || 'Unknown error'}`)
-      }
-    } catch (error) {
-      alert('An error occurred during migration.')
-      console.error(error)
-    } finally {
-      setMigrating(false)
     }
   }
 
