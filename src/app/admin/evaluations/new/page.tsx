@@ -182,7 +182,7 @@ export default function NewEvaluationPage() {
       if (!user) return
       const idToken = await user.getIdToken()
 
-      const evaluationData: Omit<Evaluation, 'id' | 'createdAt'> = {
+      const evaluationData: Omit<Evaluation, 'id' | 'createdAt' | 'evaluatedAt'> = {
         swimmerId: selectedSwimmerId,
         swimmerName: `${swimmer.childFirstName} ${swimmer.childLastName}`,
         templateId: selectedTemplateId,
@@ -194,7 +194,6 @@ export default function NewEvaluationPage() {
           recommendedLevel: levelUp ? recommendedLevel.trim() : undefined,
           recommendationNotes: levelUp ? recommendationNotes.trim() : undefined,
         },
-        evaluatedAt: new Date(),
         evaluatedBy: coachName.trim() || user.email || user.uid,
       }
 

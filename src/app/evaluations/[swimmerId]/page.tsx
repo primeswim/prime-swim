@@ -49,35 +49,48 @@ export default function SwimmerEvaluationsPage() {
       if (data.ok && data.evaluations) {
         console.log('Evaluations found:', data.evaluations.length)
         const evals = data.evaluations.map((e: Evaluation & { evaluatedAt?: { toDate?: () => Date } | Date | string | null; createdAt?: { toDate?: () => Date } | Date | string | null }) => {
-          let evaluatedAt: Date
-          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
-            evaluatedAt = e.evaluatedAt.toDate()
-          } else if (e.evaluatedAt instanceof Date) {
-            evaluatedAt = e.evaluatedAt
-          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
-            evaluatedAt = new Date(e.evaluatedAt)
-          } else {
-            evaluatedAt = new Date()
+          // API now returns ISO strings, so parse them
+          let evaluatedAt: Date | null = null
+          if (e.evaluatedAt) {
+            if (typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
+              evaluatedAt = e.evaluatedAt.toDate()
+            } else if (e.evaluatedAt instanceof Date) {
+              evaluatedAt = e.evaluatedAt
+            } else if (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number') {
+              evaluatedAt = new Date(e.evaluatedAt)
+            }
+            
+            if (evaluatedAt && isNaN(evaluatedAt.getTime())) {
+              console.warn('Invalid evaluatedAt for evaluation:', e.id, e.evaluatedAt)
+              evaluatedAt = null
+            }
           }
           
-          let createdAt: Date
-          if (e.createdAt && typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
-            createdAt = e.createdAt.toDate()
-          } else if (e.createdAt instanceof Date) {
-            createdAt = e.createdAt
-          } else if (e.createdAt && (typeof e.createdAt === 'string' || typeof e.createdAt === 'number')) {
-            createdAt = new Date(e.createdAt)
-          } else {
-            createdAt = new Date()
+          let createdAt: Date | null = null
+          if (e.createdAt) {
+            if (typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
+              createdAt = e.createdAt.toDate()
+            } else if (e.createdAt instanceof Date) {
+              createdAt = e.createdAt
+            } else if (typeof e.createdAt === 'string' || typeof e.createdAt === 'number') {
+              createdAt = new Date(e.createdAt)
+            }
+            
+            if (createdAt && isNaN(createdAt.getTime())) {
+              console.warn('Invalid createdAt for evaluation:', e.id, e.createdAt)
+              createdAt = null
+            }
           }
           
-          if (isNaN(evaluatedAt.getTime())) evaluatedAt = new Date()
-          if (isNaN(createdAt.getTime())) createdAt = new Date()
+          // Only use fallback if date is truly missing or invalid
+          if (!evaluatedAt) {
+            console.error('Missing evaluatedAt for evaluation:', e.id)
+          }
           
           return {
             ...e,
-            evaluatedAt,
-            createdAt,
+            evaluatedAt: evaluatedAt || new Date(0), // Use epoch date as fallback
+            createdAt: createdAt || new Date(0), // Use epoch date as fallback
           }
         })
         setEvaluations(evals.sort((a: Evaluation & { evaluatedAt: Date; createdAt: Date }, b: Evaluation & { evaluatedAt: Date; createdAt: Date }) => {
@@ -112,43 +125,48 @@ export default function SwimmerEvaluationsPage() {
     }
   }
 
-  // 计算 growth 数据
-  const growthData: GrowthDataPoint[] = evaluations.map(evaluation => {
-    let totalRating = 0
-    let count = 0
-    const subcategoryRatings: Record<string, number> = {}
-    const categoryRatings: Record<string, number> = {}
+  // 计算 growth 数据，按时间升序排序（从左到右显示从最早到最新）
+  const growthData: GrowthDataPoint[] = evaluations
+    .map(evaluation => {
+      let totalRating = 0
+      let count = 0
+      const subcategoryRatings: Record<string, number> = {}
+      const categoryRatings: Record<string, number> = {}
 
-    evaluation.categoryScores.forEach(catScore => {
-      let catTotal = 0
-      let catCount = 0
+      evaluation.categoryScores.forEach(catScore => {
+        let catTotal = 0
+        let catCount = 0
 
-      catScore.subcategoryScores.forEach(subScore => {
-        const ratingNum = ratingToNumber(subScore.rating)
-        totalRating += ratingNum
-        count++
-        subcategoryRatings[subScore.subcategoryId] = ratingNum
-        catTotal += ratingNum
-        catCount++
+        catScore.subcategoryScores.forEach(subScore => {
+          const ratingNum = ratingToNumber(subScore.rating)
+          totalRating += ratingNum
+          count++
+          subcategoryRatings[subScore.subcategoryId] = ratingNum
+          catTotal += ratingNum
+          catCount++
+        })
+
+        if (catCount > 0) {
+          categoryRatings[catScore.categoryId] = catTotal / catCount
+        }
       })
 
-      if (catCount > 0) {
-        categoryRatings[catScore.categoryId] = catTotal / catCount
+      const avgRating = count > 0 ? totalRating / count : 0
+
+      // evaluatedAt 已经在上面转换为 Date 了
+      return {
+        date: evaluation.evaluatedAt as Date,
+        evaluationId: evaluation.id,
+        level: evaluation.level,
+        averageRating: avgRating,
+        categoryRatings,
+        subcategoryRatings,
       }
     })
-
-    const avgRating = count > 0 ? totalRating / count : 0
-
-    // evaluatedAt 已经在上面转换为 Date 了
-    return {
-      date: evaluation.evaluatedAt as Date,
-      evaluationId: evaluation.id,
-      level: evaluation.level,
-      averageRating: avgRating,
-      categoryRatings,
-      subcategoryRatings,
-    }
-  })
+    .sort((a, b) => {
+      // 按时间升序排序（最早的在前）
+      return a.date.getTime() - b.date.getTime()
+    })
 
   // 获取所有分类和子分类信息
   const categoryInfo = useMemo(() => {

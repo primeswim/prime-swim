@@ -50,36 +50,48 @@ export default function EvaluationDetailPage() {
       if (data.ok && data.evaluations) {
         const found = data.evaluations.find((e: Evaluation) => e.id === evaluationId)
         if (found) {
-          // 转换日期
-          let evaluatedAt: Date
-          if (found.evaluatedAt && typeof found.evaluatedAt === 'object' && 'toDate' in found.evaluatedAt && typeof found.evaluatedAt.toDate === 'function') {
-            evaluatedAt = found.evaluatedAt.toDate()
-          } else if (found.evaluatedAt instanceof Date) {
-            evaluatedAt = found.evaluatedAt
-          } else if (found.evaluatedAt) {
-            evaluatedAt = new Date(found.evaluatedAt)
-          } else {
-            evaluatedAt = new Date()
+          // 转换日期 - API now returns ISO strings
+          let evaluatedAt: Date | null = null
+          if (found.evaluatedAt) {
+            if (typeof found.evaluatedAt === 'object' && 'toDate' in found.evaluatedAt && typeof found.evaluatedAt.toDate === 'function') {
+              evaluatedAt = found.evaluatedAt.toDate()
+            } else if (found.evaluatedAt instanceof Date) {
+              evaluatedAt = found.evaluatedAt
+            } else if (typeof found.evaluatedAt === 'string' || typeof found.evaluatedAt === 'number') {
+              evaluatedAt = new Date(found.evaluatedAt)
+            }
+            
+            if (evaluatedAt && isNaN(evaluatedAt.getTime())) {
+              console.warn('Invalid evaluatedAt for evaluation:', found.id, found.evaluatedAt)
+              evaluatedAt = null
+            }
           }
           
-          let createdAt: Date
-          if (found.createdAt && typeof found.createdAt === 'object' && 'toDate' in found.createdAt && typeof found.createdAt.toDate === 'function') {
-            createdAt = found.createdAt.toDate()
-          } else if (found.createdAt instanceof Date) {
-            createdAt = found.createdAt
-          } else if (found.createdAt) {
-            createdAt = new Date(found.createdAt)
-          } else {
-            createdAt = new Date()
+          let createdAt: Date | null = null
+          if (found.createdAt) {
+            if (typeof found.createdAt === 'object' && 'toDate' in found.createdAt && typeof found.createdAt.toDate === 'function') {
+              createdAt = found.createdAt.toDate()
+            } else if (found.createdAt instanceof Date) {
+              createdAt = found.createdAt
+            } else if (typeof found.createdAt === 'string' || typeof found.createdAt === 'number') {
+              createdAt = new Date(found.createdAt)
+            }
+            
+            if (createdAt && isNaN(createdAt.getTime())) {
+              console.warn('Invalid createdAt for evaluation:', found.id, found.createdAt)
+              createdAt = null
+            }
           }
           
-          if (isNaN(evaluatedAt.getTime())) evaluatedAt = new Date()
-          if (isNaN(createdAt.getTime())) createdAt = new Date()
+          // Only use fallback if date is truly missing or invalid
+          if (!evaluatedAt) {
+            console.error('Missing evaluatedAt for evaluation:', found.id)
+          }
           
           const evalData = {
             ...found,
-            evaluatedAt,
-            createdAt,
+            evaluatedAt: evaluatedAt || new Date(0), // Use epoch date as fallback
+            createdAt: createdAt || new Date(0), // Use epoch date as fallback
           }
           
           setEvaluation(evalData)

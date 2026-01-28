@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getAuth } from "firebase-admin/auth"
 import { adminDb } from "@/lib/firebaseAdmin"
 import { Evaluation } from "@/types/evaluation"
-import { FieldValue } from "firebase-admin/firestore"
+import { FieldValue, Timestamp } from "firebase-admin/firestore"
 
 export const runtime = "nodejs"
 
@@ -54,20 +54,29 @@ export async function GET(req: Request) {
           snap = await q.get()
         }
         
-        const evaluations = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Array<{ id: string; evaluatedAt?: { toDate?: () => Date } | Date | string | null; [key: string]: unknown }>
+        const evaluations = snap.docs.map((d) => {
+          const data = d.data()
+          // Convert Firestore Timestamps to ISO strings for JSON serialization
+          const evaluation: Record<string, unknown> = {
+            id: d.id,
+            ...data,
+          }
+          
+          if (data.evaluatedAt instanceof Timestamp) {
+            evaluation.evaluatedAt = data.evaluatedAt.toDate().toISOString()
+          }
+          if (data.createdAt instanceof Timestamp) {
+            evaluation.createdAt = data.createdAt.toDate().toISOString()
+          }
+          
+          return evaluation
+        })
         
-        // 如果没有使用 orderBy，在内存中排序
-        if (evaluations.length > 0 && evaluations[0].evaluatedAt) {
+        // Sort by evaluatedAt (now ISO strings)
+        if (evaluations.length > 0) {
           evaluations.sort((a, b) => {
-            const aDate = a.evaluatedAt && typeof a.evaluatedAt === 'object' && 'toDate' in a.evaluatedAt && typeof a.evaluatedAt.toDate === 'function'
-              ? a.evaluatedAt.toDate().getTime()
-              : new Date(a.evaluatedAt as string | number | Date || 0).getTime()
-            const bDate = b.evaluatedAt && typeof b.evaluatedAt === 'object' && 'toDate' in b.evaluatedAt && typeof b.evaluatedAt.toDate === 'function'
-              ? b.evaluatedAt.toDate().getTime()
-              : new Date(b.evaluatedAt as string | number | Date || 0).getTime()
+            const aDate = a.evaluatedAt ? new Date(a.evaluatedAt as string).getTime() : 0
+            const bDate = b.evaluatedAt ? new Date(b.evaluatedAt as string).getTime() : 0
             return bDate - aDate // 降序
           })
         }
@@ -92,10 +101,23 @@ export async function GET(req: Request) {
 
     const evaluationsRef = adminDb.collection("evaluations")
     const snap = await evaluationsRef.orderBy("evaluatedAt", "desc").limit(100).get()
-    const evaluations = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }))
+    const evaluations = snap.docs.map((d) => {
+      const data = d.data()
+      // Convert Firestore Timestamps to ISO strings for JSON serialization
+      const evaluation: Record<string, unknown> = {
+        id: d.id,
+        ...data,
+      }
+      
+      if (data.evaluatedAt instanceof Timestamp) {
+        evaluation.evaluatedAt = data.evaluatedAt.toDate().toISOString()
+      }
+      if (data.createdAt instanceof Timestamp) {
+        evaluation.createdAt = data.createdAt.toDate().toISOString()
+      }
+      
+      return evaluation
+    })
 
     return NextResponse.json({ ok: true, evaluations })
   } catch (err: unknown) {
@@ -118,15 +140,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Not authorized" }, { status: 403 })
     }
 
-    const data = (await req.json()) as Omit<Evaluation, "id" | "createdAt">
+    const data = (await req.json()) as Omit<Evaluation, "id" | "createdAt" | "evaluatedAt">
     
     // 验证必需字段
     if (!data.swimmerId || !data.templateId || !data.categoryScores || !data.overallComments) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 })
     }
 
+    // 确保不包含 evaluatedAt，由服务器端设置
+    const { evaluatedAt, ...dataWithoutDate } = data as Omit<Evaluation, "id" | "createdAt"> & { evaluatedAt?: unknown }
+    
     const evaluationData = {
-      ...data,
+      ...dataWithoutDate,
       // 使用前端传来的 evaluatedBy（教练名字），如果没有则使用邮箱
       evaluatedBy: data.evaluatedBy || decoded.email || decoded.uid,
       evaluatedAt: FieldValue.serverTimestamp(),
