@@ -25,26 +25,9 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Missing beforeDate parameter" }, { status: 400 });
     }
 
-    // Parse date string (YYYY-MM-DD) and set to PST/PDT timezone start of day
-    // PST is UTC-8, PDT is UTC-7. 
-    // When user selects "2025-01-15", they mean midnight PST/PDT on that date.
-    // We need to convert this to UTC for Firestore comparison.
-    // 
-    // Strategy: Parse the date and create a Date object that represents
-    // midnight in America/Los_Angeles timezone (PST/PDT).
-    // Since we can't easily use timezone libraries, we'll approximate:
-    // - Most of the year is PDT (UTC-7), so midnight PDT = 07:00 UTC
-    // - Winter months are PST (UTC-8), so midnight PST = 08:00 UTC
-    // 
-    // To be safe and accurate, we'll use 07:00 UTC which represents midnight PDT.
-    // For PST dates, this means we'll delete slots up to 1 hour into the selected date,
-    // which is acceptable since the user wants to delete "before" the date.
-    const [year, month, day] = beforeDate.split("-").map(Number);
-    
-    // Create date at 07:00 UTC (midnight PDT or 1 hour into PST date)
-    // This ensures we capture all slots before the selected date in PST/PDT
-    const cutoffDateUTC = new Date(Date.UTC(year, month - 1, day, 7, 0, 0, 0));
-    const cutoffTimestamp = Timestamp.fromDate(cutoffDateUTC);
+    const cutoffDate = new Date(beforeDate);
+    cutoffDate.setHours(0, 0, 0, 0); // Start of the day
+    const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
     let deletedCount = 0;
     let batchCount = 0;
@@ -76,8 +59,7 @@ export async function DELETE(req: Request) {
       success: true, 
       deletedCount,
       batchCount,
-      beforeDate: beforeDate, // Return the original date string
-      cutoffTimestamp: cutoffDateUTC.toISOString(),
+      beforeDate: cutoffDate.toISOString().split("T")[0],
     });
   } catch (e) {
     console.error("Bulk delete slots error:", e);

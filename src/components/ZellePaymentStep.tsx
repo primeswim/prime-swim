@@ -13,14 +13,6 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import {
-  doc,
-  updateDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import {
   DollarSign,
   CreditCard,
   CheckCircle,
@@ -80,42 +72,25 @@ export default function ZellePaymentStep({
       const trimmedName = paymentData.paymentName.trim()
       const trimmedMemo = paymentData.paymentMemo.trim()
 
-      // 1) 创建或更新 payments 记录
-      // 需求：“不要一创建 payment 就当成已提交”
-      // 👉 我们现在只在点 “I've completed the payment” 的时候才创建 payment，
-      //    所以这里的 status = "pending" 就表示 “家长已经完成转账，等待我们确认”
-      let finalPaymentId = paymentId
-
-      if (finalPaymentId) {
-        // 续费时若已经有 paymentId，则只更新它
-        await updateDoc(doc(db, "payments", finalPaymentId), {
-          payerName: trimmedName,
-          payerMemo: trimmedMemo,
-          status: "pending",         // 明确标记为已提交、待人工确认
-          updatedAt: serverTimestamp(),
-        })
-      } else {
-        // 注册 or 直接从 swimmerId 进入的场景：这里首次创建 payment 文档
-        const paymentRef = await addDoc(collection(db, "payments"), {
-          swimmerId,
-          parentUID: user?.uid ?? null,
-          status: "pending",         // 家长刚刚点了 “I've completed the payment”
-          method: "zelle",
-          amountCents: 7500,         // TODO: 后面要改价格可以提到常量里
-          payerName: trimmedName,
-          payerMemo: trimmedMemo,
-          createdAt: serverTimestamp(),
-        })
-        finalPaymentId = paymentRef.id
+      if (!user) {
+        throw new Error("Not signed in")
       }
-
-      // 2) 回写 swimmer：标记 paymentStatus=pending，并记录 lastPaymentId
-      await updateDoc(doc(db, "swimmers", swimmerId), {
-        paymentStatus: "pending",
-        paymentName: trimmedName,
-        paymentMemo: trimmedMemo,
-        lastPaymentId: finalPaymentId ?? null,
+      const idToken = await user.getIdToken(true)
+      const res = await fetch("/api/zelle-payment/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          swimmerId,
+          paymentId: paymentId ?? null,
+          payerName: trimmedName,
+          payerMemo: trimmedMemo || null,
+        }),
       })
+      const data = await res.json()
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Confirm failed")
 
       setSuccess("Payment confirmation submitted successfully! Redirecting to dashboard...")
 

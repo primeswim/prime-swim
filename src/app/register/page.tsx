@@ -3,12 +3,9 @@
 import ZellePaymentStep from "@/components/ZellePaymentStep"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
-import { serverTimestamp } from "firebase/firestore"
 import type { User as FirebaseUser } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { db } from "@/lib/firebase"
-import { collection, addDoc } from "firebase/firestore"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -109,6 +106,26 @@ export default function RegisterPage() {
 
   const totalSteps = 8
 
+  const createSwimmer = async (opts?: { setMaappAckAt?: boolean }) => {
+    if (!user) throw new Error("Not signed in")
+    const idToken = await user.getIdToken(true)
+    const res = await fetch("/api/register/swimmer", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        ...formData,
+        // server will set parentUID/createdAt; this flag lets server set maappAckAt timestamp
+        maappAckAt: !!opts?.setMaappAckAt,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "Registration failed")
+    return String(data.id)
+  }
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
       ...prev,
@@ -141,16 +158,11 @@ export default function RegisterPage() {
         console.error("No user found. Cannot submit swimmer.")
         return
       }
-      const swimmerDoc = await addDoc(collection(db, "swimmers"), {
-        ...formData,
-        parentUID: user.uid,
-        isAdult: false,
-        createdAt: serverTimestamp()
-      })
-      setSwimmerId(swimmerDoc.id)
+      const id = await createSwimmer({ setMaappAckAt: true })
+      setSwimmerId(id)
       setShowZelleStep(true)
       alert("Registration submitted. Please complete payment!")
-      router.push(`/zelle-payment?id=${swimmerDoc.id}`)
+      router.push(`/zelle-payment?id=${id}`)
     } catch (e) {
       console.error("Error adding swimmer: ", e)
       alert("Something went wrong. Please try again.")
@@ -872,14 +884,8 @@ export default function RegisterPage() {
                 onClick={async () => {
                   if (!user || !isWaiversChecked) return
                   try {
-                    const docRef = await addDoc(collection(db, "swimmers"), {
-                      ...formData,
-                      parentUID: user.uid,
-                      isAdult: false,
-                      createdAt: serverTimestamp(),
-                      maappAckAt: serverTimestamp(),
-                    })
-                    setSwimmerId(docRef.id)
+                      const id = await createSwimmer({ setMaappAckAt: true })
+                      setSwimmerId(id)
                     setCurrentStep(8)
                   } catch (err) {
                     console.error("Error creating swimmer document:", err)

@@ -4,17 +4,13 @@
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
-import { auth, db } from "@/lib/firebase"
-import { doc, getDoc } from "firebase/firestore"
+import { auth } from "@/lib/firebase"
 import ZellePaymentStep from "@/components/ZellePaymentStep"
 
-type PaymentDoc = {
-  swimmerId: string
-  parentUID: string
-  status: "pending" | "paid" | "cancelled"
-  method: "zelle"
-  amountCents: number
-  zelleSubmitted?: boolean        // ✅ 新增：家长是否已经点了 "I've completed"
+type ApiUser = {
+  uid: string
+  email: string | null
+  getIdToken: (forceRefresh?: boolean) => Promise<string>
 }
 
 function ZellePaymentPageContent() {
@@ -25,7 +21,7 @@ function ZellePaymentPageContent() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [user, setUser] = useState<{ uid: string; email: string | null } | null>(null)
+  const [user, setUser] = useState<ApiUser | null>(null)
   const [swimmerId, setSwimmerId] = useState<string>("")
   const [resolvedPaymentId, setResolvedPaymentId] = useState<string | undefined>(undefined)
 
@@ -33,40 +29,20 @@ function ZellePaymentPageContent() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) { router.push("/login"); return }
       try {
-        if (paymentId) {
-          // 根据 payment 找 swimmer，并校验归属
-          const psnap = await getDoc(doc(db, "payments", paymentId))
-          if (!psnap.exists()) throw new Error("Payment not found")
-          const pdata = psnap.data() as PaymentDoc
+        const idToken = await u.getIdToken(true)
+        const qs = new URLSearchParams()
+        if (paymentId) qs.set("paymentId", paymentId)
+        if (swimmerIdFromUrl) qs.set("swimmerId", swimmerIdFromUrl)
 
-          if (pdata.parentUID && pdata.parentUID !== u.uid) {
-            throw new Error("You do not have access to this payment.")
-          }
+        const res = await fetch(`/api/zelle-payment/resolve?${qs.toString()}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        })
+        const data = await res.json()
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Load failed")
 
-          const ssnap = await getDoc(doc(db, "swimmers", pdata.swimmerId))
-          if (!ssnap.exists()) throw new Error("Swimmer not found")
-          const sdata = ssnap.data() || {}
-          if (sdata.parentUID && sdata.parentUID !== u.uid) {
-            throw new Error("You do not have access to this swimmer.")
-          }
-
-          setUser(u)
-          setSwimmerId(pdata.swimmerId)
-          setResolvedPaymentId(paymentId)
-        } else if (swimmerIdFromUrl) {
-          // 兜底：仅凭 swimmerId 进入（注册场景）
-          const ssnap = await getDoc(doc(db, "swimmers", swimmerIdFromUrl))
-          if (!ssnap.exists()) throw new Error("Swimmer not found")
-          const sdata = ssnap.data() || {}
-          if (sdata.parentUID && sdata.parentUID !== u.uid) {
-            throw new Error("You do not have access to this swimmer.")
-          }
-          setUser(u)
-          setSwimmerId(swimmerIdFromUrl)
-          setResolvedPaymentId(undefined)
-        } else {
-          throw new Error("Missing paymentId or swimmer id")
-        }
+        setUser(u as unknown as ApiUser)
+        setSwimmerId(String(data.swimmerId || ""))
+        setResolvedPaymentId(data.paymentId ? String(data.paymentId) : undefined)
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Load failed")
       } finally {

@@ -9,17 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { onAuthStateChanged } from "firebase/auth"
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  onSnapshot,
-  doc,
-  deleteDoc,
-  DocumentData,
-} from "firebase/firestore"
-import { auth, db } from "@/lib/firebase"
+import { auth } from "@/lib/firebase"
 import { Swimmer } from "@/types"
 import Footer from "@/components/footer"
 import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2, TrendingUp, Calendar, CheckCircle2, XCircle } from "lucide-react"
@@ -143,7 +133,17 @@ export default function DashboardPage() {
   const handleDeleteSwimmer = async (swimmerId: string) => {
     if (!confirm("Are you sure you want to delete this swimmer?")) return
     try {
-      await deleteDoc(doc(db, "swimmers", swimmerId))
+      const u = auth.currentUser
+      if (!u) throw new Error("Not signed in")
+      const idToken = await u.getIdToken(true)
+      const res = await fetch(`/api/dashboard/swimmers/${encodeURIComponent(swimmerId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${idToken}` },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Delete failed")
+
+      // local optimistic update
       setSwimmers((prev) => prev.filter((s) => s.id !== swimmerId))
     } catch (error) {
       console.error("Failed to delete swimmer:", error)
@@ -151,9 +151,8 @@ export default function DashboardPage() {
     }
   }
 
-  // 登录 + 获取 swimmers + 读取每个 swimmer 是否有未完成付款
+  // 登录 + 获取 dashboard 数据（通过 API，避免 Firestore rules 导致的权限错误）
   useEffect(() => {
-    let unsubscribeSwimmers: (() => void) | null = null
     let unsubscribeAuth: (() => void) | null = null
 
     unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -163,71 +162,25 @@ export default function DashboardPage() {
       }
       setParentEmail(user.email || "")
 
-      const swimmerQuery = query(collection(db, "swimmers"), where("parentUID", "==", user.uid))
-      
-      // 使用 onSnapshot 实时监听 swimmer 数据变化
-      unsubscribeSwimmers = onSnapshot(swimmerQuery, async (swimmerSnapshot) => {
-        const swimmerData: SwimmerWithMakeup[] = swimmerSnapshot.docs.map((d) => {
-          const data = d.data() as DocumentData
-          return {
-            id: d.id,
-            childFirstName: data.childFirstName,
-            childLastName: data.childLastName,
-            childDateOfBirth: data.childDateOfBirth,
-            createdAt: data.createdAt,
-            paymentStatus: data.paymentStatus || null, // ✅ 读取 swimmers.paymentStatus
-            level: data.level || undefined, // ✅ 读取 swimmers.level
-
-            nextMakeupText: data.nextMakeupText,
-            nextMakeupId: data.nextMakeupId,
-
-            // 会员字段
-            nextDueDate: data.nextDueDate,
-            currentPeriodStart: data.currentPeriodStart,
-            currentPeriodEnd: data.currentPeriodEnd,
-            registrationAnchorDate: data.registrationAnchorDate,
-
-            // 新增从库里读（若不存在，前端默认 false）
-            isFrozen: !!data.isFrozen,
-          }
+      try {
+        setLoading(true)
+        const idToken = await user.getIdToken(true)
+        const res = await fetch("/api/dashboard/swimmers", {
+          headers: { Authorization: `Bearer ${idToken}` },
         })
-        setSwimmers(swimmerData)
+        const data = await res.json()
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Load swimmers failed")
+        setSwimmers((data.swimmers || []) as SwimmerWithMakeup[])
+        setPendingMap((data.pendingMap || {}) as Record<string, { paymentId: string }>)
+      } catch (e) {
+        console.error("Load dashboard swimmers failed:", e)
+      } finally {
         setLoading(false)
-
-        // —— 每次更新时重新拉取每个 swimmer 的 pending payment —— //
-        if (!swimmerData.length) {
-          setPendingMap({})
-        } else {
-          const pendingEntries: Record<string, { paymentId: string }> = {}
-          // 查询每个 swimmer 的 pending payments
-          await Promise.all(
-            swimmerData.map(async (s) => {
-              const qs = await getDocs(
-                query(
-                  collection(db, "payments"),
-                  where("swimmerId", "==", s.id),
-                  where("status", "==", "pending")
-                )
-              )
-              const first = qs.docs[0]
-              if (first) {
-                pendingEntries[s.id] = { paymentId: first.id }
-              }
-              // 注意：即使 payments 集合中没有记录，如果 paymentStatus === 'pending'，
-              // 也会通过 swimmer.paymentStatus 显示 pending 提示
-            })
-          )
-          setPendingMap(pendingEntries)
-        }
-      }, (error) => {
-        console.error("Error listening to swimmers:", error)
-        setLoading(false)
-      })
+      }
     })
 
     return () => {
       unsubscribeAuth?.()
-      unsubscribeSwimmers?.()
     }
   }, [])
 

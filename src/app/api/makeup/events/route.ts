@@ -72,7 +72,7 @@ async function isInAdminsServer(email?: string | null, uid?: string | null) {
   return false;
 }
 
-async function requireAdmin(req: Request): Promise<DecodedIdToken> {
+async function requireUser(req: Request): Promise<DecodedIdToken> {
   const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
   const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   if (!idToken) {
@@ -85,7 +85,11 @@ async function requireAdmin(req: Request): Promise<DecodedIdToken> {
   } catch {
     throw new Error("Invalid token");
   }
+  return decoded;
+}
 
+async function requireAdmin(req: Request): Promise<DecodedIdToken> {
+  const decoded = await requireUser(req);
   const emailLower = (decoded.email ?? "").toLowerCase();
   const rawRole = (decoded as Record<string, unknown>)["role"];
   const hasAdminRole = typeof rawRole === "string" && rawRole.toLowerCase() === "admin";
@@ -108,11 +112,22 @@ async function requireAdmin(req: Request): Promise<DecodedIdToken> {
 export async function GET(req: Request) {
   const reqId = Math.random().toString(36).slice(2, 8);
   try {
-    await requireAdmin(req);
+    const decoded = await requireUser(req);
+    const emailLower = (decoded.email ?? "").toLowerCase();
+    const rawRole = (decoded as Record<string, unknown>)["role"];
+    const hasAdminRole = typeof rawRole === "string" && rawRole.toLowerCase() === "admin";
+    const allow = (process.env.ADMIN_ALLOW_EMAILS || "prime.swim.us@gmail.com")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdmin =
+      hasAdminRole ||
+      (emailLower && allow.includes(emailLower)) ||
+      (await isInAdminsServer(decoded.email ?? null, decoded.uid));
 
     // Admin SDK 查询（createdAt 倒序）
     const snap = await adminDb.collection("makeup_events").orderBy("createdAt", "desc").get();
-    const events = snap.docs.map((d) => {
+    const eventsAll = snap.docs.map((d) => {
       const data = (d.data() as MakeupEventDoc) ?? {};
       const createdAt = toIso(data.createdAt);
 
@@ -129,6 +144,8 @@ export async function GET(req: Request) {
       };
     });
 
+    // Parents/非管理员只拿 active=true 的事件（避免 dashboard 被 “Not authorized” 阻断）
+    const events = isAdmin ? eventsAll : eventsAll.filter((e) => e.active === true);
     return NextResponse.json({ ok: true, events });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

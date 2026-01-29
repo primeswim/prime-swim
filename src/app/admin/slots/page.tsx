@@ -31,6 +31,7 @@ import {
 const coaches = [
   { id: 1, name: "Coach Lara" },
   { id: 2, name: "Coach Moe" },
+  { id: 3, name: "Coach Emma" },
 ]
 
 const locations = [
@@ -102,9 +103,6 @@ export default function AddSlotPage() {
       return
     }
 
-    // Create dates - browser will interpret as local time (PST/PDT)
-    // This is correct because we want to store the time as the user entered it
-    // When stored to Firestore, it will be converted to UTC automatically
     const start = new Date(`${date}T${startTime}`)
     const end = new Date(`${date}T${endTime}`)
 

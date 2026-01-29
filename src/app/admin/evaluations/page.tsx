@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Evaluation, ratingToNumber } from '@/types/evaluation'
+import { Evaluation } from '@/types/evaluation'
 import { Plus, ExternalLink, Search, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -70,48 +70,36 @@ export default function EvaluationsPage() {
       if (data.ok) {
         // 转换 Firestore Timestamp
         const evals = data.evaluations.map((e: Evaluation & { evaluatedAt?: { toDate?: () => Date } | Date | string | null; createdAt?: { toDate?: () => Date } | Date | string | null }) => {
-          // API now returns ISO strings, so parse them
-          let evaluatedAt: Date | null = null
-          if (e.evaluatedAt) {
-            if (typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
-              evaluatedAt = e.evaluatedAt.toDate()
-            } else if (e.evaluatedAt instanceof Date) {
-              evaluatedAt = e.evaluatedAt
-            } else if (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number') {
-              evaluatedAt = new Date(e.evaluatedAt)
-            }
-            
-            if (evaluatedAt && isNaN(evaluatedAt.getTime())) {
-              console.warn('Invalid evaluatedAt for evaluation:', e.id, e.evaluatedAt)
-              evaluatedAt = null
-            }
+          let evaluatedAt: Date
+          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
+            evaluatedAt = e.evaluatedAt.toDate()
+          } else if (e.evaluatedAt instanceof Date) {
+            evaluatedAt = e.evaluatedAt
+          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
+            evaluatedAt = new Date(e.evaluatedAt)
+          } else {
+            evaluatedAt = new Date() // 默认使用今天
           }
           
-          let createdAt: Date | null = null
-          if (e.createdAt) {
-            if (typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
-              createdAt = e.createdAt.toDate()
-            } else if (e.createdAt instanceof Date) {
-              createdAt = e.createdAt
-            } else if (typeof e.createdAt === 'string' || typeof e.createdAt === 'number') {
-              createdAt = new Date(e.createdAt)
-            }
-            
-            if (createdAt && isNaN(createdAt.getTime())) {
-              console.warn('Invalid createdAt for evaluation:', e.id, e.createdAt)
-              createdAt = null
-            }
+          let createdAt: Date
+          if (e.createdAt && typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
+            createdAt = e.createdAt.toDate()
+          } else if (e.createdAt instanceof Date) {
+            createdAt = e.createdAt
+          } else if (e.createdAt && (typeof e.createdAt === 'string' || typeof e.createdAt === 'number')) {
+            createdAt = new Date(e.createdAt)
+          } else {
+            createdAt = new Date() // 默认使用今天
           }
           
-          // Only use fallback if date is truly missing or invalid
-          if (!evaluatedAt) {
-            console.error('Missing evaluatedAt for evaluation:', e.id)
-          }
+          // 如果日期无效，使用今天
+          if (isNaN(evaluatedAt.getTime())) evaluatedAt = new Date()
+          if (isNaN(createdAt.getTime())) createdAt = new Date()
           
           return {
             ...e,
-            evaluatedAt: evaluatedAt || new Date(0), // Use epoch date as fallback
-            createdAt: createdAt || new Date(0), // Use epoch date as fallback
+            evaluatedAt,
+            createdAt,
           }
         })
         setEvaluations(evals)
@@ -166,19 +154,6 @@ export default function EvaluationsPage() {
       month: 'short',
       day: 'numeric',
     })
-  }
-
-  // 计算平均评分
-  const calculateAverageRating = (evaluation: Evaluation): number => {
-    let total = 0
-    let count = 0
-    evaluation.categoryScores.forEach(catScore => {
-      catScore.subcategoryScores.forEach(subScore => {
-        total += ratingToNumber(subScore.rating)
-        count++
-      })
-    })
-    return count > 0 ? total / count : 0
   }
 
   const handleDeleteClick = (evaluation: Evaluation) => {
@@ -267,56 +242,47 @@ export default function EvaluationsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Swimmer</TableHead>
                   <TableHead>Level</TableHead>
-                  <TableHead>Score</TableHead>
                   <TableHead>Evaluated By</TableHead>
                   <TableHead>Promoted</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEvaluations.map((evaluation) => {
-                  const avgRating = calculateAverageRating(evaluation)
-                  return (
-                    <TableRow key={evaluation.id}>
-                      <TableCell>{formatDate(evaluation.evaluatedAt)}</TableCell>
-                      <TableCell className="font-medium">{evaluation.swimmerName}</TableCell>
-                      <TableCell>{evaluation.level}</TableCell>
-                      <TableCell>
-                        <span className="font-semibold text-blue-600">
-                          {avgRating.toFixed(1)}/4.0
+                {filteredEvaluations.map((evaluation) => (
+                  <TableRow key={evaluation.id}>
+                    <TableCell>{formatDate(evaluation.evaluatedAt)}</TableCell>
+                    <TableCell className="font-medium">{evaluation.swimmerName}</TableCell>
+                    <TableCell>{evaluation.level}</TableCell>
+                    <TableCell>{evaluation.evaluatedBy}</TableCell>
+                    <TableCell>
+                      {evaluation.coachRecommendation.levelUp ? (
+                        <span className="text-green-600 font-medium">
+                          ✓ {evaluation.coachRecommendation.recommendedLevel || 'Yes'}
                         </span>
-                      </TableCell>
-                      <TableCell>{evaluation.evaluatedBy}</TableCell>
-                      <TableCell>
-                        {evaluation.coachRecommendation.levelUp ? (
-                          <span className="text-green-600 font-medium">
-                            ✓ {evaluation.coachRecommendation.recommendedLevel || 'Yes'}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link href={`/evaluations/${evaluation.swimmerId}`}>
-                            <Button variant="ghost" size="sm">
-                              <ExternalLink className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(evaluation)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/evaluations/${evaluation.swimmerId}`}>
+                          <Button variant="ghost" size="sm">
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(evaluation)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}

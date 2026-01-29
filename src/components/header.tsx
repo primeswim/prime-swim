@@ -105,9 +105,6 @@ export default function Header() {
               <DropdownMenuItem asChild>
                 <Link href="/private-lessons">Private Lessons</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/clinic/register">Clinic Registration</Link>
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -172,9 +169,6 @@ export default function Header() {
                 <DropdownMenuItem asChild>
                   <Link href="/admin/clinic/placement">Clinic Placement</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/clinic/registrations">Clinic Registrations</Link>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/admin/makeup">Makeup</Link>
@@ -201,10 +195,6 @@ export default function Header() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/admin/bulk-insert">Bulk Insert</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/news/add">Add News</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -253,7 +243,6 @@ export default function Header() {
             <p className="font-semibold">Programs</p>
             <Link href="/#programs" className="block ml-4">Group Programs</Link>
             <Link href="/private-lessons" className="block ml-4">Private Lessons</Link>
-            <Link href="/clinic/register" className="block ml-4">Clinic Registration</Link>
           </div>
 
           <Link href="/safesport" className="block">Safe Sport</Link>
@@ -276,7 +265,6 @@ export default function Header() {
               <Link href="/admin/activity/placement" className="block ml-6">Activity Placement</Link>
               <Link href="/admin/clinic" className="block ml-4">Clinic</Link>
               <Link href="/admin/clinic/placement" className="block ml-6">Clinic Placement</Link>
-              <Link href="/admin/clinic/registrations" className="block ml-6">Clinic Registrations</Link>
               <Link href="/admin/makeup" className="block ml-4">Makeup</Link>
               <Link href="/admin/makeup/attendees" className="block ml-6">Makeup Attendees</Link>
               <Link href="/admin/tryout-swimmers" className="block ml-4">Tryout Swimmers</Link>
@@ -285,7 +273,6 @@ export default function Header() {
               <Link href="/admin/sendemail" className="block ml-4">Send Email</Link>
               <Link href="/admin/test-reminder" className="block ml-4">Test Reminder</Link>
               <Link href="/admin/bulk-insert" className="block ml-4">Bulk Insert</Link>
-              <Link href="/news/add" className="block ml-4">Add News</Link>
             </div>
           )}
         </div>

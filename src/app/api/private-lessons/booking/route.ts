@@ -34,7 +34,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const slotId = searchParams.get("slotId");
     const swimmerId = searchParams.get("swimmerId");
-    const swimmerName = searchParams.get("swimmerName");
     const status = searchParams.get("status");
 
     let query: Query = adminDb.collection("privateLessonBookings");
@@ -44,9 +43,6 @@ export async function GET(req: Request) {
     }
     if (swimmerId) {
       query = query.where("swimmerId", "==", swimmerId);
-    }
-    if (swimmerName) {
-      query = query.where("swimmerName", "==", swimmerName);
     }
     if (status) {
       query = query.where("status", "==", status);
@@ -61,39 +57,10 @@ export async function GET(req: Request) {
       console.warn("orderBy failed, fetching without order:", e);
       snapshot = await query.get();
     }
-    const bookings = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      // Convert Firestore Timestamps to ISO strings for JSON serialization
-      let startTime: string | Date | null = null;
-      let endTime: string | Date | null = null;
-      
-      if (data.startTime) {
-        if (data.startTime.toDate && typeof data.startTime.toDate === "function") {
-          startTime = data.startTime.toDate().toISOString();
-        } else if (data.startTime.seconds) {
-          startTime = new Date(data.startTime.seconds * 1000).toISOString();
-        } else if (data.startTime instanceof Date) {
-          startTime = data.startTime.toISOString();
-        }
-      }
-      
-      if (data.endTime) {
-        if (data.endTime.toDate && typeof data.endTime.toDate === "function") {
-          endTime = data.endTime.toDate().toISOString();
-        } else if (data.endTime.seconds) {
-          endTime = new Date(data.endTime.seconds * 1000).toISOString();
-        } else if (data.endTime instanceof Date) {
-          endTime = data.endTime.toISOString();
-        }
-      }
-      
-      return {
-        id: doc.id,
-        ...data,
-        startTime: startTime || data.startTime,
-        endTime: endTime || data.endTime,
-      };
-    });
+    const bookings = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
     return NextResponse.json({ bookings });
   } catch (e) {
@@ -140,9 +107,7 @@ export async function POST(req: Request) {
 
     const swimmerName = `${swimmerData?.firstName || ""} ${swimmerData?.lastName || ""}`.trim();
     const parentEmail = swimmerData?.email || "";
-    // Note: privatelessonstudents doesn't have a separate parentName field
-    // The email is the parent's email, but we don't have the parent's name
-    const parentName = ""; // Leave empty since we don't have parent name in the data
+    const parentName = swimmerData?.firstName || "";
     const parentPhone = swimmerData?.phone || "";
 
     if (!parentEmail) {
@@ -192,46 +157,9 @@ export async function POST(req: Request) {
 
     // Send confirmation email
     try {
-      const locationName = getLocationName(bookingData.locationId || 0);
-      // Use bookingData times (which are already saved correctly) instead of slotData
-      // Firestore Timestamp.toDate() returns a Date object in UTC
-      // We need to convert it to PST/PDT for display
-      let startDate: Date;
-      let endDate: Date;
-      
-      if (bookingData.startTime?.toDate) {
-        startDate = bookingData.startTime.toDate();
-      } else if (bookingData.startTime instanceof Date) {
-        startDate = bookingData.startTime;
-      } else {
-        startDate = new Date();
-      }
-      
-      if (bookingData.endTime?.toDate) {
-        endDate = bookingData.endTime.toDate();
-      } else if (bookingData.endTime instanceof Date) {
-        endDate = bookingData.endTime;
-      } else {
-        endDate = new Date();
-      }
-      
-      // Debug: Log the actual times
-      console.log("Email time debug:", {
-        startTimeUTC: startDate.toISOString(),
-        endTimeUTC: endDate.toISOString(),
-        startTimePST: startDate.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          timeZone: "America/Los_Angeles",
-        }),
-        endTimePST: endDate.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          timeZone: "America/Los_Angeles",
-        }),
-      });
-      
-      // Dates are in UTC, but we'll display them as PST using timeZone option in toLocaleString
+      const locationName = getLocationName(slotData?.locationId || 0);
+      const startDate = slotData?.startTime?.toDate() || new Date();
+      const endDate = slotData?.endTime?.toDate() || new Date();
 
       const emailHtml = buildConfirmationEmail({
         swimmerName,
@@ -306,8 +234,7 @@ export async function PUT(req: Request) {
         const swimmerData = swimmerDoc.data();
         const swimmerName = `${swimmerData?.firstName || ""} ${swimmerData?.lastName || ""}`.trim();
         const parentEmail = swimmerData?.email || "";
-        // Note: privatelessonstudents doesn't have a separate parentName field
-        const parentName = ""; // Leave empty since we don't have parent name in the data
+        const parentName = swimmerData?.firstName || "";
         
         updateData.swimmerId = swimmerId;
         updateData.swimmerName = swimmerName;
@@ -328,10 +255,9 @@ export async function PUT(req: Request) {
         // Send confirmation email to new swimmer's parent if email exists
         if (parentEmail) {
           try {
-            // Use booking data for time (booking has the correct time from when it was created)
-            const locationName = getLocationName(bookingData?.locationId || slotData?.locationId || 0);
-            const startDate = bookingData?.startTime?.toDate() || new Date();
-            const endDate = bookingData?.endTime?.toDate() || new Date();
+            const locationName = getLocationName(slotData?.locationId || 0);
+            const startDate = slotData?.startTime?.toDate() || new Date();
+            const endDate = slotData?.endTime?.toDate() || new Date();
 
             const emailHtml = buildConfirmationEmail({
               swimmerName,
@@ -393,36 +319,16 @@ function buildConfirmationEmail(params: {
   notes: string;
 }): string {
   const { swimmerName, parentName, locationName, startDate, endDate, notes } = params;
-  
-  // Convert UTC Date to PST/PDT manually
-  // Firestore stores times in UTC, we need to convert to PST (UTC-8) or PDT (UTC-7)
-  // Use Intl.DateTimeFormat for reliable timezone conversion
-  const pstFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
+  const dateStr = startDate.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
+  });
+  const timeStr = `${startDate.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-    hour12: true,
-  });
-  
-  const timeFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-  
-  // Format date and time
-  const startParts = pstFormatter.formatToParts(startDate);
-  const endTimeParts = timeFormatter.formatToParts(endDate);
-  
-  const dateStr = `${startParts.find(p => p.type === "weekday")?.value}, ${startParts.find(p => p.type === "month")?.value} ${startParts.find(p => p.type === "day")?.value}, ${startParts.find(p => p.type === "year")?.value}`;
-  const startTimeStr = `${startParts.find(p => p.type === "hour")?.value}:${startParts.find(p => p.type === "minute")?.value.padStart(2, "0")} ${startParts.find(p => p.type === "dayPeriod")?.value}`;
-  const endTimeStr = `${endTimeParts.find(p => p.type === "hour")?.value}:${endTimeParts.find(p => p.type === "minute")?.value.padStart(2, "0")} ${endTimeParts.find(p => p.type === "dayPeriod")?.value}`;
-  const timeStr = `${startTimeStr} - ${endTimeStr}`;
+  })} - ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
 
   return `
     <!DOCTYPE html>
