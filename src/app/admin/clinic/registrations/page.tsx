@@ -349,7 +349,7 @@ export default function ClinicRegistrationsPage() {
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <Label className="text-muted-foreground">Child Name</Label>
+                      <Label className="text-muted-foreground">Swimmer Name</Label>
                       <p className="font-medium">
                         {selectedRegistration.childFirstName} {selectedRegistration.childLastName}
                       </p>

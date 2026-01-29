@@ -8,6 +8,52 @@ import { Timestamp } from "firebase-admin/firestore";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "prime.swim.us@gmail.com";
+const FROM_EMAIL =
+  process.env.SEND_FROM_EMAIL || "Prime Swim Academy <noreply@primeswimacademy.com>";
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function wrapWithTemplate(subject: string, htmlContent: string) {
+  // Keep this consistent with /api/sendemail so outbound emails look the same.
+  const footer = `
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.6;">
+      <div>Prime Swim Academy</div>
+      <div style="margin-top:6px;">If you have any questions, please reply to this email.</div>
+    </div>
+  `;
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
+  <div style="max-width:640px;margin:0 auto;padding:24px;">
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="background:#0f172a;color:#ffffff;padding:18px 20px;">
+        <div style="font-size:16px;font-weight:700;">Prime Swim Academy</div>
+      </div>
+      <div style="padding:22px 20px;color:#0f172a;">
+        ${htmlContent}
+        ${footer}
+      </div>
+    </div>
+    <div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:14px;">
+      © ${new Date().getFullYear()} Prime Swim Academy
+    </div>
+  </div>
+</body>
+</html>`;
+}
 
 /** 安全：允许的来源 */
 const ORIGIN_ALLOWLIST = [
@@ -193,50 +239,39 @@ export async function POST(request: Request) {
     try {
       const childFullName = `${childFirstName} ${childLastName}`;
       const parentFullName = `${parentFirstName} ${parentLastName}`;
-      
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #1e40af; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0; font-size: 24px;">Prime Swim Academy</h1>
-          </div>
-          
-          <div style="background-color: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
-            <p style="font-size: 16px; color: #334155; margin-top: 0;">
-              Dear ${parentFullName},
-            </p>
-            
-            <p style="font-size: 16px; color: #334155; line-height: 1.6;">
-              Thank you for registering <strong>${childFullName}</strong> for our Clinic program. We have received your registration and will review it carefully.
-            </p>
-            
-            <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0;">
-              <p style="margin: 0; font-size: 15px; color: #1e40af; font-weight: 600;">
-                Important: Spots are limited and will be filled on a first-come, first-served basis.
-              </p>
-            </div>
-            
-            <p style="font-size: 16px; color: #334155; line-height: 1.6;">
-              Our team will review your registration and notify you of the result as soon as possible. Please note that due to high demand, we recommend responding promptly if you receive an acceptance notification.
-            </p>
-            
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-              <p style="font-size: 14px; color: #64748b; margin: 0;">
-                If you have any questions, please don't hesitate to contact us.
-              </p>
-              <p style="font-size: 14px; color: #64748b; margin: 10px 0 0 0;">
-                Best regards,<br>
-                <strong>Prime Swim Academy Team</strong>
-              </p>
-            </div>
+
+      const subject = `Clinic Registration Received - ${childFullName}`;
+      const bodyHtml = `
+        <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;color:#0f172a;">
+          Dear ${escapeHtml(parentFullName)},
+        </p>
+        <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;color:#0f172a;">
+          Thank you for registering <strong>${escapeHtml(childFullName)}</strong> for our Clinic program. We’ve received your registration and will review it carefully.
+        </p>
+        <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin:14px 0;">
+          <div style="font-size:14px;line-height:1.6;color:#0f172a;">
+            Please note that placements are based on both:
+            <ul style="margin:8px 0 0 18px;padding:0;">
+              <li><strong>first-come, first-served</strong> (spots are limited), and</li>
+              <li><strong>level fit</strong> to ensure a safe and productive training environment.</li>
+            </ul>
           </div>
         </div>
+        <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;color:#0f172a;">
+          We’ll notify you of the result after our review. Thank you again for your interest, and we truly appreciate your patience.
+        </p>
+        <p style="margin:0;font-size:16px;line-height:1.6;color:#0f172a;">
+          Best regards,<br/>
+          <strong>Prime Swim Academy Team</strong>
+        </p>
       `;
+      const emailHtml = wrapWithTemplate(subject, bodyHtml);
 
       await resend.emails.send({
-        from: "Prime Swim Academy <noreply@primeswimacademy.com>",
+        from: FROM_EMAIL,
         to: parentEmail,
         cc: [ADMIN_EMAIL],
-        subject: `Clinic Registration Received - ${childFullName}`,
+        subject,
         html: emailHtml,
       });
     } catch (emailError) {

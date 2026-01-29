@@ -54,15 +54,11 @@ export default function ClinicRegisterPage() {
 
   // Stroke Times
   const [strokeTimes, setStrokeTimes] = useState<StrokeTime[]>([
-    { stroke: "Freestyle", distance: "50m", time: "" },
-    { stroke: "Freestyle", distance: "100m", time: "" },
-    { stroke: "Backstroke", distance: "50m", time: "" },
-    { stroke: "Backstroke", distance: "100m", time: "" },
-    { stroke: "Breaststroke", distance: "50m", time: "" },
-    { stroke: "Breaststroke", distance: "100m", time: "" },
-    { stroke: "Butterfly", distance: "50m", time: "" },
-    { stroke: "Butterfly", distance: "100m", time: "" },
-    { stroke: "Individual Medley", distance: "200m", time: "" },
+    { stroke: "Freestyle", distance: "50y", time: "" },
+    { stroke: "Backstroke", distance: "50y", time: "" },
+    { stroke: "Breaststroke", distance: "50y", time: "" },
+    { stroke: "Butterfly", distance: "50y", time: "" },
+    { stroke: "Individual Medley", distance: "100 IM", time: "" },
   ]);
 
   // Additional Information
@@ -197,7 +193,7 @@ export default function ClinicRegisterPage() {
             Clinic Registration
           </h1>
           <p className="text-slate-600">
-            Register your child for our Clinic program. Please provide detailed information to help us determine the appropriate level.
+            Register your swimmer for our Clinic program. Please provide detailed information to help us determine the appropriate level.
           </p>
         </div>
 
@@ -230,7 +226,7 @@ export default function ClinicRegisterPage() {
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="childFirstName">Child First Name *</Label>
+                  <Label htmlFor="childFirstName">Swimmer First Name *</Label>
                   <Input
                     id="childFirstName"
                     value={childFirstName}
@@ -239,7 +235,7 @@ export default function ClinicRegisterPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="childLastName">Child Last Name *</Label>
+                  <Label htmlFor="childLastName">Swimmer Last Name *</Label>
                   <Input
                     id="childLastName"
                     value={childLastName}
@@ -269,7 +265,6 @@ export default function ClinicRegisterPage() {
                     <SelectContent>
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
                       <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
@@ -377,9 +372,6 @@ export default function ClinicRegisterPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Note: Our clinic is designed for intermediate to advanced swimmers
-                  </p>
                 </div>
               </div>
 
@@ -418,7 +410,7 @@ export default function ClinicRegisterPage() {
                 Stroke Times (Optional but Recommended)
               </CardTitle>
               <CardDescription>
-                Please provide your child's best times for each stroke. Format: MM:SS.mm or SS.mm (e.g., 1:23.45 or 23.45)
+                Please provide your swimmer's best times for each stroke. Format: MM:SS.mm or SS.mm (e.g., 1:23.45 or 23.45)
               </CardDescription>
             </CardHeader>
             <CardContent>
