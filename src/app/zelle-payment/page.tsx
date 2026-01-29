@@ -4,14 +4,9 @@
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
+import type { User as FirebaseAuthUser } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import ZellePaymentStep from "@/components/ZellePaymentStep"
-
-type ApiUser = {
-  uid: string
-  email: string | null
-  getIdToken: (forceRefresh?: boolean) => Promise<string>
-}
 
 function ZellePaymentPageContent() {
   const sp = useSearchParams()
@@ -21,7 +16,7 @@ function ZellePaymentPageContent() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [user, setUser] = useState<ApiUser | null>(null)
+  const [user, setUser] = useState<FirebaseAuthUser | null>(null)
   const [swimmerId, setSwimmerId] = useState<string>("")
   const [resolvedPaymentId, setResolvedPaymentId] = useState<string | undefined>(undefined)
 
@@ -40,7 +35,7 @@ function ZellePaymentPageContent() {
         const data = await res.json()
         if (!res.ok || !data?.ok) throw new Error(data?.error || "Load failed")
 
-        setUser(u as unknown as ApiUser)
+        setUser(u)
         setSwimmerId(String(data.swimmerId || ""))
         setResolvedPaymentId(data.paymentId ? String(data.paymentId) : undefined)
       } catch (e: unknown) {

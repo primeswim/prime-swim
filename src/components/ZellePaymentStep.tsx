@@ -1,7 +1,8 @@
 // components/ZellePaymentStep.tsx
 "use client"
 
-import type { SwimmerFormData, FirebaseUser } from "@/types"
+import type { SwimmerFormData } from "@/types"
+import type { User as FirebaseAuthUser } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Image from "next/image"
@@ -31,7 +32,7 @@ export default function ZellePaymentStep({
   paymentId,          // 续费路径以后可以用，现在可以为空
 }: {
   swimmerId: string
-  user?: FirebaseUser | null
+  user?: FirebaseAuthUser | null
   formData?: SwimmerFormData
   paymentId?: string
 }) {
