@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Evaluation } from '@/types/evaluation'
-import { Plus, ExternalLink, Search, Trash2 } from 'lucide-react'
+import { Plus, ExternalLink, Search, Trash2, Edit, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import {
   Dialog,
@@ -33,6 +33,10 @@ export default function EvaluationsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [evaluationToDelete, setEvaluationToDelete] = useState<Evaluation | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [evaluationToEdit, setEvaluationToEdit] = useState<Evaluation | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -161,6 +165,59 @@ export default function EvaluationsPage() {
     setDeleteDialogOpen(true)
   }
 
+  const handleEditClick = (evaluation: Evaluation) => {
+    setEvaluationToEdit(evaluation)
+    // Format date as YYYY-MM-DD for input
+    let dateStr: string
+    if (evaluation.evaluatedAt instanceof Date) {
+      dateStr = evaluation.evaluatedAt.toISOString().split('T')[0]
+    } else if (typeof evaluation.evaluatedAt === 'string' || typeof evaluation.evaluatedAt === 'number') {
+      dateStr = new Date(evaluation.evaluatedAt).toISOString().split('T')[0]
+    } else {
+      // Fallback to today
+      dateStr = new Date().toISOString().split('T')[0]
+    }
+    setEditDate(dateStr)
+    setEditDialogOpen(true)
+  }
+
+  const handleUpdateDate = async () => {
+    if (!evaluationToEdit || !editDate) return
+
+    try {
+      setUpdating(true)
+      const user = auth.currentUser
+      if (!user) return
+      const idToken = await user.getIdToken()
+
+      const res = await fetch(`/api/evaluations/${evaluationToEdit.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          evaluatedAt: new Date(editDate).toISOString(),
+        }),
+      })
+
+      const data = await res.json()
+      if (data.ok) {
+        setEditDialogOpen(false)
+        setEvaluationToEdit(null)
+        setEditDate('')
+        await fetchEvaluations()
+      } else {
+        alert(`Failed to update date: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Failed to update date:', error)
+      alert('Failed to update date. Please try again.')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const handleDeleteConfirm = async () => {
     if (!evaluationToDelete) return
 
@@ -274,6 +331,15 @@ export default function EvaluationsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleEditClick(evaluation)}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          title="Edit date"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDeleteClick(evaluation)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
@@ -288,6 +354,55 @@ export default function EvaluationsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Evaluation Date</DialogTitle>
+            <DialogDescription>
+              Update the evaluation date for {evaluationToEdit?.swimmerName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="edit-date" className="text-sm font-medium">
+                Evaluation Date
+              </label>
+              <Input
+                id="edit-date"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-full"
+              />
+              {evaluationToEdit && (
+                <p className="text-xs text-muted-foreground">
+                  Current date: {formatDate(evaluationToEdit.evaluatedAt)}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialogOpen(false)
+                setEvaluationToEdit(null)
+                setEditDate('')
+              }}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateDate}
+              disabled={updating || !editDate}
+            >
+              {updating ? 'Updating...' : 'Update Date'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
