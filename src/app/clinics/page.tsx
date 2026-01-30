@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, MapPin, Clock, Search, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -31,12 +32,14 @@ interface ClinicConfig {
   locations: ClinicLocation[];
   levels?: string[];
   active: boolean;
+  isExpired?: boolean;
 }
 
 export default function ClinicsPage() {
   const [loading, setLoading] = useState(true);
   const [clinics, setClinics] = useState<ClinicConfig[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<"active" | "archived" | "all">("active");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,6 +62,15 @@ export default function ClinicsPage() {
   };
 
   const filteredClinics = clinics.filter((clinic) => {
+    // Filter by active/archived/all
+    if (filter === "active") {
+      if (!clinic.active || clinic.isExpired) return false;
+    } else if (filter === "archived") {
+      if (clinic.active && !clinic.isExpired) return false;
+    }
+    // filter === "all" shows everything
+
+    // Filter by search query
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -83,8 +95,8 @@ export default function ClinicsPage() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-8">
+        {/* Search Bar and Filter */}
+        <div className="mb-8 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <Input
@@ -94,6 +106,19 @@ export default function ClinicsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 py-6 text-lg"
             />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-slate-700">Show:</span>
+            <Select value={filter} onValueChange={(value: "active" | "archived" | "all") => setFilter(value)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active Clinics</SelectItem>
+                <SelectItem value="archived">Past Clinics</SelectItem>
+                <SelectItem value="all">All Clinics</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -136,8 +161,12 @@ export default function ClinicsPage() {
                             {clinic.type}
                           </Badge>
                         )}
-                        {clinic.active && (
+                        {clinic.isExpired ? (
+                          <Badge className="bg-gray-100 text-gray-700">Past</Badge>
+                        ) : clinic.active ? (
                           <Badge className="bg-green-100 text-green-700">Active</Badge>
+                        ) : (
+                          <Badge className="bg-slate-100 text-slate-700">Archived</Badge>
                         )}
                       </div>
                       <CardDescription className="text-lg font-semibold text-slate-700">
@@ -182,17 +211,27 @@ export default function ClinicsPage() {
                   {/* Registration Button */}
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="text-sm text-slate-600">
-                      2 slots available
+                      {clinic.isExpired ? "0 slots available" : "2 slots available"}
                     </div>
-                    <Button
-                      asChild
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
-                    >
-                      <Link href={`/clinic/register?id=${clinic.id}`}>
+                    {clinic.isExpired ? (
+                      <Button
+                        disabled
+                        className="bg-gray-400 text-white px-8 py-6 text-lg cursor-not-allowed"
+                      >
                         <ExternalLink className="w-5 h-5 mr-2" />
-                        Register Now
-                      </Link>
-                    </Button>
+                        Registration Closed
+                      </Button>
+                    ) : (
+                      <Button
+                        asChild
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
+                      >
+                        <Link href={`/clinic/register?id=${clinic.id}`}>
+                          <ExternalLink className="w-5 h-5 mr-2" />
+                          Register Now
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

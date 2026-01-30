@@ -35,18 +35,45 @@ interface ClinicRegistration {
   status?: string;
 }
 
+interface ClinicConfig {
+  id: string;
+  title: string;
+  season?: string;
+}
+
 export default function ClinicRegistrationsPage() {
   const isAdmin = useIsAdminFromDB();
   const [loading, setLoading] = useState(true);
   const [registrations, setRegistrations] = useState<ClinicRegistration[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedClinicId, setSelectedClinicId] = useState<string>("all");
+  const [clinicConfigs, setClinicConfigs] = useState<ClinicConfig[]>([]);
 
   useEffect(() => {
     if (isAdmin === true) {
+      loadClinicConfigs();
       loadRegistrations();
     }
   }, [isAdmin, selectedClinicId]);
+
+  const loadClinicConfigs = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/clinic/config", {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setClinicConfigs((data.configs || []) as ClinicConfig[]);
+      }
+    } catch (err) {
+      console.error("Load clinic configs error:", err);
+    }
+  };
 
   const loadRegistrations = async () => {
     try {
@@ -79,6 +106,12 @@ export default function ClinicRegistrationsPage() {
     const encodedFirstName = encodeURIComponent(firstName.trim());
     const encodedLastName = encodeURIComponent(lastName.trim());
     return `https://www.swimcloud.com/results/swimmer/?first=${encodedFirstName}&last=${encodedLastName}`;
+  };
+
+  const getClinicName = (clinicId: string | null | undefined): string => {
+    if (!clinicId) return "Unknown Clinic";
+    const config = clinicConfigs.find((c) => c.id === clinicId);
+    return config ? `${config.title}${config.season ? ` (${config.season})` : ""}` : clinicId;
   };
 
   const getUniqueClinicIds = () => {
@@ -139,7 +172,7 @@ export default function ClinicRegistrationsPage() {
                 <SelectItem value="all">All Clinics</SelectItem>
                 {uniqueClinicIds.map((id) => (
                   <SelectItem key={id} value={id}>
-                    Clinic: {id}
+                    {getClinicName(id)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -178,7 +211,7 @@ export default function ClinicRegistrationsPage() {
                         Submitted: {reg.submittedAt ? new Date(reg.submittedAt).toLocaleString() : "Unknown"}
                         {reg.clinicId && (
                           <span className="ml-4 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                            Clinic: {reg.clinicId}
+                            {getClinicName(reg.clinicId)}
                           </span>
                         )}
                         {reg.status && (

@@ -68,18 +68,47 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const clinicId = url.searchParams.get("clinicId");
 
-    let query = adminDb.collection("clinicRegistrations").orderBy("submittedAt", "desc");
+    let query: FirebaseFirestore.Query = adminDb.collection("clinicRegistrations");
     
+    // If filtering by clinicId, use where first (avoids composite index requirement)
     if (clinicId) {
-      query = query.where("clinicId", "==", clinicId) as any;
+      query = query.where("clinicId", "==", clinicId);
+    } else {
+      // Only use orderBy when not filtering (to avoid composite index)
+      query = query.orderBy("submittedAt", "desc");
     }
 
     const snap = await query.get();
-    const registrations = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      submittedAt: doc.data().submittedAt?.toDate?.()?.toISOString() || null,
-    }));
+    let registrations = snap.docs.map((doc) => {
+      const data = doc.data();
+      const submittedAt = data.submittedAt;
+      let submittedAtStr: string | null = null;
+      
+      if (submittedAt) {
+        if (submittedAt.toDate && typeof submittedAt.toDate === "function") {
+          submittedAtStr = submittedAt.toDate().toISOString();
+        } else if (submittedAt._seconds) {
+          submittedAtStr = new Date(submittedAt._seconds * 1000).toISOString();
+        } else if (submittedAt instanceof Date) {
+          submittedAtStr = submittedAt.toISOString();
+        }
+      }
+
+      return {
+        id: doc.id,
+        ...data,
+        submittedAt: submittedAtStr,
+      };
+    });
+
+    // Sort in memory if filtering by clinicId
+    if (clinicId) {
+      registrations.sort((a, b) => {
+        const aTime = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+        const bTime = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        return bTime - aTime; // Descending
+      });
+    }
 
     return NextResponse.json({ ok: true, registrations });
   } catch (err: unknown) {
