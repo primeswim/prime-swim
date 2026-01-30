@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { User, Clock, Trophy, MessageSquare, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 // Advanced levels for Clinic (not for beginners)
@@ -136,9 +137,11 @@ function ClinicRegisterPageContent() {
       }
 
       setSuccess(true);
+      // Scroll to top to show success message
+      window.scrollTo({ top: 0, behavior: "smooth" });
       setTimeout(() => {
         router.push("/");
-      }, 3000);
+      }, 4000);
     } catch (err) {
       console.error("Registration error:", err);
       setError(err instanceof Error ? err.message : "Failed to submit registration. Please try again.");
@@ -176,6 +179,27 @@ function ClinicRegisterPageContent() {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Success Dialog - More visible */}
+        <Dialog open={success} onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-md" showCloseButton={false}>
+            <DialogHeader>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-10 h-10 text-green-600" />
+                </div>
+              </div>
+              <DialogTitle className="text-center text-2xl">Registration Successful!</DialogTitle>
+              <DialogDescription className="text-center text-base pt-2">
+                Thank you for registering! We've received your registration and will review it carefully.
+                <br /><br />
+                You will receive a confirmation email shortly. We'll notify you of the placement result after our review.
+                <br /><br />
+                <span className="text-sm text-slate-500">Redirecting to homepage in a few seconds...</span>
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}

@@ -251,19 +251,18 @@ export async function POST(request: Request) {
           Dear ${escapeHtml(parentFullName)},
         </p>
         <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;color:#0f172a;">
-          Thank you for registering <strong>${escapeHtml(childFullName)}</strong> for our Clinic program. We’ve received your registration and will review it carefully.
+          Thank you for registering <strong>${escapeHtml(childFullName)}</strong> for our Clinic program. We've received your registration and will review it carefully.
         </p>
-        <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin:14px 0;">
-          <div style="font-size:14px;line-height:1.6;color:#0f172a;">
-            Please note that placements are based on both:
-            <ul style="margin:8px 0 0 18px;padding:0;">
-              <li><strong>first-come, first-served</strong> (spots are limited), and</li>
-              <li><strong>level fit</strong> to ensure a safe and productive training environment.</li>
-            </ul>
-          </div>
+        <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;padding:16px 18px;margin:16px 0;">
+          <p style="margin:0 0 10px 0;font-size:15px;font-weight:600;color:#92400e;">
+            ⚠️ Important: This email does not confirm placement.
+          </p>
+          <p style="margin:0;font-size:14px;line-height:1.7;color:#78350f;">
+            Clinic spots are <strong>very limited</strong> and placement is based on availability (first-come, first-served) and <strong>level matching</strong>. We group swimmers of similar skill levels together to ensure effective training. If we cannot place <strong>${escapeHtml(childFullName)}</strong> due to limited spots or level requirements, we appreciate your understanding.
+          </p>
         </div>
         <p style="margin:0 0 12px 0;font-size:16px;line-height:1.6;color:#0f172a;">
-          We’ll notify you of the result after our review. Thank you again for your interest, and we truly appreciate your patience.
+          We'll notify you of the result after our review. Thank you for your interest and patience.
         </p>
         <p style="margin:0;font-size:16px;line-height:1.6;color:#0f172a;">
           Best regards,<br/>
