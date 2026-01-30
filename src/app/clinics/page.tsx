@@ -182,7 +182,7 @@ export default function ClinicsPage() {
                   {/* Registration Button */}
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="text-sm text-slate-600">
-                      {clinic.locations.reduce((total, loc) => total + loc.slots.length, 0)} time slot(s) available
+                      2 slots available
                     </div>
                     <Button
                       asChild
