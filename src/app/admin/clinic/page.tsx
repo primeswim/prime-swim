@@ -102,6 +102,17 @@ export default function ClinicAdminPage() {
           setStatus({ message: "Each location must have a name and at least one slot", success: false });
           return;
         }
+        // Validate that each slot has both date and label
+        for (const slot of loc.slots) {
+          if (!slot.date || slot.date.trim() === "") {
+            setStatus({ message: `Please fill in the date for all time slots in "${loc.name}"`, success: false });
+            return;
+          }
+          if (!slot.label || slot.label.trim() === "") {
+            setStatus({ message: `Please fill in the label for all time slots in "${loc.name}"`, success: false });
+            return;
+          }
+        }
       }
 
       const url = editingId ? "/api/clinic/config" : "/api/clinic/config";

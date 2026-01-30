@@ -188,41 +188,45 @@ export default function ClinicsPage() {
                           <h3 className="font-semibold text-slate-800 text-lg">{location.name}</h3>
                         </div>
                         <div className="space-y-2">
-                          {location.slots.map((slot, slotIdx) => (
-                            <div key={slotIdx} className="flex items-center gap-2 text-slate-700">
-                              <Clock className="w-4 h-4 text-slate-500" />
-                              <span>{slot.label}</span>
-                              {slot.date && slot.date.trim() !== "" && (() => {
-                                try {
-                                  // Parse date string as local date to avoid timezone offset
-                                  let dateObj: Date;
-                                  if (/^\d{4}-\d{2}-\d{2}$/.test(slot.date)) {
-                                    // YYYY-MM-DD format - parse as local date
-                                    const [year, month, day] = slot.date.split('-').map(Number);
-                                    dateObj = new Date(year, month - 1, day);
-                                  } else {
-                                    dateObj = new Date(slot.date);
+                          {location.slots.map((slot, slotIdx) => {
+                            // Ensure date field exists and is not empty
+                            const slotDate = slot.date && typeof slot.date === 'string' ? slot.date.trim() : '';
+                            return (
+                              <div key={slotIdx} className="flex items-center gap-2 text-slate-700">
+                                <Clock className="w-4 h-4 text-slate-500" />
+                                <span>{slot.label}</span>
+                                {slotDate !== "" && (() => {
+                                  try {
+                                    // Parse date string as local date to avoid timezone offset
+                                    let dateObj: Date;
+                                    if (/^\d{4}-\d{2}-\d{2}$/.test(slotDate)) {
+                                      // YYYY-MM-DD format - parse as local date
+                                      const [year, month, day] = slotDate.split('-').map(Number);
+                                      dateObj = new Date(year, month - 1, day);
+                                    } else {
+                                      dateObj = new Date(slotDate);
+                                    }
+                                    // Check if date is valid
+                                    if (!isNaN(dateObj.getTime())) {
+                                      return (
+                                        <span className="text-sm text-slate-500">
+                                          ({dateObj.toLocaleDateString("en-US", {
+                                            weekday: "short",
+                                            month: "short",
+                                            day: "numeric",
+                                          })})
+                                        </span>
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // Invalid date, don't display
+                                    console.warn("Invalid date format:", slotDate, e);
                                   }
-                                  // Check if date is valid
-                                  if (!isNaN(dateObj.getTime())) {
-                                    return (
-                                      <span className="text-sm text-slate-500">
-                                        ({dateObj.toLocaleDateString("en-US", {
-                                          weekday: "short",
-                                          month: "short",
-                                          day: "numeric",
-                                        })})
-                                      </span>
-                                    );
-                                  }
-                                } catch (e) {
-                                  // Invalid date, don't display
-                                  console.warn("Invalid date format:", slot.date);
-                                }
-                                return null;
-                              })()}
-                            </div>
-                          ))}
+                                  return null;
+                                })()}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
