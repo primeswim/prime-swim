@@ -57,9 +57,10 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       
       // Check if selection is inside a link
       let linkElement: HTMLAnchorElement | null = null;
-      let node = range.commonAncestorContainer;
+      let node: Node | null = range.commonAncestorContainer;
       while (node && node.nodeType !== Node.ELEMENT_NODE) {
         node = node.parentNode;
+        if (!node) break;
       }
       if (node) {
         linkElement = (node as Element).closest("a");
