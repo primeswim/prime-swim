@@ -48,10 +48,13 @@ export default function SwimmerEvaluationsPage() {
       console.log('Fetched evaluation data:', data)
       if (data.ok && data.evaluations) {
         console.log('Evaluations found:', data.evaluations.length)
-        const evals = data.evaluations.map((e: Evaluation & { evaluatedAt?: { toDate?: () => Date } | Date | string | null; createdAt?: { toDate?: () => Date } | Date | string | null }) => {
-          // First, parse createdAt as fallback
+        const evals = data.evaluations.map((e: Evaluation & { evaluatedAt?: number | { toDate?: () => Date } | Date | string | null; createdAt?: number | { toDate?: () => Date } | Date | string | null }) => {
+          // Parse createdAt (could be milliseconds from API or Timestamp object)
           let createdAt: Date
-          if (e.createdAt && typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
+          if (typeof e.createdAt === 'number') {
+            // API returns milliseconds
+            createdAt = new Date(e.createdAt)
+          } else if (e.createdAt && typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
             createdAt = e.createdAt.toDate()
           } else if (e.createdAt instanceof Date) {
             createdAt = e.createdAt
@@ -61,33 +64,34 @@ export default function SwimmerEvaluationsPage() {
             createdAt = new Date()
           }
           
-          // Use evaluatedAt if valid, otherwise use createdAt
-          let evaluatedAt: Date
-          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
-            const parsed = e.evaluatedAt.toDate()
-            if (!isNaN(parsed.getTime())) {
-              evaluatedAt = parsed
-            } else {
-              evaluatedAt = createdAt
-            }
-          } else if (e.evaluatedAt instanceof Date && !isNaN(e.evaluatedAt.getTime())) {
-            evaluatedAt = e.evaluatedAt
-          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
-            const parsed = new Date(e.evaluatedAt)
-            if (!isNaN(parsed.getTime())) {
-              evaluatedAt = parsed
-            } else {
-              evaluatedAt = createdAt
-            }
-          } else {
-            // If evaluatedAt is missing or invalid, use createdAt
-            evaluatedAt = createdAt
-          }
           if (isNaN(createdAt.getTime())) {
             createdAt = new Date()
           }
           
-          console.log('Evaluation', e.id, 'evaluatedAt:', evaluatedAt.toISOString(), 'createdAt:', createdAt.toISOString())
+          // Parse evaluatedAt (could be milliseconds from API or Timestamp object)
+          // Use evaluatedAt if valid, otherwise use createdAt
+          let evaluatedAt: Date
+          if (typeof e.evaluatedAt === 'number') {
+            // API returns milliseconds
+            evaluatedAt = new Date(e.evaluatedAt)
+          } else if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
+            const parsed = e.evaluatedAt.toDate()
+            evaluatedAt = !isNaN(parsed.getTime()) ? parsed : createdAt
+          } else if (e.evaluatedAt instanceof Date && !isNaN(e.evaluatedAt.getTime())) {
+            evaluatedAt = e.evaluatedAt
+          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
+            const parsed = new Date(e.evaluatedAt)
+            evaluatedAt = !isNaN(parsed.getTime()) ? parsed : createdAt
+          } else {
+            // If evaluatedAt is missing or invalid, use createdAt
+            evaluatedAt = createdAt
+          }
+          
+          if (isNaN(evaluatedAt.getTime())) {
+            evaluatedAt = createdAt
+          }
+          
+          console.log('Evaluation', e.id, 'evaluatedAt (raw):', e.evaluatedAt, 'parsed:', evaluatedAt.toISOString(), 'createdAt:', createdAt.toISOString())
           
           return {
             ...e,

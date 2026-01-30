@@ -4,6 +4,28 @@ import { adminDb } from "@/lib/firebaseAdmin"
 import { Evaluation } from "@/types/evaluation"
 import { FieldValue, Timestamp } from "firebase-admin/firestore"
 
+// Helper function to convert Firestore Timestamp to milliseconds
+function timestampToMillis(ts: unknown): number | null {
+  if (!ts) return null;
+  if (ts instanceof Timestamp) {
+    return ts.toMillis();
+  }
+  if (typeof ts === 'object' && ts !== null) {
+    // Firestore Timestamp object
+    if ('toMillis' in ts && typeof (ts as { toMillis: () => number }).toMillis === 'function') {
+      return (ts as { toMillis: () => number }).toMillis();
+    }
+    if ('toDate' in ts && typeof (ts as { toDate: () => Date }).toDate === 'function') {
+      return (ts as { toDate: () => Date }).toDate().getTime();
+    }
+    // Serialized format: {_seconds, _nanoseconds}
+    if ('_seconds' in ts && typeof (ts as { _seconds: number })._seconds === 'number') {
+      return (ts as { _seconds: number })._seconds * 1000;
+    }
+  }
+  return null;
+}
+
 export const runtime = "nodejs"
 
 // 检查是否为 admin
@@ -54,21 +76,26 @@ export async function GET(req: Request) {
           snap = await q.get()
         }
         
-        const evaluations = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Array<{ id: string; evaluatedAt?: { toDate?: () => Date } | Date | string | null; [key: string]: unknown }>
+        const evaluations = snap.docs.map((d) => {
+          const data = d.data();
+          // Convert Firestore Timestamps to milliseconds for JSON serialization
+          const evaluatedAtMillis = timestampToMillis(data.evaluatedAt);
+          const createdAtMillis = timestampToMillis(data.createdAt);
+          
+          return {
+            id: d.id,
+            ...data,
+            evaluatedAt: evaluatedAtMillis || createdAtMillis, // Use createdAt as fallback
+            createdAt: createdAtMillis,
+          };
+        }) as Array<{ id: string; evaluatedAt?: number | null; createdAt?: number | null; [key: string]: unknown }>
         
         // 如果没有使用 orderBy，在内存中排序（升序，最早的在前）
-        if (evaluations.length > 0 && evaluations[0].evaluatedAt) {
+        if (evaluations.length > 0) {
           evaluations.sort((a, b) => {
-            const aDate = a.evaluatedAt && typeof a.evaluatedAt === 'object' && 'toDate' in a.evaluatedAt && typeof a.evaluatedAt.toDate === 'function'
-              ? a.evaluatedAt.toDate().getTime()
-              : new Date(a.evaluatedAt as string | number | Date || 0).getTime()
-            const bDate = b.evaluatedAt && typeof b.evaluatedAt === 'object' && 'toDate' in b.evaluatedAt && typeof b.evaluatedAt.toDate === 'function'
-              ? b.evaluatedAt.toDate().getTime()
-              : new Date(b.evaluatedAt as string | number | Date || 0).getTime()
-            return aDate - bDate // 升序（最早的在前）
+            const aDate = (a.evaluatedAt as number) || (a.createdAt as number) || 0;
+            const bDate = (b.evaluatedAt as number) || (b.createdAt as number) || 0;
+            return aDate - bDate; // 升序（最早的在前）
           })
         }
         
@@ -91,11 +118,38 @@ export async function GET(req: Request) {
     }
 
     const evaluationsRef = adminDb.collection("evaluations")
-    const snap = await evaluationsRef.orderBy("evaluatedAt", "desc").limit(100).get()
-    const evaluations = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }))
+    let snap
+    try {
+      const q = evaluationsRef.orderBy("evaluatedAt", "desc").limit(100)
+      snap = await q.get()
+    } catch (orderByError) {
+      // If orderBy fails, get all and sort in memory
+      console.warn("orderBy failed, using memory sort:", orderByError)
+      snap = await evaluationsRef.limit(100).get()
+    }
+    
+    const evaluations = snap.docs.map((d) => {
+      const data = d.data();
+      // Convert Firestore Timestamps to milliseconds for JSON serialization
+      const evaluatedAtMillis = timestampToMillis(data.evaluatedAt);
+      const createdAtMillis = timestampToMillis(data.createdAt);
+      
+      return {
+        id: d.id,
+        ...data,
+        evaluatedAt: evaluatedAtMillis || createdAtMillis, // Use createdAt as fallback
+        createdAt: createdAtMillis,
+      };
+    }) as Array<{ id: string; evaluatedAt?: number | null; createdAt?: number | null; [key: string]: unknown }>
+    
+    // Sort in memory if orderBy failed
+    if (evaluations.length > 0) {
+      evaluations.sort((a, b) => {
+        const aDate = (a.evaluatedAt as number) || (a.createdAt as number) || 0;
+        const bDate = (b.evaluatedAt as number) || (b.createdAt as number) || 0;
+        return bDate - aDate; // Descending for admin view
+      })
+    }
 
     return NextResponse.json({ ok: true, evaluations })
   } catch (err: unknown) {
