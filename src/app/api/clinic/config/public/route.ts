@@ -44,7 +44,15 @@ function isClinicExpired(clinic: ClinicConfig): boolean {
     for (const slot of location.slots) {
       if (slot.date) {
         try {
-          const slotDate = new Date(slot.date);
+          // Parse date string as local date to avoid timezone offset
+          let slotDate: Date;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(slot.date)) {
+            // YYYY-MM-DD format - parse as local date
+            const [year, month, day] = slot.date.split('-').map(Number);
+            slotDate = new Date(year, month - 1, day);
+          } else {
+            slotDate = new Date(slot.date);
+          }
           slotDate.setHours(0, 0, 0, 0);
           
           if (!latestDate || slotDate > latestDate) {

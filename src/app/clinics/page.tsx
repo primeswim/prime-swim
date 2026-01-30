@@ -192,15 +192,26 @@ export default function ClinicsPage() {
                             <div key={slotIdx} className="flex items-center gap-2 text-slate-700">
                               <Clock className="w-4 h-4 text-slate-500" />
                               <span>{slot.label}</span>
-                              {slot.date && (
-                                <span className="text-sm text-slate-500">
-                                  ({new Date(slot.date).toLocaleDateString("en-US", {
-                                    weekday: "short",
-                                    month: "short",
-                                    day: "numeric",
-                                  })})
-                                </span>
-                              )}
+                              {slot.date && (() => {
+                                // Parse date string as local date to avoid timezone offset
+                                let dateObj: Date;
+                                if (/^\d{4}-\d{2}-\d{2}$/.test(slot.date)) {
+                                  // YYYY-MM-DD format - parse as local date
+                                  const [year, month, day] = slot.date.split('-').map(Number);
+                                  dateObj = new Date(year, month - 1, day);
+                                } else {
+                                  dateObj = new Date(slot.date);
+                                }
+                                return (
+                                  <span className="text-sm text-slate-500">
+                                    ({dateObj.toLocaleDateString("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                    })})
+                                  </span>
+                                );
+                              })()}
                             </div>
                           ))}
                         </div>
