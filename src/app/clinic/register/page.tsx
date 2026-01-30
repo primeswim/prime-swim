@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,17 +23,18 @@ const CLINIC_LEVELS = [
   "College/University",
 ] as const;
 
-interface StrokeTime {
-  stroke: string;
-  distance: string;
-  time: string; // Format: MM:SS.mm or SS.mm
-}
-
-export default function ClinicRegisterPage() {
+function ClinicRegisterPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [clinicId, setClinicId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = searchParams.get("id");
+    setClinicId(id);
+  }, [searchParams]);
 
   // Basic Information
   const [childFirstName, setChildFirstName] = useState("");
@@ -52,38 +53,11 @@ export default function ClinicRegisterPage() {
   const [hasReferral, setHasReferral] = useState(false);
   const [referralSource, setReferralSource] = useState("");
 
-  // Stroke Times
-  const [strokeTimes, setStrokeTimes] = useState<StrokeTime[]>([
-    { stroke: "Freestyle", distance: "50y", time: "" },
-    { stroke: "Backstroke", distance: "50y", time: "" },
-    { stroke: "Breaststroke", distance: "50y", time: "" },
-    { stroke: "Butterfly", distance: "50y", time: "" },
-    { stroke: "Individual Medley", distance: "100 IM", time: "" },
-  ]);
-
   // Additional Information
   const [hasCompetitionExperience, setHasCompetitionExperience] = useState(false);
   const [competitionDetails, setCompetitionDetails] = useState("");
   const [goals, setGoals] = useState("");
   const [specialNeeds, setSpecialNeeds] = useState("");
-
-  const updateStrokeTime = (index: number, field: "stroke" | "distance" | "time", value: string) => {
-    const updated = [...strokeTimes];
-    updated[index] = { ...updated[index], [field]: value };
-    setStrokeTimes(updated);
-  };
-
-  const validateTimeFormat = (time: string): boolean => {
-    if (!time.trim()) return true; // Empty is allowed
-    // Accept formats: MM:SS.mm, SS.mm, or SS:SS
-    const patterns = [
-      /^\d{1,2}:\d{2}\.\d{2}$/, // MM:SS.mm
-      /^\d{1,2}:\d{2}$/, // MM:SS
-      /^\d{1,2}\.\d{2}$/, // SS.mm
-      /^\d+\.\d+$/, // Any decimal
-    ];
-    return patterns.some((pattern) => pattern.test(time));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,14 +90,6 @@ export default function ClinicRegisterPage() {
       return;
     }
 
-    // Validate stroke times format
-    for (const st of strokeTimes) {
-      if (st.time && !validateTimeFormat(st.time)) {
-        setError(`Invalid time format for ${st.stroke} ${st.distance}. Please use format MM:SS.mm or SS.mm`);
-        return;
-      }
-    }
-
     try {
       setLoading(true);
 
@@ -145,9 +111,6 @@ export default function ClinicRegisterPage() {
         hasReferral,
         referralSource: hasReferral ? referralSource.trim() : "",
 
-        // Stroke Times (only include non-empty times)
-        strokeTimes: strokeTimes.filter((st) => st.time.trim() !== ""),
-
         // Additional Information
         hasCompetitionExperience,
         competitionDetails: competitionDetails.trim(),
@@ -155,6 +118,7 @@ export default function ClinicRegisterPage() {
         specialNeeds: specialNeeds.trim(),
 
         submittedAt: new Date().toISOString(),
+        clinicId: clinicId || undefined,
       };
 
       const response = await fetch("/api/clinic/register", {
@@ -402,39 +366,6 @@ export default function ClinicRegisterPage() {
             </CardContent>
           </Card>
 
-          {/* Stroke Times */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Stroke Times (Optional but Recommended)
-              </CardTitle>
-              <CardDescription>
-                Please provide your swimmer's best times for each stroke. Format: MM:SS.mm or SS.mm (e.g., 1:23.45 or 23.45)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {strokeTimes.map((st, index) => (
-                  <div key={`${st.stroke}-${st.distance}`} className="grid md:grid-cols-3 gap-4 items-end">
-                    <div>
-                      <Label>{st.stroke}</Label>
-                      <Input value={st.distance} disabled className="bg-slate-50" />
-                    </div>
-                    <div>
-                      <Label>Time (MM:SS.mm or SS.mm)</Label>
-                      <Input
-                        value={st.time}
-                        onChange={(e) => updateStrokeTime(index, "time", e.target.value)}
-                        placeholder="e.g., 1:23.45 or 23.45"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Additional Information */}
           <Card>
             <CardHeader>
@@ -516,6 +447,22 @@ export default function ClinicRegisterPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+export default function ClinicRegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 max-w-4xl mx-auto px-4 py-10 w-full">
+          <p className="text-center">Loading...</p>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <ClinicRegisterPageContent />
+    </Suspense>
   );
 }
 

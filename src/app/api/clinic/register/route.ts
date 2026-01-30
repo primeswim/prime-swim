@@ -64,12 +64,6 @@ const ORIGIN_ALLOWLIST = [
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-interface StrokeTime {
-  stroke: string;
-  distance: string;
-  time: string;
-}
-
 interface ClinicRegistrationPayload {
   // Basic Information
   childFirstName?: string;
@@ -88,15 +82,13 @@ interface ClinicRegistrationPayload {
   hasReferral?: boolean;
   referralSource?: string;
 
-  // Stroke Times
-  strokeTimes?: StrokeTime[];
-
   // Additional Information
   hasCompetitionExperience?: boolean;
   competitionDetails?: string;
   goals?: string;
   specialNeeds?: string;
 
+  clinicId?: string;
   submittedAt?: string;
 }
 
@@ -185,19 +177,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Referral source required when hasReferral is true" }, { status: 400 });
     }
 
-    // Validate and clean stroke times
-    const strokeTimes: StrokeTime[] = [];
-    if (Array.isArray(payload.strokeTimes)) {
-      for (const st of payload.strokeTimes) {
-        if (st.stroke && st.distance && st.time && st.time.trim()) {
-          strokeTimes.push({
-            stroke: norm(st.stroke, 50),
-            distance: norm(st.distance, 20),
-            time: norm(st.time, 20),
-          });
-        }
-      }
-    }
+    const clinicId = norm(payload.clinicId, 100);
 
     // 4) 保存到数据库
     const docId = generateId(parentEmail, childFirstName, childLastName);
@@ -219,9 +199,6 @@ export async function POST(request: Request) {
       hasReferral,
       referralSource,
 
-      // Stroke Times
-      strokeTimes,
-
       // Additional Information
       hasCompetitionExperience,
       competitionDetails,
@@ -229,6 +206,7 @@ export async function POST(request: Request) {
       specialNeeds,
 
       // Metadata
+      clinicId: clinicId || null,
       submittedAt: Timestamp.now(),
       status: "pending", // pending, reviewed, accepted, rejected
     };

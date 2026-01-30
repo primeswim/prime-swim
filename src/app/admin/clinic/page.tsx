@@ -465,15 +465,15 @@ export default function ClinicAdminPage() {
                         )}
                       </CardTitle>
                       <CardDescription>{config.season}</CardDescription>
-                      <div className="mt-3">
+                      <div className="mt-3 space-y-2">
                         <div className="text-sm text-slate-600 mb-1 flex items-center gap-1">
                           <LinkIcon className="w-4 h-4" />
-                          Poll Link:
+                          Registration Link:
                         </div>
                         <div className="flex items-center gap-2">
                           <Input
                             readOnly
-                            value={`https://primeswimacademy.com/survey/poll?id=${config.id}`}
+                            value={`https://primeswimacademy.com/clinic/register?id=${config.id}`}
                             className="text-xs font-mono bg-slate-50"
                             onClick={(e) => (e.target as HTMLInputElement).select()}
                           />
@@ -481,9 +481,9 @@ export default function ClinicAdminPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const url = `https://primeswimacademy.com/survey/poll?id=${config.id}`;
+                              const url = `https://primeswimacademy.com/clinic/register?id=${config.id}`;
                               navigator.clipboard.writeText(url);
-                              setStatus({ message: "Poll link copied to clipboard!", success: true });
+                              setStatus({ message: "Registration link copied to clipboard!", success: true });
                               setTimeout(() => setStatus(null), 3000);
                             }}
                           >
@@ -497,11 +497,11 @@ export default function ClinicAdminPage() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => router.push(`/survey/activity-result?season=${encodeURIComponent(config.season)}`)}
+                        onClick={() => router.push(`/admin/clinic/registrations${config.id ? `?clinicId=${encodeURIComponent(config.id)}` : ''}`)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         <Eye className="w-4 h-4 mr-2" />
-                        View Submissions
+                        View Registrations
                       </Button>
                       <Button
                         variant="outline"

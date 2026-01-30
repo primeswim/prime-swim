@@ -48,6 +48,25 @@ export async function GET(req: Request) {
       .where("parentUID", "==", decoded.uid)
       .get();
 
+    // Helper to convert Firestore Timestamp to ISO string or null
+    const toIsoOrNull = (ts: unknown): string | null => {
+      if (!ts) return null;
+      if (typeof ts === "object" && ts !== null) {
+        // Firestore Timestamp has toDate() method
+        if (typeof (ts as any).toDate === "function") {
+          const date = (ts as { toDate: () => Date }).toDate();
+          return date.toISOString();
+        }
+        // Firestore Timestamp in seconds/nanoseconds format
+        if (typeof (ts as any).seconds === "number") {
+          const t = ts as { seconds: number; nanoseconds?: number };
+          const date = new Date(t.seconds * 1000 + (t.nanoseconds || 0) / 1000000);
+          return date.toISOString();
+        }
+      }
+      return null;
+    };
+
     const swimmers: SwimmerOut[] = swimmersSnap.docs.map((d) => {
       const data = d.data() || {};
       return {
@@ -55,15 +74,15 @@ export async function GET(req: Request) {
         childFirstName: data.childFirstName,
         childLastName: data.childLastName,
         childDateOfBirth: data.childDateOfBirth,
-        createdAt: data.createdAt,
+        createdAt: toIsoOrNull(data.createdAt),
         paymentStatus: data.paymentStatus || null,
         level: data.level || undefined,
         nextMakeupText: data.nextMakeupText,
         nextMakeupId: data.nextMakeupId,
-        nextDueDate: data.nextDueDate,
-        currentPeriodStart: data.currentPeriodStart,
-        currentPeriodEnd: data.currentPeriodEnd,
-        registrationAnchorDate: data.registrationAnchorDate,
+        nextDueDate: toIsoOrNull(data.nextDueDate),
+        currentPeriodStart: toIsoOrNull(data.currentPeriodStart),
+        currentPeriodEnd: toIsoOrNull(data.currentPeriodEnd),
+        registrationAnchorDate: toIsoOrNull(data.registrationAnchorDate),
         isFrozen: !!data.isFrozen,
       };
     });

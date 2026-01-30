@@ -486,7 +486,11 @@ export default function DashboardPage() {
               const isPaymentPending = paymentStatus === 'pending'
               const hasPendingPayment = paymentStatus !== 'paid' && (isPaymentPending || hasPending)
               
-              const nextDue = tsToDate(swimmer.nextDueDate)
+              const nextDue = swimmer.nextDueDate 
+                ? (typeof swimmer.nextDueDate === "string" 
+                    ? parseIsoSafe(swimmer.nextDueDate) 
+                    : tsToDate(swimmer.nextDueDate))
+                : null
               const baseStatus = computeStatus({ nextDueDate: nextDue })
               
               // 判断是否是老 swimmer（有会员期）

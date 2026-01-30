@@ -105,6 +105,9 @@ export default function Header() {
               <DropdownMenuItem asChild>
                 <Link href="/private-lessons">Private Lessons</Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/clinics">Clinics</Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -168,6 +171,9 @@ export default function Header() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/admin/clinic/placement">Clinic Placement</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/clinic/registrations">Clinic Registrations</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -243,6 +249,7 @@ export default function Header() {
             <p className="font-semibold">Programs</p>
             <Link href="/#programs" className="block ml-4">Group Programs</Link>
             <Link href="/private-lessons" className="block ml-4">Private Lessons</Link>
+            <Link href="/clinics" className="block ml-4">Clinics</Link>
           </div>
 
           <Link href="/safesport" className="block">Safe Sport</Link>
@@ -265,6 +272,7 @@ export default function Header() {
               <Link href="/admin/activity/placement" className="block ml-6">Activity Placement</Link>
               <Link href="/admin/clinic" className="block ml-4">Clinic</Link>
               <Link href="/admin/clinic/placement" className="block ml-6">Clinic Placement</Link>
+              <Link href="/admin/clinic/registrations" className="block ml-6">Clinic Registrations</Link>
               <Link href="/admin/makeup" className="block ml-4">Makeup</Link>
               <Link href="/admin/makeup/attendees" className="block ml-6">Makeup Attendees</Link>
               <Link href="/admin/tryout-swimmers" className="block ml-4">Tryout Swimmers</Link>

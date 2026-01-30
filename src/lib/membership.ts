@@ -78,9 +78,38 @@ export function diffInDays(a: Date, b: Date) {
   return Math.round((A - B) / 86400000);
 }
 
-export function fmt(d?: Date | null) {
+export function fmt(d?: Date | null | { toDate?: () => Date } | { seconds?: number; nanoseconds?: number }) {
   if (!d) return "-";
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  
+  // Handle Firestore Timestamp (has toDate method)
+  if (typeof d === "object" && typeof (d as any).toDate === "function") {
+    const date = (d as { toDate: () => Date }).toDate();
+    return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+  
+  // Handle Firestore Timestamp (seconds/nanoseconds format)
+  if (typeof d === "object" && typeof (d as any).seconds === "number") {
+    const ts = d as { seconds: number; nanoseconds?: number };
+    const date = new Date(ts.seconds * 1000 + (ts.nanoseconds || 0) / 1000000);
+    return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+  
+  // Handle Date object
+  if (d instanceof Date) {
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+  
+  // Fallback: try to parse as string or convert
+  try {
+    const date = new Date(d as any);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    }
+  } catch {
+    // ignore
+  }
+  
+  return "-";
 }
 
 /** 
