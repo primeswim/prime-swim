@@ -21,34 +21,61 @@ function escapeHtml(s: string) {
 }
 
 function wrapWithTemplate(subject: string, htmlContent: string) {
-  // Keep this consistent with /api/sendemail so outbound emails look the same.
+  // Use the same header style as tuition email template with logo
+  const wechatQrUrl = "https://www.primeswimacademy.com/images/wechatlogo.JPG";
+  const contactEmail = "prime.swim.us@gmail.com";
+  
   const footer = `
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.6;">
-      <div>Prime Swim Academy</div>
-      <div style="margin-top:6px;">If you have any questions, please reply to this email.</div>
+    <div style="margin-top:30px;padding-top:20px;border-top:1px solid #e2e8f0;">
+      <div style="color:#475569;font-size:14px;line-height:1.8;">
+        <p style="margin:0 0 12px 0;font-weight:600;color:#1e293b;">Questions? We're here to help!</p>
+        <p style="margin:0 0 8px 0;">
+          📧 Email us at: <a href="mailto:${contactEmail}" style="color:#1e40af;text-decoration:none;font-weight:500;">${contactEmail}</a>
+        </p>
+        <p style="margin:0 0 16px 0;">
+          💬 Or scan our WeChat QR code:
+        </p>
+        <div style="text-align:center;margin:16px 0;">
+          <img src="${wechatQrUrl}" alt="WeChat QR Code" style="width:120px;height:120px;border:2px solid #e2e8f0;border-radius:8px;display:block;margin:0 auto;" />
+        </div>
+      </div>
     </div>
   `;
 
-  return `<!doctype html>
-<html>
+  return `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(subject)}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;line-height:1.6;color:#1e293b;background:linear-gradient(to bottom,#f8fafc 0%,#ffffff 100%)}
+    .container{max-width:600px;margin:0 auto;background:#fff;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);border-radius:12px;overflow:hidden}
+    .header{background:linear-gradient(135deg,#1e293b 0%,#334155 100%);padding:40px 30px;text-align:center;color:#fff}
+    .logo{width:80px;height:80px;background:rgba(255,255,255,.15);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:36px}
+    .content{padding:40px 30px}
+    .footer-section{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:35px 30px;text-align:center}
+    .footer-section p{margin:8px 0;opacity:.9}
+    .footer-section strong{font-size:18px;font-weight:700}
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
-  <div style="max-width:640px;margin:0 auto;padding:24px;">
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-      <div style="background:#0f172a;color:#ffffff;padding:18px 20px;">
-        <div style="font-size:16px;font-weight:700;">Prime Swim Academy</div>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <img src="https://www.primeswimacademy.com/_next/image?url=%2Fimages%2Fpsa-logo.png&w=128&q=75" alt="Prime Swim Academy Logo" style="width: 100%; height: 100%; border-radius: 50%;" />
       </div>
-      <div style="padding:22px 20px;color:#0f172a;">
-        ${htmlContent}
-        ${footer}
-      </div>
+      <h1 style="font-size:28px;font-weight:700;margin-bottom:8px;">Prime Swim Academy</h1>
+      <p style="font-size:16px;opacity:.9;font-weight:300;">Excellence in Aquatic Education</p>
     </div>
-    <div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:14px;">
-      © ${new Date().getFullYear()} Prime Swim Academy
+    <div class="content">
+      ${htmlContent}
+      ${footer}
+    </div>
+    <div class="footer-section">
+      <p><strong>Prime Swim Academy</strong></p>
+      <p style="font-size:12px;opacity:.7;">© ${new Date().getFullYear()} Prime Swim Academy. All rights reserved.</p>
     </div>
   </div>
 </body>

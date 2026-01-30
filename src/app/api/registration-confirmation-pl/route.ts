@@ -39,16 +39,35 @@ export async function POST(request: Request) {
           box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         }
         .header {
-          background: linear-gradient(135deg, #1e293b, #334155);
-          padding: 30px;
+          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+          padding: 40px 30px;
           text-align: center;
           color: white;
         }
-        .header img {
-          width: 60px;
-          height: 60px;
+        .logo {
+          width: 80px;
+          height: 80px;
+          background: rgba(255,255,255,.15);
           border-radius: 50%;
-          margin-bottom: 15px;
+          margin: 0 auto 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .logo img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+        }
+        .header h1 {
+          font-size: 28px;
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+        .header p {
+          font-size: 16px;
+          opacity: .9;
+          font-weight: 300;
         }
         .content {
           padding: 30px;
@@ -62,39 +81,82 @@ export async function POST(request: Request) {
           margin-bottom: 16px;
           line-height: 1.6;
         }
-        .footer {
-          background: #f1f5f9;
-          padding: 20px;
-          text-align: center;
-          font-size: 13px;
-          color: #64748b;
+        .contact-section {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #e2e8f0;
         }
-        .footer a {
-          color: #334155;
+        .contact-section p {
+          color: #475569;
+          font-size: 14px;
+          line-height: 1.8;
+        }
+        .contact-section a {
+          color: #1e40af;
           text-decoration: none;
           font-weight: 500;
+        }
+        .wechat-qr {
+          text-align: center;
+          margin: 16px 0;
+        }
+        .wechat-qr img {
+          width: 120px;
+          height: 120px;
+          border: 2px solid #e2e8f0;
+          border-radius: 8px;
+          display: block;
+          margin: 0 auto;
+        }
+        .footer {
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          color: white;
+          padding: 35px 30px;
+          text-align: center;
+        }
+        .footer p {
+          margin: 8px 0;
+          opacity: .9;
+        }
+        .footer strong {
+          font-size: 18px;
+          font-weight: 700;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <img src="https://www.primeswimacademy.com/_next/image?url=%2Fimages%2Fpsa-logo.png&w=128&q=75" alt="PSA Logo" />
+          <div class="logo">
+            <img src="https://www.primeswimacademy.com/_next/image?url=%2Fimages%2Fpsa-logo.png&w=128&q=75" alt="Prime Swim Academy Logo" />
+          </div>
           <h1>Prime Swim Academy</h1>
-          <p>Private Lesson Registration</p>
+          <p>Excellence in Aquatic Education</p>
         </div>
         <div class="content">
           <h2>Hi ${firstName},</h2>
           <p>🎉 Thanks for registering for private lessons with <strong>Prime Swim Academy</strong>!</p>
-          <p>We’re excited to help you grow stronger, safer, and more confident in the water.</p>
-          <p>✅ Your registration has been received. We’ll be in touch soon with scheduling details.</p>
-          <p>If you have any questions, feel free to reply to this email.</p>
+          <p>We're excited to help you grow stronger, safer, and more confident in the water.</p>
+          <p>✅ Your registration has been received. We'll be in touch soon with scheduling details.</p>
           <p>💧 See you at the pool!</p>
           <p style="margin-top: 30px;"><strong>- Prime Swim Academy Team</strong></p>
+          
+          <div class="contact-section">
+            <p style="margin:0 0 12px 0;font-weight:600;color:#1e293b;">Questions? We're here to help!</p>
+            <p style="margin:0 0 8px 0;">
+              📧 Email us at: <a href="mailto:prime.swim.us@gmail.com">prime.swim.us@gmail.com</a>
+            </p>
+            <p style="margin:0 0 16px 0;">
+              💬 Or scan our WeChat QR code:
+            </p>
+            <div class="wechat-qr">
+              <img src="https://www.primeswimacademy.com/images/wechatlogo.JPG" alt="WeChat QR Code" />
+            </div>
+          </div>
         </div>
         <div class="footer">
-          <p>Prime Swim Academy · Bellevue, WA</p>
-          <p><a href="https://www.primeswimacademy.com">Visit our website</a></p>
+          <p><strong>Prime Swim Academy</strong></p>
+          <p style="font-size:12px;opacity:.7;">© ${new Date().getFullYear()} Prime Swim Academy. All rights reserved.</p>
         </div>
       </div>
     </body>
