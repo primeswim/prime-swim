@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,7 +15,12 @@ import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const isAdmin = useIsAdminFromDB();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="container mx-auto px-4 py-6">
@@ -74,42 +79,51 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8 text-slate-600">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
-              About Us
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem asChild>
-                <Link href="/mission">Mission &amp; Vision</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/coaches">Our Coaches</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/school-policy">School Policy</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/#contact">Contact</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {mounted ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
+                  About Us
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem asChild>
+                    <Link href="/mission">Mission &amp; Vision</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/coaches">Our Coaches</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/school-policy">School Policy</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/#contact">Contact</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
-              Programs
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem asChild>
-                <Link href="/#programs">Group Programs</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/private-lessons">Private Lessons</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/clinics">Clinics</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
+                  Programs
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem asChild>
+                    <Link href="/#programs">Group Programs</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/private-lessons">Private Lessons</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/clinics">Clinics</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <>
+              <span className="hover:text-slate-800 transition-colors cursor-pointer">About Us</span>
+              <span className="hover:text-slate-800 transition-colors cursor-pointer">Programs</span>
+            </>
+          )}
 
           <Link href="/safesport" className="hover:text-slate-800 transition-colors">
             Safe Sport
@@ -124,93 +138,100 @@ export default function Header() {
             Dashboard
           </Link>
           {isAdmin === true && (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
-                Admin
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="max-h-[600px] overflow-y-auto">
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/swimmers">Swimmers</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/slots">Slots</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/events">Events</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/events/new">New Event</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/evaluations">Evaluations</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/evaluations/new">New Evaluation</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/evaluations/templates">Templates</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/attendance">Attendance</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/attendance/report">Attendance Report</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/activity">Activity</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/activity/placement">Activity Placement</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/clinic">Clinic</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/clinic/placement">Clinic Placement</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/clinic/registrations">Clinic Registrations</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/makeup">Makeup</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/makeup/attendees">Makeup Attendees</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/tryout-swimmers">Tryout Swimmers</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/private-lesson-swimmers">Private Lesson Swimmers</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/tuition">Tuition</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/sendemail">Send Email</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/test-reminder">Test Reminder</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/bulk-insert">Bulk Insert</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/news/add">Add News</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin/news">Edit News</Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            mounted ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
+                  Admin
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="max-h-[600px] overflow-y-auto">
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/swimmers">Swimmers</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/slots">Slots</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/events">Events</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/events/new">New Event</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/evaluations">Evaluations</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/evaluations/new">New Evaluation</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/evaluations/templates">Templates</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/attendance">Attendance</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/attendance/report">Attendance Report</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/activity">Activity</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/activity/placement">Activity Placement</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/clinic">Clinic</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/clinic/placement">Clinic Placement</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/clinic/registrations">Clinic Registrations</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/makeup">Makeup</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/makeup/attendees">Makeup Attendees</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/tryout-swimmers">Tryout Swimmers</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/private-lesson-swimmers">Private Lesson Swimmers</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/tuition">Tuition</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/sendemail">Send Email</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/test-reminder">Test Reminder</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/bulk-insert">Bulk Insert</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/news/add">Add News</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/news">Edit News</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/testimonials">Parent Testimonials</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <span className="hover:text-slate-800 transition-colors cursor-pointer">Admin</span>
+            )
           )}
         </div>
 
@@ -290,6 +311,7 @@ export default function Header() {
               <Link href="/admin/bulk-insert" className="block ml-4">Bulk Insert</Link>
               <Link href="/news/add" className="block ml-4">Add News</Link>
               <Link href="/admin/news" className="block ml-4">Edit News</Link>
+              <Link href="/admin/testimonials" className="block ml-4">Parent Testimonials</Link>
             </div>
           )}
         </div>

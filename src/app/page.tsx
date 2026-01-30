@@ -6,6 +6,7 @@ import { Calendar, Clock, Trophy, Waves } from "lucide-react"
 import Header from "@/components/header";
 import LatestNewsSection from "@/components/latest-news-section"
 import UpcomingEventsSection from "@/components/upcoming-events-section"
+import ParentTestimonialsSection from "@/components/parent-testimonials-section"
 import Footer from "@/components/footer";
 
 export default function Home() {
@@ -226,6 +227,8 @@ export default function Home() {
       </section>
 
       <UpcomingEventsSection />
+
+      <ParentTestimonialsSection />
 
       <LatestNewsSection />
       
