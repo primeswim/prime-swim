@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getAuth } from "firebase-admin/auth"
 import { adminDb } from "@/lib/firebaseAdmin"
 import { Evaluation } from "@/types/evaluation"
-import { FieldValue } from "firebase-admin/firestore"
+import { FieldValue, Timestamp } from "firebase-admin/firestore"
 
 export const runtime = "nodejs"
 
@@ -42,10 +42,10 @@ export async function GET(req: Request) {
     if (swimmerId) {
       try {
         const evaluationsRef = adminDb.collection("evaluations")
-        // 先尝试带 orderBy 的查询
+        // 先尝试带 orderBy 的查询（升序，最早的在前）
         let snap
         try {
-          const q = evaluationsRef.where("swimmerId", "==", swimmerId).orderBy("evaluatedAt", "desc")
+          const q = evaluationsRef.where("swimmerId", "==", swimmerId).orderBy("evaluatedAt", "asc")
           snap = await q.get()
         } catch (orderByError) {
           // 如果 orderBy 失败（可能缺少索引），则只使用 where
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
           ...d.data(),
         })) as Array<{ id: string; evaluatedAt?: { toDate?: () => Date } | Date | string | null; [key: string]: unknown }>
         
-        // 如果没有使用 orderBy，在内存中排序
+        // 如果没有使用 orderBy，在内存中排序（升序，最早的在前）
         if (evaluations.length > 0 && evaluations[0].evaluatedAt) {
           evaluations.sort((a, b) => {
             const aDate = a.evaluatedAt && typeof a.evaluatedAt === 'object' && 'toDate' in a.evaluatedAt && typeof a.evaluatedAt.toDate === 'function'
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
             const bDate = b.evaluatedAt && typeof b.evaluatedAt === 'object' && 'toDate' in b.evaluatedAt && typeof b.evaluatedAt.toDate === 'function'
               ? b.evaluatedAt.toDate().getTime()
               : new Date(b.evaluatedAt as string | number | Date || 0).getTime()
-            return bDate - aDate // 降序
+            return aDate - bDate // 升序（最早的在前）
           })
         }
         
@@ -125,11 +125,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 })
     }
 
+    // 使用前端传来的 evaluatedAt，如果没有则使用服务器时间
+    let evaluatedAt: Timestamp | Date | ReturnType<typeof FieldValue.serverTimestamp>
+    if (data.evaluatedAt) {
+      // 如果前端传了日期，使用前端的日期
+      if (data.evaluatedAt instanceof Date) {
+        evaluatedAt = Timestamp.fromDate(data.evaluatedAt)
+      } else if (typeof data.evaluatedAt === 'string') {
+        evaluatedAt = Timestamp.fromDate(new Date(data.evaluatedAt))
+      } else {
+        evaluatedAt = data.evaluatedAt as Timestamp
+      }
+    } else {
+      // 如果没有传日期，使用服务器时间
+      evaluatedAt = FieldValue.serverTimestamp()
+    }
+
     const evaluationData = {
       ...data,
       // 使用前端传来的 evaluatedBy（教练名字），如果没有则使用邮箱
       evaluatedBy: data.evaluatedBy || decoded.email || decoded.uid,
-      evaluatedAt: FieldValue.serverTimestamp(),
+      evaluatedAt,
       createdAt: FieldValue.serverTimestamp(),
     }
 
