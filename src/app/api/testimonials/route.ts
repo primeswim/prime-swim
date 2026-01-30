@@ -41,12 +41,16 @@ export async function GET(req: Request) {
       const snap = await adminDb.collection("parentTestimonials").get();
 
       const testimonials = snap.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toMillis?.() || null,
-          updatedAt: doc.data().updatedAt?.toMillis?.() || null,
-        }))
+        .map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            order: (data.order as number | undefined) ?? 999999,
+            createdAt: data.createdAt?.toMillis?.() || null,
+            updatedAt: data.updatedAt?.toMillis?.() || null,
+          };
+        })
         .sort((a, b) => {
           // Sort by order first, then by createdAt
           const orderA = a.order ?? 999999;
@@ -70,14 +74,17 @@ export async function GET(req: Request) {
       .get();
 
     const testimonials = snap.docs
-      .map((doc) => ({
-        id: doc.id,
-        content: doc.data().content,
-        parentName: doc.data().parentName || "",
-        swimmerName: doc.data().swimmerName || "",
-        createdAt: doc.data().createdAt?.toMillis?.() || null,
-        order: doc.data().order ?? 999999,
-      }))
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          content: data.content as string,
+          parentName: (data.parentName as string | undefined) || "",
+          swimmerName: (data.swimmerName as string | undefined) || "",
+          createdAt: data.createdAt?.toMillis?.() || null,
+          order: (data.order as number | undefined) ?? 999999,
+        };
+      })
       .sort((a, b) => {
         // Sort by order first, then by createdAt
         if (a.order !== b.order) {
