@@ -45,41 +45,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Not authorized" }, { status: 403 });
     }
 
-    // 获取所有 evaluations，按 createdAt 排序（最新的在前）
-    const snap = await adminDb
-      .collection("evaluations")
-      .orderBy("createdAt", "desc")
-      .get();
+    // 获取所有 evaluations
+    const snap = await adminDb.collection("evaluations").get();
 
     if (snap.empty) {
       return NextResponse.json({ ok: true, message: "No evaluations found" });
     }
 
     const evaluations = snap.docs;
+    let fixedCount = 0;
     
-    // 修复最新的 evaluation 日期为 1/27/2026
-    if (evaluations.length > 0) {
-      const latest = evaluations[0];
-      const latestDate = Timestamp.fromDate(new Date("2026-01-27"));
-      await latest.ref.update({ evaluatedAt: latestDate });
-      console.log(`Fixed latest evaluation ${latest.id} to 2026-01-27`);
-    }
-
-    // 修复上一次的 evaluation 日期为 11/25/2026
-    if (evaluations.length > 1) {
-      const previous = evaluations[1];
-      const previousDate = Timestamp.fromDate(new Date("2026-11-25"));
-      await previous.ref.update({ evaluatedAt: previousDate });
-      console.log(`Fixed previous evaluation ${previous.id} to 2026-11-25`);
+    // 将所有 evaluation 的 evaluatedAt 设置为 createdAt
+    for (const doc of evaluations) {
+      const data = doc.data();
+      const createdAt = data.createdAt;
+      
+      // 如果 createdAt 存在，将其设置为 evaluatedAt
+      if (createdAt) {
+        await doc.ref.update({ evaluatedAt: createdAt });
+        fixedCount++;
+        console.log(`Fixed evaluation ${doc.id}: set evaluatedAt to createdAt`);
+      }
     }
 
     return NextResponse.json({
       ok: true,
-      message: `Fixed ${Math.min(evaluations.length, 2)} evaluation(s)`,
-      fixed: {
-        latest: evaluations.length > 0 ? evaluations[0].id : null,
-        previous: evaluations.length > 1 ? evaluations[1].id : null,
-      },
+      message: `Fixed ${fixedCount} evaluation(s) by setting evaluatedAt to createdAt`,
+      fixedCount,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

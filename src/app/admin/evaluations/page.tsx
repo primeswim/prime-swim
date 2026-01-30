@@ -71,17 +71,7 @@ export default function EvaluationsPage() {
       if (data.ok) {
         // 转换 Firestore Timestamp
         const evals = data.evaluations.map((e: Evaluation & { evaluatedAt?: { toDate?: () => Date } | Date | string | null; createdAt?: { toDate?: () => Date } | Date | string | null }) => {
-          let evaluatedAt: Date
-          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
-            evaluatedAt = e.evaluatedAt.toDate()
-          } else if (e.evaluatedAt instanceof Date) {
-            evaluatedAt = e.evaluatedAt
-          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
-            evaluatedAt = new Date(e.evaluatedAt)
-          } else {
-            evaluatedAt = new Date() // 默认使用今天
-          }
-          
+          // First parse createdAt
           let createdAt: Date
           if (e.createdAt && typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
             createdAt = e.createdAt.toDate()
@@ -93,9 +83,22 @@ export default function EvaluationsPage() {
             createdAt = new Date() // 默认使用今天
           }
           
-          // 如果日期无效，使用今天
-          if (isNaN(evaluatedAt.getTime())) evaluatedAt = new Date()
           if (isNaN(createdAt.getTime())) createdAt = new Date()
+          
+          // Use evaluatedAt if valid, otherwise use createdAt
+          let evaluatedAt: Date
+          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
+            const parsed = e.evaluatedAt.toDate()
+            evaluatedAt = !isNaN(parsed.getTime()) ? parsed : createdAt
+          } else if (e.evaluatedAt instanceof Date && !isNaN(e.evaluatedAt.getTime())) {
+            evaluatedAt = e.evaluatedAt
+          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
+            const parsed = new Date(e.evaluatedAt)
+            evaluatedAt = !isNaN(parsed.getTime()) ? parsed : createdAt
+          } else {
+            // If evaluatedAt is missing or invalid, use createdAt
+            evaluatedAt = createdAt
+          }
           
           return {
             ...e,
@@ -163,7 +166,7 @@ export default function EvaluationsPage() {
   }
 
   const handleFixDates = async () => {
-    if (!confirm('This will fix the dates for the latest 2 evaluations:\n- Latest: 1/27/2026\n- Previous: 11/25/2026\n\nContinue?')) {
+    if (!confirm('This will set all evaluation dates (evaluatedAt) to match their creation dates (createdAt).\n\nContinue?')) {
       return
     }
 

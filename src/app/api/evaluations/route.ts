@@ -125,28 +125,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 })
     }
 
-    // 使用前端传来的 evaluatedAt，如果没有则使用服务器时间
-    let evaluatedAt: Timestamp | Date | ReturnType<typeof FieldValue.serverTimestamp>
-    if (data.evaluatedAt) {
-      // 如果前端传了日期，使用前端的日期
-      if (data.evaluatedAt instanceof Date) {
-        evaluatedAt = Timestamp.fromDate(data.evaluatedAt)
-      } else if (typeof data.evaluatedAt === 'string') {
-        evaluatedAt = Timestamp.fromDate(new Date(data.evaluatedAt))
-      } else {
-        evaluatedAt = data.evaluatedAt as Timestamp
-      }
-    } else {
-      // 如果没有传日期，使用服务器时间
-      evaluatedAt = FieldValue.serverTimestamp()
-    }
-
+    // 直接使用 createdAt 作为 evaluatedAt（不覆盖）
+    const createdAt = FieldValue.serverTimestamp()
+    
     const evaluationData = {
       ...data,
       // 使用前端传来的 evaluatedBy（教练名字），如果没有则使用邮箱
       evaluatedBy: data.evaluatedBy || decoded.email || decoded.uid,
-      evaluatedAt,
-      createdAt: FieldValue.serverTimestamp(),
+      // evaluatedAt 直接使用 createdAt（在读取时会自动使用 createdAt 作为后备）
+      evaluatedAt: createdAt,
+      createdAt,
     }
 
     const docRef = await adminDb.collection("evaluations").add(evaluationData)

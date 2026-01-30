@@ -61,22 +61,26 @@ export default function SwimmerEvaluationsPage() {
             createdAt = new Date()
           }
           
-          // Parse evaluatedAt, fallback to createdAt if invalid
+          // Use evaluatedAt if valid, otherwise use createdAt
           let evaluatedAt: Date
           if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
-            evaluatedAt = e.evaluatedAt.toDate()
-          } else if (e.evaluatedAt instanceof Date) {
+            const parsed = e.evaluatedAt.toDate()
+            if (!isNaN(parsed.getTime())) {
+              evaluatedAt = parsed
+            } else {
+              evaluatedAt = createdAt
+            }
+          } else if (e.evaluatedAt instanceof Date && !isNaN(e.evaluatedAt.getTime())) {
             evaluatedAt = e.evaluatedAt
           } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
-            evaluatedAt = new Date(e.evaluatedAt)
+            const parsed = new Date(e.evaluatedAt)
+            if (!isNaN(parsed.getTime())) {
+              evaluatedAt = parsed
+            } else {
+              evaluatedAt = createdAt
+            }
           } else {
-            // If evaluatedAt is missing, use createdAt as fallback
-            evaluatedAt = createdAt
-          }
-          
-          // If evaluatedAt is invalid, use createdAt as fallback
-          if (isNaN(evaluatedAt.getTime())) {
-            console.warn('Invalid evaluatedAt for evaluation', e.id, 'using createdAt as fallback')
+            // If evaluatedAt is missing or invalid, use createdAt
             evaluatedAt = createdAt
           }
           if (isNaN(createdAt.getTime())) {
