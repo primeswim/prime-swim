@@ -597,7 +597,7 @@ export default function PrivateLessonsPage() {
                           Cancellations made after the respective deadline will result in forfeiture of the session without refund or makeup, <strong>except in cases of medical emergencies with valid documentation</strong>. In such cases, I understand that I will still be responsible for <strong>covering the lane rental fee</strong> incurred by Prime Swim Academy for the scheduled session.
                         </p>
                         <p>
-                          <strong>7. PHOTOGRAPHY/VIDEO:</strong> I understand that photos or videos may occasionally be taken during lessons for training or promotional use by Prime Swim Academy. I acknowledge that I have the option to <strong>opt out</strong> by informing the school in writing if I do not wish for my or my child’s image to be used.
+                          <strong>7. PHOTOGRAPHY/VIDEO:</strong> I understand that photos or videos may occasionally be taken during lessons for training or promotional use by Prime Swim Academy. I acknowledge that I have the option to <strong>opt out</strong> by informing the team in writing if I do not wish for my or my child's image to be used.
                         </p>
                       </div>
                     </div>

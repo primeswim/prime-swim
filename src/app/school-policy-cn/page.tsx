@@ -189,7 +189,7 @@ export default function SchoolPoliciesPage() {
             <FileText className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-6">
-            学校政策 School Policies
+            学校政策 Team Policies
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-8">
             请查阅以下政策，确保每位学员在 Prime Swim Academy 拥有安全且愉快的学习体验。

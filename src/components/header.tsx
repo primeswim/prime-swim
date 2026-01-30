@@ -93,7 +93,7 @@ export default function Header() {
                     <Link href="/coaches">Our Coaches</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/school-policy">School Policy</Link>
+                    <Link href="/school-policy">Team Policy</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/#contact">Contact</Link>
@@ -269,7 +269,7 @@ export default function Header() {
             <p className="font-semibold">About Us</p>
             <Link href="/mission" className="block ml-4">Mission &amp; Vision</Link>
             <Link href="/coaches" className="block ml-4">Our Coaches</Link>
-            <Link href="/school-policy" className="block ml-4">School Policy</Link>
+            <Link href="/school-policy" className="block ml-4">Team Policy</Link>
             <Link href="/#contact" className="block ml-4">Contact</Link>
           </div>
 

@@ -11,7 +11,7 @@ const QR_IMG: string =
   process.env.NEXT_PUBLIC_QR_IMAGE_URL ||
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
 
-// School policy URL (fixed)
+// Team policy URL (fixed)
 const POLICY_URL: string = "https://www.primeswimacademy.com/school-policy";
 
 type Payload = {
@@ -214,7 +214,7 @@ async function renderEmailHTML(data: Payload) {
           <li><strong>Private lessons:</strong> cancel at least <strong>7 days</strong> in advance (Mary Wayte requires <strong>14 days</strong>). Late cancellations forfeit the session; documented medical emergencies may still incur the lane rental fee.</li>
         </ul>
         <p style="margin-top:12px;">
-          Full details: <a href="${POLICY_URL}" target="_blank" rel="noopener noreferrer">Prime Swim Academy School Policy</a>.
+          Full details: <a href="${POLICY_URL}" target="_blank" rel="noopener noreferrer">Prime Swim Academy Team Policy</a>.
         </p>
       </div>
       <!-- END Policy Highlights -->

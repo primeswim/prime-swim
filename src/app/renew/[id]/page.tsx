@@ -698,7 +698,7 @@ export default function RenewPage() {
                       </p>
                       <p className="mt-2 text-blue-600">
                         <Link href="/school-policy" target="_blank" className="underline hover:text-blue-800">
-                          📄 View detailed School Policies here
+                          📄 View detailed Team Policies here
                         </Link>
                       </p>
                     </div>
@@ -709,7 +709,7 @@ export default function RenewPage() {
                         onCheckedChange={(checked) => updateField("liabilityWaiver", checked as boolean)}
                       />
                       <Label htmlFor="liabilityWaiver" className="text-sm">
-                        I have read and agree to the Liability Waiver and <Link href="/school-policy" target="_blank" className="underline text-blue-600 hover:text-blue-800">School Policies</Link> *
+                        I have read and agree to the Liability Waiver and <Link href="/school-policy" target="_blank" className="underline text-blue-600 hover:text-blue-800">Team Policies</Link> *
                       </Label>
                     </div>
                   </div>
