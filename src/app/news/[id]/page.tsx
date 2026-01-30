@@ -1,16 +1,16 @@
 // app/news/[id]/page.tsx
+"use client";
 
-import { notFound } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { db } from "@/lib/firebase"
-import { doc, getDoc, collection, getDocs } from "firebase/firestore"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Header from "@/components/header"
-import { ArrowLeft, Calendar, User, Share2, Clock } from "lucide-react"
-
-export const dynamic = "force-dynamic" // 每次都从 Firestore 拉数据
+import { ArrowLeft, Calendar, User, Share2, Clock, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 interface NewsItem {
   id: string
@@ -23,26 +23,77 @@ interface NewsItem {
   publishDate?: string
 }
 
-export default async function NewsDetailPage(props: unknown) {
-  const { id } = (props as { params: { id: string } }).params
-  
+export default function NewsDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const id = params.id as string
+  const [news, setNews] = useState<NewsItem | null>(null)
+  const [relatedNews, setRelatedNews] = useState<NewsItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // 获取单篇新闻
-  const docRef = doc(db, "news", id)
-  const docSnap = await getDoc(docRef)
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch(`/api/news/${id}`)
+        
+        if (!res.ok) {
+          if (res.status === 404) {
+            setError("News article not found")
+          } else {
+            setError("Failed to load news article")
+          }
+          setLoading(false)
+          return
+        }
 
-  if (!docSnap.exists()) {
-    notFound()
+        const data = await res.json()
+        setNews(data.news)
+        setRelatedNews(data.relatedNews || [])
+      } catch (err) {
+        console.error("Error fetching news:", err)
+        setError("Failed to load news article")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) {
+      fetchNews()
+    }
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+        <Header />
+        <div className="container mx-auto px-4 py-20 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    )
   }
 
-  const news = { id: docSnap.id, ...docSnap.data() } as NewsItem
-
-  // 获取其他相关新闻（除当前这篇）
-  const snapshot = await getDocs(collection(db, "news"))
-  const relatedNews = snapshot.docs
-    .filter((d) => d.id !== id)
-    .slice(0, 3)
-    .map((d) => ({ id: d.id, ...d.data() } as NewsItem))
+  if (error || !news) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+        <Header />
+        <div className="container mx-auto px-4 py-20">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error || "News article not found"}</AlertDescription>
+          </Alert>
+          <Link href="/news">
+            <Button variant="outline" className="mt-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to News
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -117,7 +168,7 @@ export default async function NewsDetailPage(props: unknown) {
 
               <div className="prose prose-lg prose-slate max-w-none">
                 <div 
-                  className="text-slate-700 leading-relaxed text-lg"
+                  className="text-slate-700 leading-relaxed text-lg [&_a]:text-blue-600 [&_a]:underline [&_a]:hover:text-blue-700 [&_a]:cursor-pointer"
                   dangerouslySetInnerHTML={{ __html: news.content || "" }}
                 />
               </div>
@@ -156,8 +207,3 @@ export default async function NewsDetailPage(props: unknown) {
   )
 }
 
-// ✅ 告诉 Next.js 支持的动态路径（推荐）
-export async function generateStaticParams() {
-  const snapshot = await getDocs(collection(db, "news"))
-  return snapshot.docs.map((doc) => ({ id: doc.id }))
-}

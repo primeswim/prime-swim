@@ -206,6 +206,9 @@ export default function Header() {
                 <DropdownMenuItem asChild>
                   <Link href="/news/add">Add News</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/news">Edit News</Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -286,6 +289,7 @@ export default function Header() {
               <Link href="/admin/test-reminder" className="block ml-4">Test Reminder</Link>
               <Link href="/admin/bulk-insert" className="block ml-4">Bulk Insert</Link>
               <Link href="/news/add" className="block ml-4">Add News</Link>
+              <Link href="/admin/news" className="block ml-4">Edit News</Link>
             </div>
           )}
         </div>
