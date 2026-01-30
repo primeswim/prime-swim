@@ -49,17 +49,7 @@ export default function SwimmerEvaluationsPage() {
       if (data.ok && data.evaluations) {
         console.log('Evaluations found:', data.evaluations.length)
         const evals = data.evaluations.map((e: Evaluation & { evaluatedAt?: { toDate?: () => Date } | Date | string | null; createdAt?: { toDate?: () => Date } | Date | string | null }) => {
-          let evaluatedAt: Date
-          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
-            evaluatedAt = e.evaluatedAt.toDate()
-          } else if (e.evaluatedAt instanceof Date) {
-            evaluatedAt = e.evaluatedAt
-          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
-            evaluatedAt = new Date(e.evaluatedAt)
-          } else {
-            evaluatedAt = new Date()
-          }
-          
+          // First, parse createdAt as fallback
           let createdAt: Date
           if (e.createdAt && typeof e.createdAt === 'object' && 'toDate' in e.createdAt && typeof e.createdAt.toDate === 'function') {
             createdAt = e.createdAt.toDate()
@@ -71,8 +61,29 @@ export default function SwimmerEvaluationsPage() {
             createdAt = new Date()
           }
           
-          if (isNaN(evaluatedAt.getTime())) evaluatedAt = new Date()
-          if (isNaN(createdAt.getTime())) createdAt = new Date()
+          // Parse evaluatedAt, fallback to createdAt if invalid
+          let evaluatedAt: Date
+          if (e.evaluatedAt && typeof e.evaluatedAt === 'object' && 'toDate' in e.evaluatedAt && typeof e.evaluatedAt.toDate === 'function') {
+            evaluatedAt = e.evaluatedAt.toDate()
+          } else if (e.evaluatedAt instanceof Date) {
+            evaluatedAt = e.evaluatedAt
+          } else if (e.evaluatedAt && (typeof e.evaluatedAt === 'string' || typeof e.evaluatedAt === 'number')) {
+            evaluatedAt = new Date(e.evaluatedAt)
+          } else {
+            // If evaluatedAt is missing, use createdAt as fallback
+            evaluatedAt = createdAt
+          }
+          
+          // If evaluatedAt is invalid, use createdAt as fallback
+          if (isNaN(evaluatedAt.getTime())) {
+            console.warn('Invalid evaluatedAt for evaluation', e.id, 'using createdAt as fallback')
+            evaluatedAt = createdAt
+          }
+          if (isNaN(createdAt.getTime())) {
+            createdAt = new Date()
+          }
+          
+          console.log('Evaluation', e.id, 'evaluatedAt:', evaluatedAt.toISOString(), 'createdAt:', createdAt.toISOString())
           
           return {
             ...e,
