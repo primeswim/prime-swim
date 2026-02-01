@@ -319,16 +319,27 @@ function buildConfirmationEmail(params: {
   notes: string;
 }): string {
   const { swimmerName, parentName, locationName, startDate, endDate, notes } = params;
+  
+  // Use Pacific timezone (America/Los_Angeles) for all date/time formatting
+  // This ensures consistent display regardless of server timezone
+  const timeZone = "America/Los_Angeles";
+  
   const dateStr = startDate.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone,
   });
   const timeStr = `${startDate.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-  })} - ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    timeZone,
+  })} - ${endDate.toLocaleTimeString("en-US", { 
+    hour: "numeric", 
+    minute: "2-digit",
+    timeZone,
+  })}`;
 
   return `
     <!DOCTYPE html>
