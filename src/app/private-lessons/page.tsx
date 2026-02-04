@@ -5,7 +5,7 @@ import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import { db, auth } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2, Download } from "lucide-react";
 import Header from "@/components/header";
 import {
   Card,
@@ -82,6 +82,14 @@ export default function PrivateLessonCalendar() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [currentBooking, setCurrentBooking] = useState<{ id: string; swimmerId: string; swimmerName: string; notes?: string } | null>(null);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportRange, setExportRange] = useState<string>("30days");
+  const [exportStartDate, setExportStartDate] = useState<string>("");
+  const [exportEndDate, setExportEndDate] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [includeCancelled, setIncludeCancelled] = useState(false);
+  const [exportBySwimmer, setExportBySwimmer] = useState(false);
+  const [selectedSwimmerForExport, setSelectedSwimmerForExport] = useState<string>("");
 
   const isAdmin = useIsAdminFromDB();
 
@@ -590,6 +598,111 @@ export default function PrivateLessonCalendar() {
     }
   };
 
+  const handleExportCalendar = async () => {
+    setIsExporting(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      const idToken = await user.getIdToken();
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        range: exportRange,
+      });
+
+      if (exportBySwimmer && selectedSwimmerForExport) {
+        params.append("swimmerName", selectedSwimmerForExport);
+        // Also add date range if specified
+        if (exportRange === "custom" && exportStartDate && exportEndDate) {
+          params.append("startDate", exportStartDate);
+          params.append("endDate", exportEndDate);
+        } else if (exportRange !== "all") {
+          // For 30days or 90days, the range is already in params
+        }
+      } else if (exportRange === "custom" && exportStartDate && exportEndDate) {
+        params.append("startDate", exportStartDate);
+        params.append("endDate", exportEndDate);
+      }
+
+      if (includeCancelled) {
+        params.append("includeCancelled", "true");
+      }
+
+      // Fetch the iCal file
+      const response = await fetch(`/api/private-lessons/calendar/export?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to export calendar");
+      }
+
+      // Get the blob and create download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      
+      // Generate filename based on range or swimmer
+      let filename = `prime-swim-private-lessons-${exportRange}`;
+      if (exportBySwimmer && selectedSwimmerForExport) {
+        // Use swimmer name in filename
+        const safeName = selectedSwimmerForExport.replace(/[^a-zA-Z0-9]/g, "-");
+        filename = `prime-swim-pl-${safeName}`;
+      } else if (exportRange === "custom" && exportStartDate && exportEndDate) {
+        // Use the selected dates in the filename
+        const start = new Date(exportStartDate);
+        const end = new Date(exportEndDate);
+        const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+        const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+        filename = `prime-swim-private-lessons-${startStr}-to-${endStr}`;
+      } else {
+        // For other ranges, use current date
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        filename = `prime-swim-private-lessons-${exportRange}-${dateStr}`;
+      }
+      
+      a.download = `${filename}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setBookingStatus({
+        type: "success",
+        message: "Calendar exported successfully!",
+      });
+
+      // Close dialog after 1 second
+      setTimeout(() => {
+        setIsExportDialogOpen(false);
+        setExportRange("30days");
+        setExportStartDate("");
+        setExportEndDate("");
+        setIncludeCancelled(false);
+        setExportBySwimmer(false);
+        setSelectedSwimmerForExport("");
+        setBookingStatus(null);
+      }, 1000);
+    } catch (error) {
+      console.error("Failed to export calendar:", error);
+      setBookingStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to export calendar",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 pb-16">
       <Header />
@@ -680,10 +793,22 @@ export default function PrivateLessonCalendar() {
       <div className="max-w-6xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-slate-800">
-              <CalendarIcon className="w-6 h-6 mr-3 text-blue-600 inline" />
-              Available Slots
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold text-slate-800">
+                <CalendarIcon className="w-6 h-6 mr-3 text-blue-600 inline" />
+                Available Slots
+              </CardTitle>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsExportDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Calendar
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div style={{ height: "600px" }}>
@@ -879,6 +1004,190 @@ export default function PrivateLessonCalendar() {
                 </Button>
               )}
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Calendar Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Export to Calendar</DialogTitle>
+            <DialogDescription>
+              Export private lesson bookings to iCal format for Google Calendar or other calendar applications.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="exportBySwimmer"
+                checked={exportBySwimmer}
+                onChange={(e) => {
+                  setExportBySwimmer(e.target.checked);
+                  if (!e.target.checked) {
+                    setSelectedSwimmerForExport("");
+                  }
+                }}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="exportBySwimmer" className="cursor-pointer">
+                Export by Swimmer Name
+              </Label>
+            </div>
+
+            {exportBySwimmer ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="swimmerSelect">Select Swimmer</Label>
+                  <Select value={selectedSwimmerForExport} onValueChange={setSelectedSwimmerForExport}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a swimmer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {swimmers.map((swimmer) => {
+                        const fullName = `${swimmer.firstName} ${swimmer.lastName}`;
+                        return (
+                          <SelectItem key={swimmer.id} value={fullName}>
+                            {fullName}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="swimmerExportRange">Date Range (Optional)</Label>
+                  <Select value={exportRange} onValueChange={setExportRange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Bookings</SelectItem>
+                      <SelectItem value="30days">Next 30 Days</SelectItem>
+                      <SelectItem value="90days">Next 90 Days</SelectItem>
+                      <SelectItem value="custom">Custom Range</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {exportRange === "custom" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="exportStartDate">Start Date</Label>
+                      <Input
+                        id="exportStartDate"
+                        type="date"
+                        value={exportStartDate}
+                        onChange={(e) => setExportStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="exportEndDate">End Date</Label>
+                      <Input
+                        id="exportEndDate"
+                        type="date"
+                        value={exportEndDate}
+                        onChange={(e) => setExportEndDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="exportRange">Date Range</Label>
+                <Select value={exportRange} onValueChange={setExportRange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Bookings</SelectItem>
+                    <SelectItem value="30days">Next 30 Days</SelectItem>
+                    <SelectItem value="90days">Next 90 Days</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {!exportBySwimmer && exportRange === "custom" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="exportStartDate">Start Date</Label>
+                  <Input
+                    id="exportStartDate"
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="exportEndDate">End Date</Label>
+                  <Input
+                    id="exportEndDate"
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="includeCancelled"
+                checked={includeCancelled}
+                onChange={(e) => setIncludeCancelled(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="includeCancelled" className="cursor-pointer">
+                Include cancelled bookings
+              </Label>
+            </div>
+
+            {bookingStatus && (
+              <Alert variant={bookingStatus.type === "error" ? "destructive" : "default"}>
+                <AlertDescription className="flex items-center gap-2">
+                  {bookingStatus.type === "success" && <CheckCircle2 className="w-4 h-4" />}
+                  {bookingStatus.message}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsExportDialogOpen(false);
+                setExportRange("30days");
+                setExportStartDate("");
+                setExportEndDate("");
+                setIncludeCancelled(false);
+                setExportBySwimmer(false);
+                setSelectedSwimmerForExport("");
+                setBookingStatus(null);
+              }}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExportCalendar}
+              disabled={isExporting || (exportBySwimmer && !selectedSwimmerForExport) || (exportRange === "custom" && (!exportStartDate || !exportEndDate))}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
