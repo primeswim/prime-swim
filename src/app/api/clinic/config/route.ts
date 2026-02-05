@@ -26,6 +26,8 @@ interface ClinicConfig {
   }[];
   levels?: string[];
   active: boolean;
+  // Manually mark clinic as full (0 slots available) even if not expired
+  isFull?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -111,6 +113,7 @@ export async function POST(req: Request) {
       locations: body.locations,
       levels: body.levels || [],
       active: body.active !== undefined ? body.active : true,
+      isFull: body.isFull === true, // default to false if not provided
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -153,6 +156,7 @@ export async function PUT(req: Request) {
       locations: body.locations,
       levels: body.levels,
       active: body.active,
+      isFull: body.isFull,
       updatedAt: Timestamp.now(),
     };
 

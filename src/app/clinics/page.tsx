@@ -33,6 +33,8 @@ interface ClinicConfig {
   levels?: string[];
   active: boolean;
   isExpired?: boolean;
+  // Manually marked as full (0 slots available)
+  isFull?: boolean;
 }
 
 export default function ClinicsPage() {
@@ -235,15 +237,15 @@ export default function ClinicsPage() {
                   {/* Registration Button */}
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="text-sm text-slate-600">
-                      {clinic.isExpired ? "0 slots available" : "2 slots available"}
+                      {clinic.isExpired || clinic.isFull ? "0 slots available" : "2 slots available"}
                     </div>
-                    {clinic.isExpired ? (
+                    {clinic.isExpired || clinic.isFull ? (
                       <Button
                         disabled
                         className="bg-gray-400 text-white px-8 py-6 text-lg cursor-not-allowed"
                       >
                         <ExternalLink className="w-5 h-5 mr-2" />
-                        Registration Closed
+                        {clinic.isExpired ? "Registration Closed" : "All Spots Taken"}
                       </Button>
                     ) : (
                       <Button

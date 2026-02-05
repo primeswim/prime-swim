@@ -37,6 +37,8 @@ interface ClinicConfig {
   locations: ClinicLocation[];
   levels?: string[];
   active: boolean;
+  // Manually mark clinic as full (0 slots available) even if not expired
+  isFull?: boolean;
 }
 
 export default function ClinicAdminPage() {
@@ -53,6 +55,7 @@ export default function ClinicAdminPage() {
     locations: [],
     levels: [],
     active: true,
+    isFull: false,
   });
   const [status, setStatus] = useState<{ message: string; success: boolean } | null>(null);
 
@@ -176,6 +179,44 @@ export default function ClinicAdminPage() {
     }
   };
 
+  const handleToggleFull = async (config: ClinicConfig, isFull: boolean) => {
+    if (!config.id) return;
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/clinic/config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          id: config.id,
+          isFull,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to update clinic status");
+      }
+
+      setStatus({
+        message: isFull ? "Clinic marked as full (0 slots available)" : "Clinic marked as not full",
+        success: true,
+      });
+      await loadConfigs();
+    } catch (err) {
+      console.error("Toggle full error:", err);
+      setStatus({
+        message: "Failed to update clinic full status",
+        success: false,
+      });
+    }
+  };
+
   const handleEdit = (config: ClinicConfig) => {
     setEditingId(config.id || null);
     setFormData({ ...config });
@@ -191,6 +232,7 @@ export default function ClinicAdminPage() {
         locations: [],
         levels: [],
         active: true,
+        isFull: false,
       });
   };
 
@@ -474,6 +516,11 @@ export default function ClinicAdminPage() {
                             Active
                           </span>
                         )}
+                        {config.isFull && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                            Full
+                          </span>
+                        )}
                       </CardTitle>
                       <CardDescription>{config.season}</CardDescription>
                       <div className="mt-3 space-y-2">
@@ -517,10 +564,23 @@ export default function ClinicAdminPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/admin/activity/placement?activityId=${config.id}&season=${encodeURIComponent(config.season)}`)}
+                        onClick={() =>
+                          router.push(
+                            `/admin/activity/placement?activityId=${config.id}&season=${encodeURIComponent(
+                              config.season
+                            )}`
+                          )
+                        }
                       >
                         <Users className="w-4 h-4 mr-2" />
                         Manage Placement
+                      </Button>
+                      <Button
+                        variant={config.isFull ? "outline" : "default"}
+                        size="sm"
+                        onClick={() => handleToggleFull(config, !config.isFull)}
+                      >
+                        {config.isFull ? "Reopen Registration" : "Close Registration (Full)"}
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(config)}>
                         <Edit className="w-4 h-4 mr-2" />
