@@ -67,10 +67,9 @@ export default function ParentTestimonialsSection() {
                 <p className="text-slate-700 mb-4 leading-relaxed whitespace-pre-wrap">
                   {testimonial.content}
                 </p>
-                {(testimonial.parentName || testimonial.swimmerName) && (
+                {testimonial.parentName && (
                   <div className="text-sm text-slate-500 pt-4 border-t">
-                    {testimonial.parentName && <span className="font-medium">— {testimonial.parentName}</span>}
-                    {testimonial.swimmerName && <span> (Parent of {testimonial.swimmerName})</span>}
+                    <span className="font-medium">— {testimonial.parentName}</span>
                   </div>
                 )}
               </CardContent>
