@@ -320,6 +320,7 @@ export default function Home() {
               </div>
               <div className="space-y-1 text-sm text-slate-600">
                 <p>7:00-8:00 PM (Mon)</p>
+                <p>7:00-8:00 PM (Wed)</p>
                 <p>7:00-8:00 PM (Fri)</p>
                 <p>4:00-5:00 PM (Sat)</p>
               </div>
