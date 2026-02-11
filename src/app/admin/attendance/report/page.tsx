@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Header from "@/components/header";
-import { Users, TrendingDown, Download, Loader2 } from "lucide-react";
+import { Users, TrendingDown, Download, Loader2, CalendarDays } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -54,6 +54,7 @@ export default function AttendanceReportPage() {
     return new Date().getFullYear().toString();
   });
   const [viewMode, setViewMode] = useState<"month" | "year">("month");
+  const [displayMode, setDisplayMode] = useState<"swimmer" | "day">("swimmer"); // swimmer = stats table, day = who attended each day
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,15 +96,12 @@ export default function AttendanceReportPage() {
         const idToken = await user.getIdToken();
         const param = viewMode === "month" ? `month=${encodeURIComponent(selectedMonth)}` : `year=${encodeURIComponent(selectedYear)}`;
         const url = `/api/attendance?${param}`;
-        console.log("Loading attendance with URL:", url);
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${idToken}` },
         });
 
         if (res.ok) {
           const data = await res.json();
-          console.log("Attendance data loaded:", data.records?.length || 0, "records");
-          console.log("Sample records:", data.records?.slice(0, 3));
           setAttendance(data.records || []);
         } else {
           const errorData = await res.json().catch(() => ({}));
@@ -142,7 +140,6 @@ export default function AttendanceReportPage() {
     });
 
     // Count attendance
-    console.log("Processing attendance records:", attendance.length);
     attendance.forEach((record) => {
       if (!statsMap[record.swimmerId]) {
         statsMap[record.swimmerId] = {
@@ -170,7 +167,6 @@ export default function AttendanceReportPage() {
         statsMap[record.swimmerId].trial++;
       }
     });
-    console.log("Stats map after processing:", Object.keys(statsMap).length, "swimmers");
 
     // Calculate net absent (absent - make-up) and attendance rate
     Object.values(statsMap).forEach((stat) => {
@@ -192,6 +188,31 @@ export default function AttendanceReportPage() {
       return a.swimmerName.localeCompare(b.swimmerName);
     });
   }, [attendance, swimmers]);
+
+  // Group attendance by date (for "who attended each day" view)
+  const attendanceByDay = useMemo(() => {
+    const byDate: Record<
+      string,
+      { attended: string[]; absent: string[]; makeUp: string[]; trial: string[] }
+    > = {};
+    attendance.forEach((record) => {
+      const date = record.date;
+      if (!byDate[date]) {
+        byDate[date] = { attended: [], absent: [], makeUp: [], trial: [] };
+      }
+      if (record.status === "attended") {
+        byDate[date].attended.push(record.swimmerName);
+      } else if (record.status === "absent") {
+        byDate[date].absent.push(record.swimmerName);
+      } else if (record.status === "make-up") {
+        byDate[date].makeUp.push(record.swimmerName);
+      } else if (record.status === "trial") {
+        byDate[date].trial.push(record.swimmerName);
+      }
+    });
+    // Sort dates descending (newest first)
+    return Object.entries(byDate).sort(([a], [b]) => b.localeCompare(a));
+  }, [attendance]);
 
   // Group by level
   const statsByLevel = useMemo(() => {
@@ -249,7 +270,7 @@ export default function AttendanceReportPage() {
             <TrendingDown className="w-8 h-8 text-blue-600" />
             Attendance Report
           </h1>
-          <p className="text-slate-600">View attendance statistics by month or year</p>
+          <p className="text-slate-600">View attendance by month or year — by swimmer (stats) or by day (who attended each day)</p>
         </div>
 
         {/* Filters */}
@@ -258,9 +279,9 @@ export default function AttendanceReportPage() {
             <CardTitle>Filters</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end gap-4">
+            <div className="flex flex-wrap items-end gap-4">
               <div>
-                <Label htmlFor="viewMode">View By</Label>
+                <Label htmlFor="viewMode">Period</Label>
                 <Select value={viewMode} onValueChange={(value) => setViewMode(value as "month" | "year")}>
                   <SelectTrigger id="viewMode" className="w-[180px]">
                     <SelectValue />
@@ -268,6 +289,18 @@ export default function AttendanceReportPage() {
                   <SelectContent>
                     <SelectItem value="month">Month</SelectItem>
                     <SelectItem value="year">Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="displayMode">Display</Label>
+                <Select value={displayMode} onValueChange={(value) => setDisplayMode(value as "swimmer" | "day")}>
+                  <SelectTrigger id="displayMode" className="w-[220px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="swimmer">By swimmer (stats)</SelectItem>
+                    <SelectItem value="day">By day (who attended)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -306,6 +339,78 @@ export default function AttendanceReportPage() {
           <div className="text-center py-20">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
             <p className="text-slate-600">Loading...</p>
+          </div>
+        ) : displayMode === "day" ? (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-blue-600" />
+              Who attended each day
+            </h2>
+            {attendanceByDay.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-slate-500">
+                  No attendance records for the selected period.
+                </CardContent>
+              </Card>
+            ) : (
+              attendanceByDay.map(([date, dayData]) => {
+                const displayDate = (() => {
+                  try {
+                    const [y, m, d] = date.split("-").map(Number);
+                    const dt = new Date(y, m - 1, d);
+                    return dt.toLocaleDateString("en-US", {
+                      weekday: "short",
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    });
+                  } catch {
+                    return date;
+                  }
+                })();
+                const total =
+                  dayData.attended.length +
+                  dayData.absent.length +
+                  dayData.makeUp.length +
+                  dayData.trial.length;
+                return (
+                  <Card key={date}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>{displayDate}</span>
+                        <span className="text-sm font-normal text-slate-500">{total} records</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      {dayData.attended.length > 0 && (
+                        <div>
+                          <span className="font-medium text-green-700">Attended ({dayData.attended.length}):</span>{" "}
+                          <span className="text-slate-700">{dayData.attended.sort().join(", ")}</span>
+                        </div>
+                      )}
+                      {dayData.absent.length > 0 && (
+                        <div>
+                          <span className="font-medium text-red-700">Absent ({dayData.absent.length}):</span>{" "}
+                          <span className="text-slate-700">{dayData.absent.sort().join(", ")}</span>
+                        </div>
+                      )}
+                      {dayData.makeUp.length > 0 && (
+                        <div>
+                          <span className="font-medium text-blue-700">Make-up ({dayData.makeUp.length}):</span>{" "}
+                          <span className="text-slate-700">{dayData.makeUp.sort().join(", ")}</span>
+                        </div>
+                      )}
+                      {dayData.trial.length > 0 && (
+                        <div>
+                          <span className="font-medium text-purple-700">Trial ({dayData.trial.length}):</span>{" "}
+                          <span className="text-slate-700">{dayData.trial.sort().join(", ")}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         ) : (
           <div className="space-y-6">
