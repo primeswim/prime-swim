@@ -189,30 +189,51 @@ export default function AttendanceReportPage() {
     });
   }, [attendance, swimmers]);
 
-  // Group attendance by date (for "who attended each day" view)
+  // swimmerId -> level for grouping by day
+  const swimmerIdToLevel = useMemo(() => {
+    const m: Record<string, string> = {};
+    swimmers.forEach((s) => {
+      m[s.id] = (s.level && s.level.trim()) ? s.level.trim() : "Unknown";
+    });
+    return m;
+  }, [swimmers]);
+
+  // Group attendance by date, then by level (for "who attended each day" view)
+  type DayByLevel = Record<string, { attended: string[]; absent: string[]; makeUp: string[]; trial: string[] }>;
   const attendanceByDay = useMemo(() => {
-    const byDate: Record<
-      string,
-      { attended: string[]; absent: string[]; makeUp: string[]; trial: string[] }
-    > = {};
+    const byDate: Record<string, DayByLevel> = {};
     attendance.forEach((record) => {
       const date = record.date;
+      const level = swimmerIdToLevel[record.swimmerId] ?? "Unknown";
       if (!byDate[date]) {
-        byDate[date] = { attended: [], absent: [], makeUp: [], trial: [] };
+        byDate[date] = {};
       }
+      if (!byDate[date][level]) {
+        byDate[date][level] = { attended: [], absent: [], makeUp: [], trial: [] };
+      }
+      const bucket = byDate[date][level];
       if (record.status === "attended") {
-        byDate[date].attended.push(record.swimmerName);
+        bucket.attended.push(record.swimmerName);
       } else if (record.status === "absent") {
-        byDate[date].absent.push(record.swimmerName);
+        bucket.absent.push(record.swimmerName);
       } else if (record.status === "make-up") {
-        byDate[date].makeUp.push(record.swimmerName);
+        bucket.makeUp.push(record.swimmerName);
       } else if (record.status === "trial") {
-        byDate[date].trial.push(record.swimmerName);
+        bucket.trial.push(record.swimmerName);
       }
     });
-    // Sort dates descending (newest first)
+    // Sort names within each bucket; sort dates descending (newest first)
+    Object.keys(byDate).forEach((date) => {
+      Object.keys(byDate[date]).forEach((level) => {
+        const b = byDate[date][level];
+        b.attended.sort();
+        b.absent.sort();
+        b.makeUp.sort();
+        b.trial.sort();
+      });
+    });
     return Object.entries(byDate).sort(([a], [b]) => b.localeCompare(a));
-  }, [attendance]);
+  }, [attendance, swimmerIdToLevel]);
 
   // Group by level
   const statsByLevel = useMemo(() => {
@@ -353,7 +374,7 @@ export default function AttendanceReportPage() {
                 </CardContent>
               </Card>
             ) : (
-              attendanceByDay.map(([date, dayData]) => {
+              attendanceByDay.map(([date, dayDataByLevel]) => {
                 const displayDate = (() => {
                   try {
                     const [y, m, d] = date.split("-").map(Number);
@@ -368,11 +389,14 @@ export default function AttendanceReportPage() {
                     return date;
                   }
                 })();
-                const total =
-                  dayData.attended.length +
-                  dayData.absent.length +
-                  dayData.makeUp.length +
-                  dayData.trial.length;
+                const levels = Object.keys(dayDataByLevel).sort((a, b) => a.localeCompare(b));
+                const total = levels.reduce(
+                  (sum, level) => {
+                    const b = dayDataByLevel[level];
+                    return sum + b.attended.length + b.absent.length + b.makeUp.length + b.trial.length;
+                  },
+                  0
+                );
                 return (
                   <Card key={date}>
                     <CardHeader className="pb-2">
@@ -381,31 +405,41 @@ export default function AttendanceReportPage() {
                         <span className="text-sm font-normal text-slate-500">{total} records</span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      {dayData.attended.length > 0 && (
-                        <div>
-                          <span className="font-medium text-green-700">Attended ({dayData.attended.length}):</span>{" "}
-                          <span className="text-slate-700">{dayData.attended.sort().join(", ")}</span>
-                        </div>
-                      )}
-                      {dayData.absent.length > 0 && (
-                        <div>
-                          <span className="font-medium text-red-700">Absent ({dayData.absent.length}):</span>{" "}
-                          <span className="text-slate-700">{dayData.absent.sort().join(", ")}</span>
-                        </div>
-                      )}
-                      {dayData.makeUp.length > 0 && (
-                        <div>
-                          <span className="font-medium text-blue-700">Make-up ({dayData.makeUp.length}):</span>{" "}
-                          <span className="text-slate-700">{dayData.makeUp.sort().join(", ")}</span>
-                        </div>
-                      )}
-                      {dayData.trial.length > 0 && (
-                        <div>
-                          <span className="font-medium text-purple-700">Trial ({dayData.trial.length}):</span>{" "}
-                          <span className="text-slate-700">{dayData.trial.sort().join(", ")}</span>
-                        </div>
-                      )}
+                    <CardContent className="space-y-4 text-sm">
+                      {levels.map((level) => {
+                        const b = dayDataByLevel[level];
+                        const levelTotal = b.attended.length + b.absent.length + b.makeUp.length + b.trial.length;
+                        if (levelTotal === 0) return null;
+                        return (
+                          <div key={level} className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+                            <div className="font-semibold text-slate-800 mb-1">{level} ({levelTotal})</div>
+                            {b.attended.length > 0 && (
+                              <div>
+                                <span className="font-medium text-green-700">Attended ({b.attended.length}):</span>{" "}
+                                <span className="text-slate-700">{b.attended.join(", ")}</span>
+                              </div>
+                            )}
+                            {b.absent.length > 0 && (
+                              <div>
+                                <span className="font-medium text-red-700">Absent ({b.absent.length}):</span>{" "}
+                                <span className="text-slate-700">{b.absent.join(", ")}</span>
+                              </div>
+                            )}
+                            {b.makeUp.length > 0 && (
+                              <div>
+                                <span className="font-medium text-blue-700">Make-up ({b.makeUp.length}):</span>{" "}
+                                <span className="text-slate-700">{b.makeUp.join(", ")}</span>
+                              </div>
+                            )}
+                            {b.trial.length > 0 && (
+                              <div>
+                                <span className="font-medium text-purple-700">Trial ({b.trial.length}):</span>{" "}
+                                <span className="text-slate-700">{b.trial.join(", ")}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </CardContent>
                   </Card>
                 );
