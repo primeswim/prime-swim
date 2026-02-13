@@ -209,6 +209,9 @@ export default function Header() {
                     <Link href="/admin/tuition">Tuition</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link href="/admin/monthly-tuition">Monthly Tuition</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/admin/sendemail">Send Email</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -306,6 +309,7 @@ export default function Header() {
               <Link href="/admin/tryout-swimmers" className="block ml-4">Tryout Swimmers</Link>
               <Link href="/admin/private-lesson-swimmers" className="block ml-4">Private Lesson Swimmers</Link>
               <Link href="/admin/tuition" className="block ml-4">Tuition</Link>
+              <Link href="/admin/monthly-tuition" className="block ml-4">Monthly Tuition</Link>
               <Link href="/admin/sendemail" className="block ml-4">Send Email</Link>
               <Link href="/admin/test-reminder" className="block ml-4">Test Reminder</Link>
               <Link href="/admin/bulk-insert" className="block ml-4">Bulk Insert</Link>
