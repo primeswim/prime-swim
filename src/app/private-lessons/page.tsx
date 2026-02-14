@@ -90,6 +90,7 @@ export default function PrivateLessonCalendar() {
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [exportBySwimmer, setExportBySwimmer] = useState(false);
   const [selectedSwimmerForExport, setSelectedSwimmerForExport] = useState<string>("");
+  const [isDeletingSlot, setIsDeletingSlot] = useState(false);
 
   const isAdmin = useIsAdminFromDB();
 
@@ -513,13 +514,36 @@ export default function PrivateLessonCalendar() {
   };
 
   const handleCancelBooking = async () => {
-    if (!selectedSlot || !currentBooking || !currentBooking.id) {
-      setBookingStatus({ type: "error", message: "No booking to cancel" });
-      return;
+    if (!selectedSlot || selectedSlot.status !== "taken") return;
+
+    let bookingToCancel = currentBooking;
+    if (!bookingToCancel?.id) {
+      // Fetch booking for this slot if not loaded yet
+      const user = auth.currentUser;
+      if (!user) {
+        setBookingStatus({ type: "error", message: "Not authenticated" });
+        return;
+      }
+      try {
+        const idToken = await user.getIdToken();
+        const res = await fetch(`/api/private-lessons/booking?slotId=${selectedSlot.id}&status=confirmed`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.bookings?.length) {
+          setBookingStatus({ type: "error", message: "No booking found for this slot" });
+          return;
+        }
+        const b = data.bookings[0];
+        bookingToCancel = { id: b.id, swimmerId: b.swimmerId, swimmerName: b.swimmerName, notes: b.notes };
+      } catch {
+        setBookingStatus({ type: "error", message: "Failed to load booking" });
+        return;
+      }
     }
 
     const confirmCancel = window.confirm(
-      `Are you sure you want to cancel the booking for ${currentBooking.swimmerName}? The slot will become available again.`
+      `Are you sure you want to cancel the booking for ${bookingToCancel!.swimmerName}? The slot will become available again.`
     );
     if (!confirmCancel) return;
 
@@ -542,7 +566,7 @@ export default function PrivateLessonCalendar() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          id: currentBooking.id,
+          id: bookingToCancel!.id,
           status: "cancelled",
         }),
       });
@@ -595,6 +619,63 @@ export default function PrivateLessonCalendar() {
       });
     } finally {
       setIsBooking(false);
+    }
+  };
+
+  const handleDeleteSlot = async () => {
+    if (!selectedSlot) return;
+    const message = selectedSlot.status === "taken"
+      ? "Delete this slot? Any booking on it will be cancelled. This cannot be undone."
+      : "Delete this slot? This cannot be undone.";
+    if (!window.confirm(message)) return;
+
+    setIsDeletingSlot(true);
+    setBookingStatus(null);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated");
+      const idToken = await user.getIdToken();
+      const res = await fetch(`/api/private-lessons/slot/delete?slotId=${encodeURIComponent(selectedSlot.id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete slot");
+      }
+      const querySnapshot = await getDocs(collection(db, "availableSlots"));
+      const slotsData = querySnapshot.docs.map((doc) => {
+        const slot = doc.data();
+        return {
+          id: doc.id,
+          title: slot.status === "taken" ? "Taken" : "Available",
+          start: slot.startTime.toDate(),
+          end: slot.endTime.toDate(),
+          coachId: slot.coachId,
+          locationId: slot.locationId,
+          status: slot.status,
+          priorityOnly: slot.priorityOnly || false,
+          bookingId: slot.bookingId || undefined,
+          bookedBySwimmerId: slot.bookedBySwimmerId || undefined,
+          bookedBySwimmerName: slot.bookedBySwimmerName || undefined,
+          adminNotes: slot.adminNotes || undefined,
+        };
+      });
+      setSlots(slotsData);
+      setIsDialogOpen(false);
+      setSelectedSlot(null);
+      setSelectedSwimmerId("");
+      setBookingNotes("");
+      setAdminNotes("");
+      setBookingStatus(null);
+      setCurrentBooking(null);
+    } catch (err) {
+      setBookingStatus({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to delete slot",
+      });
+    } finally {
+      setIsDeletingSlot(false);
     }
   };
 
@@ -946,12 +1027,12 @@ export default function PrivateLessonCalendar() {
             </div>
           )}
           <DialogFooter className="flex justify-between">
-            <div>
-              {selectedSlot?.status === "taken" && currentBooking && currentBooking.id && (
+            <div className="flex gap-2">
+              {selectedSlot?.status === "taken" && (
                 <Button
                   variant="destructive"
                   onClick={handleCancelBooking}
-                  disabled={isBooking}
+                  disabled={isBooking || isDeletingSlot}
                 >
                   {isBooking ? (
                     <>
@@ -963,6 +1044,21 @@ export default function PrivateLessonCalendar() {
                   )}
                 </Button>
               )}
+              <Button
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50"
+                onClick={handleDeleteSlot}
+                disabled={isBooking || isDeletingSlot}
+              >
+                {isDeletingSlot ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete slot"
+                )}
+              </Button>
             </div>
             <div className="flex gap-2">
               <Button
@@ -975,12 +1071,12 @@ export default function PrivateLessonCalendar() {
                   setBookingStatus(null);
                   setCurrentBooking(null);
                 }}
-                disabled={isBooking}
+                disabled={isBooking || isDeletingSlot}
               >
                 Close
               </Button>
               {selectedSlot?.status === "available" && (
-                <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+                <Button onClick={handleSetTaken} disabled={isBooking || isDeletingSlot || !selectedSwimmerId}>
                   {isBooking ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -992,7 +1088,7 @@ export default function PrivateLessonCalendar() {
                 </Button>
               )}
               {selectedSlot?.status === "taken" && (
-                <Button onClick={handleSetTaken} disabled={isBooking || !selectedSwimmerId}>
+                <Button onClick={handleSetTaken} disabled={isBooking || isDeletingSlot || !selectedSwimmerId}>
                   {isBooking ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
