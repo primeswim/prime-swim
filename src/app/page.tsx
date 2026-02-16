@@ -342,7 +342,7 @@ export default function Home() {
               <div className="space-y-1 text-sm text-slate-600">
                 <p>8:00-9:00 PM (Mon)</p>
                 <p>8:00-9:00 PM (Tue)</p>
-                <p>8:00-9:00 PM (Wed)</p>
+                <p>7:00-8:00 PM (Wed)</p>
                 <p>8:00-9:00 PM (Thu)</p>
               </div>
             </CardContent>
@@ -363,7 +363,7 @@ export default function Home() {
               <div className="space-y-1 text-sm text-slate-600">
                 <p>8:00-9:00 PM (Mon)</p>
                 <p>8:00-9:00 PM (Tue)</p>
-                <p>8:00-9:00 PM (Wed)</p>
+                <p>7:00-8:00 PM (Wed)</p>
                 <p>8:00-9:00 PM (Thu)</p>
                 <p>10:00-11:00 AM (Sat)</p>
               </div>
