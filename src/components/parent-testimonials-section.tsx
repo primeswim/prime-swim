@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { MessageSquare, Quote } from "lucide-react";
 
+import { normalizeCoachMoDisplay } from "@/lib/coach-display-name";
+
 interface Testimonial {
   id: string;
   content: string;
@@ -65,11 +67,11 @@ export default function ParentTestimonialsSection() {
                   <Quote className="w-8 h-8 text-blue-200" />
                 </div>
                 <p className="text-slate-700 mb-4 leading-relaxed whitespace-pre-wrap">
-                  {testimonial.content}
+                  {normalizeCoachMoDisplay(testimonial.content)}
                 </p>
                 {testimonial.parentName && (
                   <div className="text-sm text-slate-500 pt-4 border-t">
-                    <span className="font-medium">— {testimonial.parentName}</span>
+                    <span className="font-medium">— {normalizeCoachMoDisplay(testimonial.parentName)}</span>
                   </div>
                 )}
               </CardContent>

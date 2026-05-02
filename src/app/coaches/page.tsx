@@ -114,19 +114,19 @@ export default function CoachesPage() {
             </CardContent>
           </Card>
 
-          {/* Coach Moe */}
+          {/* Coach Mo */}
           <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-purple-100">
             <CardHeader className="text-center pb-6">
               <div className="w-32 h-32 rounded-full mx-auto mb-6 overflow-hidden border-4 border-white shadow-lg">
                 <Image
                   src="/images/coach-moe.jpg"
-                  alt="Coach Moe"
+                  alt="Coach Mo"
                   width={128}
                   height={128}
                   className="object-cover w-full h-full"
                 />
               </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Coach Moe</CardTitle>
+              <CardTitle className="text-2xl font-bold text-slate-800">Coach Mo</CardTitle>
               <CardDescription className="text-slate-600 text-lg font-medium">
                 Head Coach & Performance Director
               </CardDescription>

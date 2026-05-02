@@ -93,7 +93,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
-                <p>• 2 sessions per week</p>
+                <p>• 1-3 sessions per week</p>
                 <p>• 60-minute sessions</p>
                 <p>• Small group instruction</p>
               </div>
@@ -273,13 +273,13 @@ export default function Home() {
                 <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border">
                   <Image
                     src="/images/coach-moe.jpg"
-                    alt="Coach Moe"
+                    alt="Coach Mo"
                     width={96}
                     height={96}
                     className="object-cover w-full h-full"
                   />
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Moe</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-800">Coach Mo</CardTitle>
                 <CardDescription className="text-slate-600">Head Coach</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
@@ -319,6 +319,7 @@ export default function Home() {
                 <span className="text-sm">Weekdays & Weekend</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
+                <p>5:00-6:00 PM (Sun)</p>
                 <p>7:00-8:00 PM (Mon)</p>
                 <p>7:00-8:00 PM (Wed)</p>
                 <p>7:00-8:00 PM (Fri)</p>

@@ -40,6 +40,7 @@ export const DEFAULT_LEVEL_CONFIG: LevelConfigMap = {
     minDaysPerWeek: 2,
     reducedRatePerHour: null,
     schedule: [
+      { weekday: 0, timeSlot: "5-6PM", location: "Mary Wayte Pool" },
       { weekday: 1, timeSlot: "7-8PM", location: "Mary Wayte Pool" },
       { weekday: 5, timeSlot: "7-8PM", location: "Mary Wayte Pool" },
     ],

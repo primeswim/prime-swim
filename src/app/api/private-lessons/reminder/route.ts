@@ -163,7 +163,7 @@ export async function GET(req: Request) {
 function getCoachName(coachId: number): string {
   const coaches: Record<number, string> = {
     1: "Coach Lara",
-    2: "Coach Moe",
+    2: "Coach Mo",
     3: "Coach Emma",
   };
   return coaches[coachId] || "Coach";

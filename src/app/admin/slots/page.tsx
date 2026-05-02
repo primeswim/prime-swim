@@ -30,7 +30,7 @@ import {
 
 const coaches = [
   { id: 1, name: "Coach Lara" },
-  { id: 2, name: "Coach Moe" },
+  { id: 2, name: "Coach Mo" },
   { id: 3, name: "Coach Emma" },
 ]
 

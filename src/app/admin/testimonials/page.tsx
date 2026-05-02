@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2, MessageSquare, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { normalizeCoachMoDisplay } from "@/lib/coach-display-name";
 
 interface Testimonial {
   id: string;
@@ -344,11 +345,15 @@ export default function TestimonialsAdminPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-700 mb-4 whitespace-pre-wrap">{testimonial.content}</p>
+                  <p className="text-slate-700 mb-4 whitespace-pre-wrap">
+                    {normalizeCoachMoDisplay(testimonial.content)}
+                  </p>
                   {(testimonial.parentName || testimonial.swimmerName) && (
                     <div className="text-sm text-slate-500">
-                      {testimonial.parentName && <span>— {testimonial.parentName}</span>}
-                      {testimonial.swimmerName && <span> (Parent of {testimonial.swimmerName})</span>}
+                      {testimonial.parentName && <span>— {normalizeCoachMoDisplay(testimonial.parentName)}</span>}
+                      {testimonial.swimmerName && (
+                        <span> (Parent of {normalizeCoachMoDisplay(testimonial.swimmerName)})</span>
+                      )}
                     </div>
                   )}
                 </CardContent>
