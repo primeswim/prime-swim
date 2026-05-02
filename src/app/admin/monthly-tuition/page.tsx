@@ -37,6 +37,8 @@ type CalculateRow = {
   swimmerId: string;
   swimmerName: string;
   level: string;
+  parentName?: string;
+  parentEmail?: string;
   trainingWeekdays: number[];
   sessionCount: number;
   ratePerHour: number;
