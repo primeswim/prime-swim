@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "migrate:pilot": "DOTENV_CONFIG_PATH=.env.local ts-node -r dotenv/config scripts/migratePilot.ts",
-    "test:membership": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/lib/membership-renewal.test.ts"
+    "test:membership": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/lib/membership-renewal.test.ts",
+    "test:membership-pause": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/lib/membership-pause.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.2",

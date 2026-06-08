@@ -23,8 +23,10 @@ import {
 // 会员：状态计算与工具
 import {
   computeStatus,
+  computeStatusWithPause,
   computeBadgeStatus,
-  inRenewWindow,
+  inRenewWindowWithPause,
+  getEffectiveNowForMembership,
   fmt,
   diffInDays,
   RENEWAL_WINDOW_DAYS,
@@ -42,6 +44,8 @@ type SwimmerWithMakeup = Swimmer & {
 
   // 新增：控制 UI 行为
   isFrozen?: boolean        // 被俱乐部冻结
+  membershipPaused?: boolean
+  membershipPausedAt?: string | FBTimestamp
   paymentStatus?: string    // ✅ 读取 swimmers.paymentStatus：'pending' | 'paid' | null/undefined
 }
 
@@ -478,6 +482,16 @@ export default function DashboardPage() {
               // —— 会员状态计算 —— //
               const hasPending = !!pendingMap[swimmer.id]
               const isFrozen = !!swimmer.isFrozen
+              const isMembershipPaused = !!swimmer.membershipPaused
+              const membershipPausedAt = swimmer.membershipPausedAt
+                ? (typeof swimmer.membershipPausedAt === "string"
+                    ? parseIsoSafe(swimmer.membershipPausedAt)
+                    : tsToDate(swimmer.membershipPausedAt))
+                : null
+              const pauseState = {
+                membershipPaused: isMembershipPaused,
+                membershipPausedAt: membershipPausedAt ?? null,
+              }
               const paymentStatus = swimmer.paymentStatus
               const isPaid = paymentStatus === 'paid'
               
@@ -491,7 +505,8 @@ export default function DashboardPage() {
                     ? parseIsoSafe(swimmer.nextDueDate) 
                     : tsToDate(swimmer.nextDueDate))
                 : null
-              const baseStatus = computeStatus({ nextDueDate: nextDue })
+              const baseStatus = computeStatusWithPause({ nextDueDate: nextDue }, pauseState)
+              const effectiveNow = getEffectiveNowForMembership(pauseState)
               
               // 判断是否是老 swimmer（有会员期）
               const hasMembershipPeriod = !!nextDue
@@ -499,9 +514,11 @@ export default function DashboardPage() {
               // 优先级：frozen > 新注册+pending > 未付费 > 基于日期的状态
               // 对于老 swimmer：即使有 pending payment，badge 也基于实际会员期状态
               // 对于新注册：如果有 pending payment，显示 inactive
-              let badgeKind: "frozen" | "active" | "due_soon" | "grace" | "inactive"
+              let badgeKind: "frozen" | "paused" | "active" | "due_soon" | "grace" | "inactive"
               if (isFrozen) {
                 badgeKind = "frozen"
+              } else if (isMembershipPaused) {
+                badgeKind = "paused"
               } else if (!isPaid && !hasMembershipPeriod && hasPendingPayment) {
                 // 新注册 + pending payment：显示 inactive
                 badgeKind = "inactive"
@@ -516,11 +533,11 @@ export default function DashboardPage() {
                 badgeKind = computeBadgeStatus(baseStatus)
               }
 
-              const daysLeft = typeof nextDue === "number" ? null : (nextDue ? diffInDays(nextDue, new Date()) : null)
+              const daysLeft = typeof nextDue === "number" ? null : (nextDue ? diffInDays(nextDue, effectiveNow) : null)
 
               const isInactiveByDate = baseStatus === "inactive" || !nextDue
-              // Renew button 不应该在有 pending payment 时显示
-              const canShowRenew = !isFrozen && !hasPendingPayment && (inRenewWindow({ nextDueDate: nextDue }) || isInactiveByDate)
+              // Renew button 不应该在有 pending payment 或 membership paused 时显示
+              const canShowRenew = !isFrozen && !isMembershipPaused && !hasPendingPayment && (inRenewWindowWithPause({ nextDueDate: nextDue }, pauseState) || isInactiveByDate)
               const renewBusy = !!renewBusyMap[swimmer.id]
 
               return (
@@ -554,6 +571,8 @@ export default function DashboardPage() {
                           className={`text-xs px-2 py-1 rounded-full font-medium ${
                             badgeKind === "frozen"
                               ? "bg-rose-100 text-rose-700"
+                              : badgeKind === "paused"
+                              ? "bg-teal-100 text-teal-700"
                               : badgeKind === "active"
                               ? "bg-green-100 text-green-700"
                               : badgeKind === "grace"
@@ -564,9 +583,15 @@ export default function DashboardPage() {
                           }`}
                           title={nextDue ? `Next due ${fmt(nextDue)}` : "No due date"}
                         >
-                          {badgeKind === "frozen" ? "FROZEN" : badgeKind === "due_soon" ? "DUE SOON" : badgeKind.toUpperCase()}
-                          {/* 只在非 inactive 和非 pending 状态时显示天数 */}
-                          {badgeKind !== "inactive" && typeof daysLeft === "number" && nextDue ? (
+                          {badgeKind === "frozen"
+                            ? "FROZEN"
+                            : badgeKind === "paused"
+                            ? "MEMBERSHIP PAUSED"
+                            : badgeKind === "due_soon"
+                            ? "DUE SOON"
+                            : badgeKind.toUpperCase()}
+                          {/* 只在非 inactive 和非 paused 状态时显示天数 */}
+                          {badgeKind !== "inactive" && badgeKind !== "paused" && typeof daysLeft === "number" && nextDue ? (
                             <em className="ml-1 not-italic opacity-70">
                               {daysLeft >= 0 ? `in ${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`}
                             </em>
@@ -622,6 +647,10 @@ export default function DashboardPage() {
                       <div className="mt-3">
                         {isFrozen ? (
                           <div className="text-xs text-rose-600">This account is frozen. Please contact us if you have questions.</div>
+                        ) : isMembershipPaused ? (
+                          <div className="text-xs text-teal-700">
+                            Membership is paused while away. Your due date will be extended when you return — no time lost.
+                          </div>
                         ) : hasPendingPayment ? (
                           <div className="text-xs text-slate-500">
                             Payment pending / awaiting admin review.

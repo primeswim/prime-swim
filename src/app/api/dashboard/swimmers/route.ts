@@ -21,6 +21,8 @@ type SwimmerOut = {
   currentPeriodEnd?: unknown;
   registrationAnchorDate?: unknown;
   isFrozen?: boolean;
+  membershipPaused?: boolean;
+  membershipPausedAt?: unknown;
 };
 
 function isValidDocId(id: unknown): id is string {
@@ -84,6 +86,8 @@ export async function GET(req: Request) {
         currentPeriodEnd: toIsoOrNull(data.currentPeriodEnd),
         registrationAnchorDate: toIsoOrNull(data.registrationAnchorDate),
         isFrozen: !!data.isFrozen,
+        membershipPaused: !!data.membershipPaused,
+        membershipPausedAt: toIsoOrNull(data.membershipPausedAt),
       };
     });
 

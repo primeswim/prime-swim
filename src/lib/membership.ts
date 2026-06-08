@@ -128,3 +128,69 @@ export function inRenewWindow(dates: SwimDates, now = new Date()): boolean {
   const s = computeStatus(dates, now);
   return s === "due_soon" || s === "grace";
 }
+
+/** Membership pause: clock stops until admin resumes (separate from isFrozen). */
+export interface MembershipPauseState {
+  membershipPaused?: boolean;
+  membershipPausedAt?: Date | null;
+}
+
+export function getEffectiveNowForMembership(
+  pause: MembershipPauseState,
+  now = new Date()
+): Date {
+  if (pause.membershipPaused && pause.membershipPausedAt) {
+    return toMidnightLocal(pause.membershipPausedAt);
+  }
+  return toMidnightLocal(now);
+}
+
+export function computeStatusWithPause(
+  dates: SwimDates,
+  pause: MembershipPauseState,
+  now = new Date()
+): MembershipStatus {
+  return computeStatus(dates, getEffectiveNowForMembership(pause, now));
+}
+
+export function inRenewWindowWithPause(
+  dates: SwimDates,
+  pause: MembershipPauseState,
+  now = new Date()
+): boolean {
+  return inRenewWindow(dates, getEffectiveNowForMembership(pause, now));
+}
+
+/** Whole days between pause start and resume (resume day not counted as paused). */
+export function computePauseExtensionDays(
+  pausedAt: Date,
+  now = new Date()
+): number {
+  const paused = toMidnightLocal(pausedAt).getTime();
+  const today = toMidnightLocal(now).getTime();
+  return Math.max(0, Math.round((today - paused) / 86400000));
+}
+
+export function extendDateByDays(d: Date, days: number): Date {
+  const out = new Date(d);
+  out.setDate(out.getDate() + days);
+  return toMidnightLocal(out);
+}
+
+export function buildMembershipResumeDates(
+  nextDueDate: Date,
+  currentPeriodEnd: Date,
+  pausedAt: Date,
+  now = new Date()
+): {
+  nextDueDate: Date;
+  currentPeriodEnd: Date;
+  extensionDays: number;
+} {
+  const extensionDays = computePauseExtensionDays(pausedAt, now);
+  return {
+    nextDueDate: extendDateByDays(nextDueDate, extensionDays),
+    currentPeriodEnd: extendDateByDays(currentPeriodEnd, extensionDays),
+    extensionDays,
+  };
+}

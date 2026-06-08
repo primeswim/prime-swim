@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useRouter } from 'next/navigation'
 import Header from '@/components/header'
 import {
-  computeStatus, deriveCoverageFromAnchor,
+  computeStatus, computeStatusWithPause, deriveCoverageFromAnchor,
+  getEffectiveNowForMembership,
   toMidnightLocal, RENEWAL_WINDOW_DAYS, GRACE_DAYS,
   diffInDays, fmt, type MembershipStatus
 } from '@/lib/membership'
@@ -45,6 +46,8 @@ interface Swimmer {
   lastRenewalAt?: Date | { toDate: () => Date } | string | null
   pilot?: boolean
   isFrozen?: boolean
+  membershipPaused?: boolean
+  membershipPausedAt?: Date | { toDate: () => Date } | string | null
 
   familyDoctorName?: string
   familyDoctorPhone?: string
@@ -77,6 +80,7 @@ export default function AdminSwimmerPage() {
   const [statusFilter, setStatusFilter] = useState<MembershipStatus | 'pending' | 'frozen' | null>('active')
   const [levelFilter, setLevelFilter] = useState<SwimmerLevel | 'all' | null>(null)
   const [remindBusy, setRemindBusy] = useState(false)
+  const [membershipPauseBusy, setMembershipPauseBusy] = useState(false)
 
   const [page, setPage] = useState(1)
   const pageSize = 20
@@ -231,14 +235,25 @@ export default function AdminSwimmerPage() {
           due = x.nextDueDate as Date | undefined
         }
 
-        const st = computeStatus({ registrationAnchorDate: anchor, currentPeriodStart: cps, currentPeriodEnd: cpe, nextDueDate: due }, now)
+        const st = computeStatusWithPause(
+          { registrationAnchorDate: anchor, currentPeriodStart: cps, currentPeriodEnd: cpe, nextDueDate: due },
+          { membershipPaused: s.membershipPaused, membershipPausedAt: toDate(s.membershipPausedAt) },
+          now
+        )
+
+        const effectiveNow = getEffectiveNowForMembership(
+          { membershipPaused: s.membershipPaused, membershipPausedAt: toDate(s.membershipPausedAt) },
+          now
+        )
 
         let dueLabel = '-'
         let dueDelta: number | undefined
         if (due) {
-          const delta = diffInDays(due, now)
+          const delta = diffInDays(due, effectiveNow)
           dueDelta = delta
-          if (delta > 0) dueLabel = `in ${delta}d`
+          if (s.membershipPaused) {
+            dueLabel = 'paused'
+          } else if (delta > 0) dueLabel = `in ${delta}d`
           else if (delta === 0) dueLabel = 'today'
           else dueLabel = `${Math.abs(delta)}d overdue`
         }
@@ -349,8 +364,6 @@ export default function AdminSwimmerPage() {
       // 继续执行，即使更新 payment 失败也不影响标记 swimmer 为已付费
     }
 
-    const nowMid = toMidnightLocal(new Date())
-
     const toDateLocal = (v: Date | { toDate: () => Date } | string | number | null | undefined) => {
       if (!v) return undefined
       if (typeof v === "object" && v !== null && "toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
@@ -360,6 +373,16 @@ export default function AdminSwimmerPage() {
       if (v instanceof Date) return v
       return undefined
     }
+
+    const nowMid = toMidnightLocal(
+      getEffectiveNowForMembership(
+        {
+          membershipPaused: s.membershipPaused,
+          membershipPausedAt: toDateLocal(s.membershipPausedAt),
+        },
+        new Date()
+      )
+    )
 
     const anchor = toDateLocal(s.registrationAnchorDate)
     const cps = toDateLocal(s.currentPeriodStart)
@@ -481,6 +504,9 @@ export default function AdminSwimmerPage() {
 
   // —— 顶部批量操作
   const sendReminderOne = async (s: Row): Promise<{ success: boolean; error?: string }> => {
+    if (s.membershipPaused) {
+      return { success: false, error: 'Membership paused' }
+    }
     if (!s.parentEmail) {
       return { success: false, error: 'No parent email' }
     }
@@ -592,6 +618,59 @@ export default function AdminSwimmerPage() {
     if (targets.length === 0) { alert('Please select at least one swimmer.'); return }
     await Promise.all(targets.map(r => updateDoc(doc(db, 'swimmers', r.id), { isFrozen: freeze })))
     await fetchSwimmers()
+  }
+
+  const membershipPauseAction = async (action: 'pause' | 'resume') => {
+    const targets = rows.filter(r => selectedIds.has(r.id))
+    if (targets.length === 0) {
+      alert('Please select at least one swimmer.')
+      return
+    }
+
+    const label = action === 'pause' ? 'pause membership for' : 'resume membership for'
+    if (!confirm(`${action === 'pause' ? 'Pause' : 'Resume'} membership for ${targets.length} swimmer(s)?`)) return
+
+    setMembershipPauseBusy(true)
+    try {
+      const authToken = await auth.currentUser?.getIdToken()
+      if (!authToken) {
+        alert('Not authenticated')
+        return
+      }
+      const res = await fetch('/api/admin/membership-pause', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          swimmerIds: targets.map(t => t.id),
+          action,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        alert(data.error || `Failed to ${label} selected swimmers.`)
+        return
+      }
+      const failed = (data.results as Array<{ ok: boolean; error?: string }>).filter(r => !r.ok)
+      if (failed.length > 0) {
+        alert(`Completed with ${data.okCount}/${data.total} succeeded. Check console for details.`)
+        console.error('Membership pause/resume failures:', failed)
+      } else if (action === 'resume') {
+        const totalDays = (data.results as Array<{ extensionDays?: number }>)
+          .reduce((sum, r) => sum + (r.extensionDays ?? 0), 0)
+        alert(`Resumed ${data.okCount} swimmer(s). Membership extended by pause duration (${totalDays} total days).`)
+      } else {
+        alert(`Paused membership for ${data.okCount} swimmer(s).`)
+      }
+      await fetchSwimmers()
+    } catch (err) {
+      console.error(err)
+      alert(`Something went wrong while trying to ${label} selected swimmers.`)
+    } finally {
+      setMembershipPauseBusy(false)
+    }
   }
 
   const deleteSelected = async () => {
@@ -769,6 +848,22 @@ export default function AdminSwimmerPage() {
           <Button variant="outline" onClick={() => freezeSelected(false)} disabled={selectedIds.size === 0}>
             Unfreeze
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => membershipPauseAction('pause')}
+            disabled={selectedIds.size === 0 || membershipPauseBusy}
+            className="bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+          >
+            {membershipPauseBusy ? 'Working...' : 'Pause Membership'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => membershipPauseAction('resume')}
+            disabled={selectedIds.size === 0 || membershipPauseBusy}
+            className="bg-teal-50 text-teal-800 border-teal-300 hover:bg-teal-100"
+          >
+            {membershipPauseBusy ? 'Working...' : 'Resume Membership'}
+          </Button>
           <Button variant="outline" onClick={markPendingSelected} disabled={selectedIds.size === 0}>
             Mark as Pending
           </Button>
@@ -890,7 +985,9 @@ export default function AdminSwimmerPage() {
                   <TableCell><StatusBadge status={s._status} /></TableCell>
                   <TableCell className="text-sm">{s.paymentStatus ?? '-'}</TableCell>
                   <TableCell className="text-xs text-slate-600">
-                    {s.isFrozen ? 'Frozen' : '-'}
+                    {[s.isFrozen ? 'Frozen' : null, s.membershipPaused ? 'Membership paused' : null]
+                      .filter(Boolean)
+                      .join(', ') || '-'}
                   </TableCell>
                 </TableRow>
 
@@ -966,7 +1063,7 @@ export default function AdminSwimmerPage() {
 
       <div className="mt-4 flex items-center justify-between">
         <p className="text-xs text-slate-500">
-          Window: early {RENEWAL_WINDOW_DAYS}d / grace {GRACE_DAYS}d. Freeze/Unfreeze does not change coverage dates. Status is computed from dates (and frozen), not paymentStatus.
+          Window: early {RENEWAL_WINDOW_DAYS}d / grace {GRACE_DAYS}d. Freeze/Unfreeze does not change coverage dates. Pause Membership stops the membership clock until Resume (extends due date by pause duration). Status is computed from dates (and pause/frozen), not paymentStatus.
         </p>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>

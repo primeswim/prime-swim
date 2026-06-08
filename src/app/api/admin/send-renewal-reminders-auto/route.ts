@@ -8,7 +8,7 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import {
-  computeStatus,
+  computeStatusWithPause,
   deriveCoverageFromAnchor,
 } from "@/lib/membership";
 
@@ -285,6 +285,8 @@ async function handleRequest(req: NextRequest) {
     })) as Array<{
       id: string;
       isFrozen?: boolean;
+      membershipPaused?: boolean;
+      membershipPausedAt?: { toDate: () => Date } | Date | string;
       parentEmail?: string;
       parentFirstName?: string;
       parentLastName?: string;
@@ -307,8 +309,8 @@ async function handleRequest(req: NextRequest) {
     }> = [];
 
     for (const swimmer of swimmers) {
-      // Skip if frozen or no email
-      if (swimmer.isFrozen || !swimmer.parentEmail) continue;
+      // Skip if frozen, membership paused, or no email
+      if (swimmer.isFrozen || swimmer.membershipPaused || !swimmer.parentEmail) continue;
 
       // Compute dates
       let nextDue: Date | undefined;
@@ -325,12 +327,16 @@ async function handleRequest(req: NextRequest) {
       if (!nextDue) continue;
 
       // Compute status
-      const status = computeStatus(
+      const status = computeStatusWithPause(
         {
           registrationAnchorDate: toDate(swimmer.registrationAnchorDate),
           currentPeriodStart: toDate(swimmer.currentPeriodStart),
           currentPeriodEnd: toDate(swimmer.currentPeriodEnd),
           nextDueDate: nextDue,
+        },
+        {
+          membershipPaused: swimmer.membershipPaused,
+          membershipPausedAt: toDate(swimmer.membershipPausedAt),
         },
         now
       );
