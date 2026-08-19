@@ -38,7 +38,15 @@ type SwimmerFS = {
   level?: SwimmerLevel;
 };
 
-type SendResp = { ok: boolean; data?: unknown; error?: string };
+type SendResp = {
+  ok: boolean;
+  data?: unknown;
+  error?: string;
+  sentCount?: number;
+  failedCount?: number;
+  failedEmails?: string[];
+  results?: Array<{ email: string; ok: boolean; error?: string }>;
+};
 
 function escapeHtml(s: string) {
   return String(s ?? "")
@@ -192,6 +200,9 @@ export default function SendEmailAdminPage() {
 
   const [status, setStatus] = useState("");
   const [success, setSuccess] = useState(false);
+  const [failedEmails, setFailedEmails] = useState<string[]>([]);
+  const [succeededEmails, setSucceededEmails] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
 
   // 新增：可编辑的收件人文本与"是否手动修改"标记
   const [recipientsText, setRecipientsText] = useState("");
@@ -287,44 +298,82 @@ export default function SendEmailAdminPage() {
       if (!subject.trim()) throw new Error("Subject is required.");
       if (!content.trim()) throw new Error("Content cannot be empty.");
 
-      setStatus("Sending…");
+      setSending(true);
+      setFailedEmails([]);
       const u = auth.currentUser;
       if (!u) throw new Error("Not signed in");
       const idToken = await u.getIdToken(true);
 
-      const res = await fetch("/api/sendemail", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          toEmails: recipientsParsed, // ← 使用可编辑后的解析结果
-          subject,
-          content,
-          contentType, // Use selected content type
-          bccAdmin,
-          useTemplate: true, // Always use template
-        }),
-      });
+      const CHUNK = 5;
+      const allFailed: string[] = [];
+      const allSucceeded: string[] = [];
+      const total = recipientsParsed.length;
+      setSucceededEmails([]);
 
-      const j: SendResp = await res.json();
-      if (!res.ok || !j.ok) throw new Error(j.error || "Send failed");
-      updateStatus(`✅ Sent to ${recipientsParsed.length} recipient(s).`, true);
-      
-      // Reset form after successful send
-      setTimeout(() => {
-        setStatus("");
+      for (let i = 0; i < recipientsParsed.length; i += CHUNK) {
+        const chunk = recipientsParsed.slice(i, i + CHUNK);
+        const from = i + 1;
+        const to = Math.min(i + CHUNK, total);
+        setStatus(`Sending ${from}–${to} of ${total}…`);
         setSuccess(false);
-        setSelectedIds([]);
-        setRecipientsText("");
-        setRecipientsDirty(false);
-        setSubject("");
-        setContent("");
-      }, 3000);
+
+        const res = await fetch("/api/sendemail", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            toEmails: chunk,
+            subject,
+            content,
+            contentType,
+            // One admin copy for the whole job, not one per parent
+            bccAdmin: bccAdmin && i === 0,
+          }),
+        });
+
+        const j: SendResp = await res.json();
+        if (!res.ok && !j.sentCount && !j.results?.length) {
+          throw new Error(j.error || "Send failed");
+        }
+        const chunkSucceeded = (j.results || [])
+          .filter((r) => r.ok)
+          .map((r) => r.email);
+        const chunkFailed = j.failedEmails?.length
+          ? j.failedEmails
+          : (j.results || []).filter((r) => !r.ok).map((r) => r.email);
+        allSucceeded.push(...chunkSucceeded);
+        allFailed.push(...chunkFailed);
+        if (j.error && !j.sentCount && !chunkSucceeded.length) {
+          for (const email of chunk) {
+            if (!allFailed.includes(email)) allFailed.push(email);
+          }
+        }
+
+        if (i + CHUNK < recipientsParsed.length) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+
+      setSucceededEmails(allSucceeded);
+      setFailedEmails(allFailed);
+      const sentCount = allSucceeded.length;
+      if (allFailed.length) {
+        setRecipientsText(allFailed.join(", "));
+        setRecipientsDirty(true);
+        updateStatus(
+          `Sent ${sentCount}/${total}. ${allFailed.length} failed.`,
+          false
+        );
+      } else {
+        updateStatus(`Sent ${sentCount}/${total}. All delivered to Resend.`, true);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       updateStatus("❌ " + msg, false);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -369,10 +418,10 @@ export default function SendEmailAdminPage() {
           <p className="text-slate-600">Send branded emails to parents - just type your message, we&apos;ll handle the formatting</p>
         </div>
 
-        {status && (
-          <Alert 
+        {(status || succeededEmails.length > 0 || failedEmails.length > 0) && (
+          <Alert
             variant={success ? "default" : "destructive"}
-            className={`mb-6 ${success ? "border-green-200 bg-green-50" : ""}`}
+            className={`mb-6 ${success ? "border-green-200 bg-green-50" : failedEmails.length ? "" : "border-slate-200 bg-slate-50"}`}
           >
             {success ? (
               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -380,7 +429,32 @@ export default function SendEmailAdminPage() {
               <AlertCircle className="h-4 w-4 text-red-600" />
             )}
             <AlertDescription className={success ? "text-green-800" : ""}>
-              {status}
+              <p className="font-medium">{status}</p>
+              {(succeededEmails.length > 0 || failedEmails.length > 0) && (
+                <p className="mt-1">
+                  Success: {succeededEmails.length} · Failed: {failedEmails.length}
+                </p>
+              )}
+              {succeededEmails.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide opacity-80">Succeeded</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    {succeededEmails.map((email) => (
+                      <li key={email} className="font-mono text-sm">{email}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {failedEmails.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide opacity-80">Failed</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    {failedEmails.map((email) => (
+                      <li key={email} className="font-mono text-sm">{email}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -581,7 +655,7 @@ export default function SendEmailAdminPage() {
                       onCheckedChange={(checked) => setBccAdmin(checked === true)}
                     />
                     <Label htmlFor="bcc-admin" className="text-sm font-normal cursor-pointer">
-                      BCC admin (default)
+                      Send one copy to admin (prime.swim.us@gmail.com)
                     </Label>
                   </div>
                 </div>
@@ -660,9 +734,9 @@ export default function SendEmailAdminPage() {
               onClick={handleSend}
               size="lg"
               className="w-full"
-              disabled={!recipientsParsed.length || !subject.trim() || !content.trim() || status.includes("Sending")}
+              disabled={!recipientsParsed.length || !subject.trim() || !content.trim() || sending}
             >
-              {status.includes("Sending") ? (
+              {sending ? (
                 "Sending..."
               ) : (
                 <>

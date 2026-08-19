@@ -1,5 +1,8 @@
 // app/api/sendemail/route.ts
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
@@ -214,29 +217,76 @@ export async function POST(req: Request) {
       );
     }
 
-    // Build Resend payload (hide recipients by using BCC)
-    // Always use template for consistent branding
+    const uniqueEmails = [...new Set(toEmails.map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
+    if (!uniqueEmails.length) {
+      return NextResponse.json({ ok: false, error: "No valid recipient emails" }, { status: 400 });
+    }
+
+    // One email per parent. Sending everyone in a single BCC is what triggered
+    // Gmail rate-limiting (421 4.7.28) on send.primeswimacademy.com.
+    const MAX_PER_REQUEST = 8;
+    if (uniqueEmails.length > MAX_PER_REQUEST) {
+      return NextResponse.json(
+        { ok: false, error: `Send at most ${MAX_PER_REQUEST} recipients per request` },
+        { status: 400 }
+      );
+    }
+
     const html = wrapWithTemplate(subject, content, contentType);
+    const text =
+      contentType === "html"
+        ? content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+        : content;
 
-    // Merge BCCs: real recipients + optional admin
-    const bccList: string[] = bccAdmin ? [...toEmails, ADMIN_BCC] : [...toEmails];
+    const results: Array<{ email: string; ok: boolean; id?: string; error?: string }> = [];
 
-    const payload: EmailPayload = {
-      from: FROM_EMAIL,
-      to: FROM_EMAIL,      // visible To: only your noreply
-      bcc: bccList,        // real recipients hidden in BCC
-      subject,
-      html,
-      text:
-        contentType === "html"
-          ? content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
-          : content,
-    };
+    for (let i = 0; i < uniqueEmails.length; i++) {
+      const email = uniqueEmails[i];
+      const payload: EmailPayload = {
+        from: FROM_EMAIL,
+        to: email,
+        subject,
+        html,
+        text,
+      };
+      // One admin copy for the whole job (first recipient only), not 20 BCC copies.
+      if (bccAdmin && i === 0) {
+        payload.bcc = [ADMIN_BCC];
+      }
 
-    // Resend typings vary by version but accept this shape at runtime.
-    const sent = await resend.emails.send(payload as unknown as Parameters<typeof resend.emails.send>[0]);
+      const sent = await resend.emails.send(
+        payload as unknown as Parameters<typeof resend.emails.send>[0]
+      );
+      const errMsg =
+        sent && typeof sent === "object" && "error" in sent && sent.error
+          ? (sent.error as { message?: string }).message || String(sent.error)
+          : null;
+      const id =
+        sent && typeof sent === "object" && "data" in sent && sent.data && typeof sent.data === "object"
+          ? (sent.data as { id?: string }).id
+          : sent && typeof sent === "object" && "id" in sent
+            ? (sent as { id?: string }).id
+            : undefined;
 
-    return NextResponse.json({ ok: true, data: sent });
+      if (errMsg) {
+        results.push({ email, ok: false, error: errMsg });
+      } else {
+        results.push({ email, ok: true, id });
+      }
+
+      if (i < uniqueEmails.length - 1) {
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+    }
+
+    const failed = results.filter((r) => !r.ok);
+    return NextResponse.json({
+      ok: failed.length === 0,
+      sentCount: results.filter((r) => r.ok).length,
+      failedCount: failed.length,
+      failedEmails: failed.map((r) => r.email),
+      results,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
