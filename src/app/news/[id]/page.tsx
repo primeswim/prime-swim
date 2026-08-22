@@ -124,9 +124,11 @@ export default function NewsDetailPage() {
             )}
             <CardContent className="p-8 md:p-12">
               <div className="flex items-center gap-3 mb-6">
-                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-slate-100 text-slate-800 uppercase tracking-wide">
-                  {news.category}
-                </span>
+                {news.category ? (
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-slate-100 text-slate-800 uppercase tracking-wide">
+                    {news.category}
+                  </span>
+                ) : null}
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6 leading-tight">{news.title}</h1>

@@ -155,7 +155,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
-                <p>• 5 sessions per week</p>
+                <p>• 4 sessions per week</p>
                 <p>• 90-minute sessions</p>
                 <p>• Elite competition focus</p>
               </div>
@@ -284,7 +284,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-slate-600 text-sm leading-relaxed">
-                  Former Olympic swimmer with 12+ years coaching experience. Specializes in competitive stroke technique and mental preparation.
+                  Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique and mental preparation.
                 </p>
                 <div className="mt-4 text-xs text-slate-500">
                   <p>• USA Swimming Certified</p>
@@ -319,11 +319,11 @@ export default function Home() {
                 <span className="text-sm">Weekdays & Weekend</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
-                <p>5:00-6:00 PM (Sun)</p>
+                <p>4:00-5:00 PM (Sun)</p>
                 <p>7:00-8:00 PM (Mon)</p>
-                <p>7:00-8:00 PM (Wed)</p>
+                <p>5:00-5:55 PM (Thu)</p>
                 <p>7:00-8:00 PM (Fri)</p>
-                <p>4:00-5:00 PM (Sat)</p>
+                <p>5:00-6:00 PM (Sat)</p>
               </div>
             </CardContent>
           </Card>
@@ -341,10 +341,11 @@ export default function Home() {
                 <span className="text-sm">Weekdays</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
-                <p>8:00-9:00 PM (Mon)</p>
-                <p>8:00-9:00 PM (Tue)</p>
+                <p>7:00-8:00 PM (Mon)</p>
+                <p>7:00-8:00 PM (Tue)</p>
                 <p>7:00-8:00 PM (Wed)</p>
-                <p>8:00-9:00 PM (Thu)</p>
+                <p>7:00-8:00 PM (Thu)</p>
+                <p>7:00-8:00 PM (Fri)</p>
               </div>
             </CardContent>
           </Card>
@@ -362,11 +363,10 @@ export default function Home() {
                 <span className="text-sm">Weekdays & Weekend</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
-                <p>8:00-9:00 PM (Mon)</p>
-                <p>8:00-9:00 PM (Tue)</p>
-                <p>7:00-8:00 PM (Wed)</p>
-                <p>8:00-9:00 PM (Thu)</p>
-                <p>10:00-11:00 AM (Sat)</p>
+                <p>7:00-8:15 PM (Tue)</p>
+                <p>7:00-8:15 PM (Thu)</p>
+                <p>7:45-9:00 PM (Fri)</p>
+                <p>10:30 AM-12:00 PM (Sat)</p>
               </div>
             </CardContent>
           </Card>

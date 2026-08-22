@@ -133,7 +133,7 @@ export default function CoachesPage() {
             </CardHeader>
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
-                Former Olympic swimmer with 12+ years coaching experience. Specializes in competitive stroke technique,
+                Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique,
                 mental preparation, and high-performance training.s
               </p>
 
@@ -158,7 +158,7 @@ export default function CoachesPage() {
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-3 text-purple-600" />
-                    <span className="text-sm text-slate-600">12+ Years Elite Coaching</span>
+                    <span className="text-sm text-slate-600">13+ Years Elite Coaching</span>
                   </div>
                 </div>
               </div>

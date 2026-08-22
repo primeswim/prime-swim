@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   images: {
-    domains: ['i.imgur.com', 'imgur.com'],
+    domains: ['i.imgur.com', 'imgur.com', 'www.primeswimacademy.com', 'primeswimacademy.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'imgur.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.primeswimacademy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'primeswimacademy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
       },
     ],
   },
