@@ -40,14 +40,17 @@ const locations = [
   { id: 3, name: "Mary Wayte Swimming Pool" },
 ]
 
+const DEFAULT_START_TIME = "16:30"
+const DEFAULT_END_TIME = "17:30"
+
 export default function AddSlotPage() {
   const [mode, setMode] = useState<"single" | "recurring" | "delete">("single")
   
   // Single slot form
   const [form, setForm] = useState({
     date: "",
-    startTime: "",
-    endTime: "",
+    startTime: DEFAULT_START_TIME,
+    endTime: DEFAULT_END_TIME,
     coachId: "",
     locationId: "",
     priorityOnly: false,
@@ -59,8 +62,8 @@ export default function AddSlotPage() {
     startDate: "",
     endDate: "",
     daysOfWeek: [] as number[],
-    startTime: "",
-    endTime: "",
+    startTime: DEFAULT_START_TIME,
+    endTime: DEFAULT_END_TIME,
     coachId: "",
     locationId: "",
     priorityOnly: false,
@@ -152,7 +155,7 @@ export default function AddSlotPage() {
       await Promise.all(promises)
       setCreatedCount(slots.length)
       setSuccess(`Successfully created ${slots.length} slot${slots.length > 1 ? "s" : ""}!`)
-      setForm({ date: "", startTime: "", endTime: "", coachId: "", locationId: "", priorityOnly: false, interval: "60" })
+      setForm({ date: "", startTime: DEFAULT_START_TIME, endTime: DEFAULT_END_TIME, coachId: "", locationId: "", priorityOnly: false, interval: "60" })
       setTimeout(() => {
         setSuccess("")
         setCreatedCount(0)
@@ -248,8 +251,8 @@ export default function AddSlotPage() {
         startDate: "",
         endDate: "",
         daysOfWeek: [],
-        startTime: "",
-        endTime: "",
+        startTime: DEFAULT_START_TIME,
+        endTime: DEFAULT_END_TIME,
         coachId: "",
         locationId: "",
         priorityOnly: false,

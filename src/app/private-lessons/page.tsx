@@ -5,7 +5,7 @@ import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import { db, auth } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2, Download } from "lucide-react";
+import { CalendarIcon, Filter, AlertTriangle, Loader2, CheckCircle2, Download, Eye, EyeOff } from "lucide-react";
 import Header from "@/components/header";
 import {
   Card,
@@ -91,8 +91,25 @@ export default function PrivateLessonCalendar() {
   const [exportBySwimmer, setExportBySwimmer] = useState(false);
   const [selectedSwimmerForExport, setSelectedSwimmerForExport] = useState<string>("");
   const [isDeletingSlot, setIsDeletingSlot] = useState(false);
+  const [slotsHidden, setSlotsHidden] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
 
   const isAdmin = useIsAdminFromDB();
+
+  useEffect(() => {
+    const fetchVisibility = async () => {
+      try {
+        const res = await fetch("/api/private-lessons/settings");
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          setSlotsHidden(!!data.slotsHidden);
+        }
+      } catch (error) {
+        console.error("Failed to fetch slot visibility:", error);
+      }
+    };
+    fetchVisibility();
+  }, []);
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -207,6 +224,8 @@ export default function PrivateLessonCalendar() {
   }, [isAdmin]);
 
   const filteredEvents = useMemo(() => {
+    if (slotsHidden && !isAdmin) return [];
+
     return slots.filter((slot) => {
       // Admin can see all slots, non-admin only see available
       if (!isAdmin && slot.status !== "available") return false;
@@ -223,7 +242,40 @@ export default function PrivateLessonCalendar() {
 
       return locationMatch && searchMatch;
     });
-  }, [slots, selectedLocation, searchTerm, isAdmin]);
+  }, [slots, selectedLocation, searchTerm, isAdmin, slotsHidden]);
+
+  const handleToggleSlotsVisibility = async () => {
+    const nextHidden = !slotsHidden;
+    const confirmMsg = nextHidden
+      ? "Hide all private lesson slots from the public calendar?"
+      : "Show all private lesson slots on the public calendar again?";
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsTogglingVisibility(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated");
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/private-lessons/settings", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slotsHidden: nextHidden }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to update visibility");
+      }
+      setSlotsHidden(nextHidden);
+    } catch (error) {
+      console.error("Failed to toggle slot visibility:", error);
+      alert(error instanceof Error ? error.message : "Failed to update visibility");
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  };
 
   const eventStyleGetter = (event: SlotEvent) => {
     const backgroundColor = event.status === "taken" ? "#fee2e2" : "#FDF6F0";
@@ -880,18 +932,53 @@ export default function PrivateLessonCalendar() {
                 Available Slots
               </CardTitle>
               {isAdmin && (
-                <Button
-                  variant="outline"
-                  onClick={() => setIsExportDialogOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Calendar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={slotsHidden ? "default" : "outline"}
+                    onClick={handleToggleSlotsVisibility}
+                    disabled={isTogglingVisibility}
+                    className={`flex items-center gap-2 ${
+                      slotsHidden ? "bg-amber-600 hover:bg-amber-700 text-white" : ""
+                    }`}
+                  >
+                    {isTogglingVisibility ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : slotsHidden ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
+                    )}
+                    {slotsHidden ? "Show Slots" : "Hide Slots"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsExportDialogOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Calendar
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
           <CardContent>
+            {slotsHidden && isAdmin && (
+              <Alert className="mb-4 border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-700" />
+                <AlertDescription className="text-amber-900">
+                  Slots are <strong>hidden from the public</strong>. Parents cannot see any available times until you click Show Slots.
+                </AlertDescription>
+              </Alert>
+            )}
+            {!isAdmin && slotsHidden && (
+              <Alert className="mb-4 border-slate-200 bg-slate-50">
+                <AlertDescription className="text-slate-700">
+                  Private lesson slots are temporarily unavailable. Please check back later or contact us at{" "}
+                  <a href="mailto:prime.swim.us@gmail.com" className="underline">prime.swim.us@gmail.com</a>.
+                </AlertDescription>
+              </Alert>
+            )}
             <div style={{ height: "600px" }}>
               <Calendar
                 localizer={localizer}
