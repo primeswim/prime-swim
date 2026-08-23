@@ -61,6 +61,14 @@ export default function Footer() {
               <Link href="#schedule" className="block text-sm hover:text-white transition-colors">
                 Schedules
               </Link>
+              <a
+                href="https://www.swimoutlet.com/collections/psa"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-sm hover:text-white transition-colors"
+              >
+                Team Store
+              </a>
             </div>
           </div>
 

@@ -38,9 +38,9 @@ export default function Home() {
           </Button>
         </div>
       </section>
-      {/* 徽章：USA & PNS —— 居中显示，尺寸与 PSA 同步 */}
+      {/* 徽章：USA & PNS & Team Store —— 居中显示 */}
       <div className="mt-4 md:mt-6 flex justify-center">
-        <div className="flex items-center gap-4 md:gap-5">
+        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
           <Image
             src="/images/usa-swimming.png"
             alt="USA Swimming"
@@ -57,6 +57,23 @@ export default function Home() {
             className="w-[120px] h-[120px] object-contain"
             title="Pacific Northwest Swimming"
           />
+          <Link
+            href="https://www.swimoutlet.com/collections/psa"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Shop Prime Swim Academy team store on SwimOutlet"
+            title="PSA Team Store on SwimOutlet"
+            className="block"
+          >
+            <Image
+              src="/images/swimoutlet-logo.png"
+              alt="SwimOutlet.com — PSA Team Store"
+              width={320}
+              height={71}
+              unoptimized
+              className="h-10 w-auto object-contain md:h-12"
+            />
+          </Link>
         </div>
       </div>
       {/* Programs Section */}
@@ -223,6 +240,33 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      {/* Team Suit / Team Store */}
+      <section id="team-store" className="container mx-auto px-4 py-20">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-4xl font-bold text-slate-800 mb-4">Team Suit &amp; Gear</h2>
+          <p className="text-xl text-slate-600 mb-8 leading-relaxed">
+            Shop official Prime Swim Academy gear through our SwimOutlet team store—
+            including team suits and training essentials for the season.
+          </p>
+          <Button
+            asChild
+            size="lg"
+            className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
+          >
+            <Link
+              href="https://www.swimoutlet.com/collections/psa"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Shop Team Store
+            </Link>
+          </Button>
+          <p className="mt-6 text-sm text-slate-500">
+            Purchases through our store support the team with SwimOutlet store credit.
+          </p>
         </div>
       </section>
 
