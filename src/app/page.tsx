@@ -57,23 +57,14 @@ export default function Home() {
             className="w-[120px] h-[120px] object-contain"
             title="Pacific Northwest Swimming"
           />
-          <Link
-            href="https://www.swimoutlet.com/collections/psa"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Shop Prime Swim Academy team store on SwimOutlet"
-            title="PSA Team Store on SwimOutlet"
-            className="block"
-          >
-            <Image
-              src="/images/swimoutlet-logo.png"
-              alt="SwimOutlet.com — PSA Team Store"
-              width={320}
-              height={71}
-              unoptimized
-              className="h-10 w-auto object-contain md:h-12"
-            />
-          </Link>
+          <Image
+            src="/images/swimoutlet-logo.png"
+            alt="SwimOutlet.com"
+            width={320}
+            height={71}
+            unoptimized
+            className="h-10 w-auto object-contain md:h-12"
+          />
         </div>
       </div>
       {/* Programs Section */}
