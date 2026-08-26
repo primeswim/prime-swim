@@ -55,12 +55,21 @@ const policies = [
     ],
   },
   {
+    id: "private-availability",
+    title: "Private Lesson Availability",
+    icon: Calendar,
+    content: [
+      "As Prime Swim Academy continues to grow, coach availability for private lessons is more limited as we prioritize supporting our team swimmers.",
+      "For current Prime Swim team swimmers: there are no changes to private lesson availability or format.",
+      "For non-team swimmers: private lessons are very limited and available only to swimmers at the advanced / age-group level. Families should contact us to confirm eligibility before registering.",
+    ],
+  },
+  {
     id: "private-cancellation",
     title: "Private Lesson Cancellation Policy",
     icon: Calendar,
     content: [
       "Cancellations must be made at least one week (7 days) before the scheduled private lesson to be eligible for a reschedule or credit.",
-      "For lessons held at Mary Wayte Swimming Pool, a minimum of two weeks (14 days) advance notice is required due to the facility’s scheduling constraints.",
       "Cancellations made after the respective deadline will be considered a forfeiture of the session without refund or makeup. In cases of documented medical emergencies, exceptions may be granted at the academy’s discretion.",
       "In approved medical-emergency cases, the family remains responsible for covering the lane rental fee incurred by Prime Swim Academy for the scheduled session.",
       "Reschedules or credits are subject to coach and lane availability.",

@@ -371,12 +371,8 @@ function buildConfirmationEmail(params: {
         <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 25px 0;">
           <h3 style="margin-top: 0; color: #92400e; font-size: 18px; font-weight: 700;">📋 Cancellation Policy</h3>
           <p style="margin: 10px 0; color: #78350f; font-size: 15px; line-height: 1.6;">
-            To be eligible for reschedule or credit, please notify us at least <strong style='color: #dc2626;'>${locationName === "Mary Wayte Swimming Pool" ? "14 days" : "7 days"}</strong> before your scheduled lesson. This advance notice helps us manage our schedule and accommodate other families.
+            To be eligible for reschedule or credit, please notify us at least <strong style='color: #dc2626;'>7 days</strong> before your scheduled lesson. This advance notice helps us manage our schedule and accommodate other families.
           </p>
-          ${locationName === "Mary Wayte Swimming Pool" ? 
-            "<p style='margin: 10px 0; color: #78350f; font-size: 15px; line-height: 1.6;'>For lessons at <strong>Mary Wayte Swimming Pool</strong>, we require <strong style='color: #dc2626;'>14 days</strong> advance notice due to the facility's scheduling constraints.</p>" : 
-            ""
-          }
           <p style="margin: 10px 0; color: #78350f; font-size: 15px; line-height: 1.6;">
             Cancellations made after the deadline will be considered a forfeiture of the session without refund or makeup. We understand that unexpected situations arise, and in cases of documented <strong>medical emergencies</strong>, we may make exceptions at our discretion. Please note that even in approved medical-emergency cases, families remain responsible for the lane rental fee incurred for the scheduled session.
           </p>

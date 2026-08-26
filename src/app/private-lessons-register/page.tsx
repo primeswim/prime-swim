@@ -162,6 +162,14 @@ export default function PrivateLessonsPage() {
             Complete this registration form and liability waiver to begin your private swimming lessons with our
             certified instructors.
           </p>
+          <div className="max-w-2xl mx-auto mt-6 rounded-lg border border-slate-200 bg-white/80 px-5 py-4 text-left text-sm text-slate-700 leading-relaxed">
+            <p className="mb-2">
+              <span className="font-semibold text-slate-800">Team swimmers:</span> private lesson availability is unchanged.
+            </p>
+            <p>
+              <span className="font-semibold text-slate-800">Non-team swimmers:</span> private lessons are limited and available only at the advanced / age-group level. Please contact us to confirm eligibility before registering.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -592,7 +600,7 @@ export default function PrivateLessonsPage() {
                           costs incurred.
                         </p>
                         <p>
-                          <strong>6. CANCELLATION POLICY:</strong> I understand that all cancellations must be made at least <strong>one week (7 days)</strong> in advance of the scheduled lesson to be eligible for a reschedule or credit. For lessons held at <strong>Mary Wayte Swimming Pool</strong>, a minimum of <strong>two weeks (14 days)</strong> advance notice is required due to the facility’s scheduling constraints. 
+                          <strong>6. CANCELLATION POLICY:</strong> I understand that all cancellations must be made at least <strong>one week (7 days)</strong> in advance of the scheduled lesson to be eligible for a reschedule or credit. 
 
                           Cancellations made after the respective deadline will result in forfeiture of the session without refund or makeup, <strong>except in cases of medical emergencies with valid documentation</strong>. In such cases, I understand that I will still be responsible for <strong>covering the lane rental fee</strong> incurred by Prime Swim Academy for the scheduled session.
                         </p>

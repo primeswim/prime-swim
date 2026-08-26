@@ -846,6 +846,24 @@ export default function PrivateLessonCalendar() {
         <h1 className="text-4xl font-bold text-slate-800 mb-6">
           Available Private Lessons
         </h1>
+        <div className="max-w-3xl mx-auto mt-4 mb-6 bg-slate-50 border border-slate-200 rounded-lg p-5 text-left shadow-sm">
+          <h2 className="text-base font-semibold text-slate-800 mb-3">
+            Private Lesson Availability
+          </h2>
+          <div className="space-y-3 text-sm text-slate-700 leading-relaxed">
+            <p>
+              As Prime Swim Academy continues to grow, coach availability for private lessons is more limited as we prioritize supporting our team swimmers.
+            </p>
+            <p>
+              <span className="font-semibold text-slate-800">Current Prime Swim team swimmers:</span>{" "}
+              There are no changes to private lesson availability or format.
+            </p>
+            <p>
+              <span className="font-semibold text-slate-800">Non-team swimmers:</span>{" "}
+              Private lessons are very limited and available only to swimmers at the advanced / age-group level. Please contact us to confirm eligibility before registering.
+            </p>
+          </div>
+        </div>
         <div className="max-w-3xl mx-auto mt-4 mb-10 bg-red-50 border border-red-200 rounded-lg p-4 shadow-sm">
         <div className="flex items-start space-x-3">
           <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />

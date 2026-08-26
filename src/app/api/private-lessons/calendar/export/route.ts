@@ -347,7 +347,7 @@ function generateICal(bookings: BookingForExport[]): string {
       parentPhone ? `Phone: ${parentPhone}` : "",
       notes ? `Notes: ${notes}` : "",
       "",
-      "Cancellation Policy: Please notify us at least 7 days (14 days for Mary Wayte) before the lesson for reschedule or credit.",
+      "Cancellation Policy: Please notify us at least 7 days before the lesson for reschedule or credit.",
     ]
       .filter(Boolean)
       .join("\n");

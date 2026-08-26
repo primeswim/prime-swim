@@ -240,7 +240,7 @@ export function buildTuitionEmailHtml(data: TuitionEmailPayload): string {
         <p><strong>Make-up & Cancellation Highlights</strong></p>
         <ul class="policy-list">
           <li><strong>Group lessons:</strong> one make-up class is offered each calendar month for missed group lessons. The make-up schedule is posted monthly; advance sign-up is required, space is limited, and make-ups do not roll over or transfer.</li>
-          <li><strong>Private lessons:</strong> cancel at least <strong>7 days</strong> in advance (Mary Wayte requires <strong>14 days</strong>). Late cancellations forfeit the session; documented medical emergencies may still incur the lane rental fee.</li>
+          <li><strong>Private lessons:</strong> cancel at least <strong>7 days</strong> in advance. Late cancellations forfeit the session; documented medical emergencies may still incur the lane rental fee.</li>
         </ul>
         <p style="margin-top:12px;">
           Full details: <a href="${POLICY_URL}" target="_blank" rel="noopener noreferrer">Prime Swim Academy Team Policy</a>.
