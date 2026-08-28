@@ -31,6 +31,7 @@ export type TuitionCalculateRow = {
   trainingWeekdays: number[];
   sessionCount: number;
   ratePerHour: number;
+  minDaysPerWeek?: number;
   tuition: number;
   baseTuition?: number;
   siblingDiscountPercent?: number;
@@ -149,6 +150,10 @@ export async function runTuitionCalculate(
   const results: TuitionCalculateRow[] = [];
   const enrollmentById = new Map<string, number>();
   const siblingIdsBySwimmer = new Map<string, string[]>();
+  const trainingEligibilityById = new Map<
+    string,
+    { trainingWeekdays: number[]; minDaysPerWeek: number }
+  >();
 
   for (const doc of swimmersSnap.docs) {
     const data = doc.data();
@@ -158,6 +163,17 @@ export async function runTuitionCalculate(
       swimmerId,
       normalizeSiblingIds(data.siblingIds, swimmerId)
     );
+    const levelForEligibility = (data.level && String(data.level).trim()) || "";
+    const levelCfgForEligibility = levelForEligibility
+      ? levels[levelForEligibility]
+      : null;
+    const trainingWeekdaysForEligibility: number[] = Array.isArray(data.trainingWeekdays)
+      ? data.trainingWeekdays.filter((n) => typeof n === "number" && n >= 0 && n <= 6)
+      : [];
+    trainingEligibilityById.set(swimmerId, {
+      trainingWeekdays: trainingWeekdaysForEligibility,
+      minDaysPerWeek: levelCfgForEligibility?.minDaysPerWeek ?? 0,
+    });
     const swimmerName =
       [data.childFirstName, data.childLastName].filter(Boolean).join(" ").trim() || doc.id;
     const level = (data.level && String(data.level).trim()) || "";
@@ -249,6 +265,7 @@ export async function runTuitionCalculate(
       trainingWeekdays,
       sessionCount,
       ratePerHour,
+      minDaysPerWeek: levelCfg?.minDaysPerWeek ?? 0,
       tuition,
       scheduleLines,
       timeSlot: firstSlot.timeSlot,
@@ -261,7 +278,8 @@ export async function runTuitionCalculate(
   const discountedResults = applySiblingTuitionDiscounts(
     results,
     enrollmentById,
-    siblingIdsBySwimmer
+    siblingIdsBySwimmer,
+    trainingEligibilityById
   );
 
   discountedResults.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName));

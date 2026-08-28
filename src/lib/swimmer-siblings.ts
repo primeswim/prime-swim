@@ -1,10 +1,17 @@
 /**
  * Sibling linking and tuition discount helpers.
+ *
+ * Discount rules (per linked sibling group):
+ * - If ANY sibling does not meet their level min training days/week → no discount for anyone.
+ * - If ALL siblings meet min days → eldest enrolled pays full tuition; each younger sibling gets 10% off.
  */
 
 export const SIBLING_TUITION_DISCOUNT_PERCENT = 10;
 
-export function siblingDiscountEmailNote(baseTuition: number, percent = SIBLING_TUITION_DISCOUNT_PERCENT): string {
+export function siblingDiscountEmailNote(
+  baseTuition: number,
+  percent = SIBLING_TUITION_DISCOUNT_PERCENT
+): string {
   return `A ${percent}% sibling discount has been applied (standard monthly tuition would be $${baseTuition}).`;
 }
 
@@ -52,14 +59,75 @@ export type SiblingDiscountMeta = {
   siblingDiscountApplied?: boolean;
 };
 
-export function applySiblingTuitionDiscounts<
-  T extends { swimmerId: string; tuition: number }
->(
+/** True when swimmer selected at least the level minimum training days per week. */
+export function swimmerMeetsMinDaysPerWeek(
+  trainingWeekdays: number[] | undefined,
+  minDaysPerWeek: number | undefined
+): boolean {
+  const min = minDaysPerWeek ?? 0;
+  if (min <= 0) return true;
+  return (trainingWeekdays?.length ?? 0) >= min;
+}
+
+export type SwimmerTrainingEligibility = {
+  trainingWeekdays: number[];
+  minDaysPerWeek: number;
+};
+
+type SiblingDiscountRow = {
+  swimmerId: string;
+  tuition: number;
+  trainingWeekdays?: number[];
+  minDaysPerWeek?: number;
+};
+
+function getTrainingEligibility(
+  swimmerId: string,
+  rowsById: Map<string, SiblingDiscountRow>,
+  trainingEligibilityById: Map<string, SwimmerTrainingEligibility>
+): SwimmerTrainingEligibility | null {
+  const fromRow = rowsById.get(swimmerId);
+  if (fromRow) {
+    return {
+      trainingWeekdays: fromRow.trainingWeekdays ?? [],
+      minDaysPerWeek: fromRow.minDaysPerWeek ?? 0,
+    };
+  }
+  return trainingEligibilityById.get(swimmerId) ?? null;
+}
+
+function siblingGroupMeetsMinDays(
+  component: string[],
+  rowsById: Map<string, SiblingDiscountRow>,
+  trainingEligibilityById: Map<string, SwimmerTrainingEligibility>
+): boolean {
+  for (const swimmerId of component) {
+    const eligibility = getTrainingEligibility(
+      swimmerId,
+      rowsById,
+      trainingEligibilityById
+    );
+    if (!eligibility) return false;
+    if (
+      !swimmerMeetsMinDaysPerWeek(
+        eligibility.trainingWeekdays,
+        eligibility.minDaysPerWeek
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function applySiblingTuitionDiscounts<T extends SiblingDiscountRow>(
   rows: T[],
   enrollmentById: Map<string, number>,
-  siblingIdsBySwimmer: Map<string, string[]>
+  siblingIdsBySwimmer: Map<string, string[]>,
+  trainingEligibilityById: Map<string, SwimmerTrainingEligibility> = new Map()
 ): Array<T & SiblingDiscountMeta> {
   const rowIds = new Set(rows.map((r) => r.swimmerId));
+  const rowsById = new Map(rows.map((r) => [r.swimmerId, r]));
   const adjacency = new Map<string, Set<string>>();
 
   const addEdge = (a: string, b: string) => {
@@ -71,9 +139,8 @@ export function applySiblingTuitionDiscounts<
   };
 
   for (const [swimmerId, siblingIds] of siblingIdsBySwimmer) {
-    if (!rowIds.has(swimmerId)) continue;
     for (const siblingId of siblingIds) {
-      if (rowIds.has(siblingId)) addEdge(swimmerId, siblingId);
+      addEdge(swimmerId, siblingId);
     }
   }
 
@@ -103,6 +170,9 @@ export function applySiblingTuitionDiscounts<
     }
 
     if (component.length < 2) continue;
+    if (!siblingGroupMeetsMinDays(component, rowsById, trainingEligibilityById)) {
+      continue;
+    }
 
     const sorted = [...component].sort((a, b) => {
       const ta = enrollmentById.get(a) ?? Number.MAX_SAFE_INTEGER;
@@ -112,7 +182,9 @@ export function applySiblingTuitionDiscounts<
     });
 
     for (let i = 1; i < sorted.length; i += 1) {
-      discountIds.add(sorted[i]);
+      if (rowIds.has(sorted[i])) {
+        discountIds.add(sorted[i]);
+      }
     }
   }
 
