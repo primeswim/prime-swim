@@ -13,7 +13,6 @@ import {
   loadMonthTuitionOverrides,
   mergeMonthTuitionOverrides,
   normalizeTuitionOverridesMap,
-  rowToTuitionOverride,
 } from "@/lib/tuition-month-overrides";
 
 async function requireAdmin(req: Request): Promise<void> {
@@ -60,26 +59,10 @@ export async function POST(req: Request) {
       results = clientRows;
       source = "preview";
       const explicitOverrides = normalizeTuitionOverridesMap(body.tuitionOverrides);
-      const baseline = new Map(
-        Object.entries(body.tuitionBaseline ?? {}).map(([id, t]) => [id, Number(t)])
-      );
-      const fromRows =
-        Object.keys(explicitOverrides).length > 0
-          ? explicitOverrides
-          : Object.fromEntries(
-              clientRows
-                .filter((r) => {
-                  const base = baseline.get(r.swimmerId);
-                  return base === undefined || r.tuition !== base || r.siblingDiscountApplied;
-                })
-                .map((r) => [r.swimmerId, rowToTuitionOverride(r)])
-            );
-      await mergeMonthTuitionOverrides(
-        adminDb,
-        month,
-        fromRows,
-        body.clearTuitionOverrideIds ?? []
-      );
+      const clearIds = body.clearTuitionOverrideIds ?? [];
+      if (Object.keys(explicitOverrides).length > 0 || clearIds.length > 0) {
+        await mergeMonthTuitionOverrides(adminDb, month, explicitOverrides, clearIds);
+      }
     } else {
       const calculated = (await runTuitionCalculate(adminDb, month, { levels })).results;
       const overrides = await loadMonthTuitionOverrides(adminDb, month);

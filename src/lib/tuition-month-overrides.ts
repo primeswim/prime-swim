@@ -7,6 +7,9 @@ export const TUITION_MONTH_CONFIG_COLLECTION = "tuition_month_config";
 /** Compact per-swimmer manual tuition (no schedules or parent info). */
 export type TuitionAmountOverride = {
   tuition: number;
+  /** Set when admin manually edits tuition on Calculate Tuition */
+  manual?: boolean;
+  /** @deprecated Legacy auto-saved sibling snapshots — ignored when stale */
   baseTuition?: number;
   siblingDiscountApplied?: boolean;
   siblingDiscountPercent?: number;
@@ -14,16 +17,14 @@ export type TuitionAmountOverride = {
 
 export type TuitionOverridesMap = Record<string, TuitionAmountOverride>;
 
-export function rowToTuitionOverride(row: TuitionCalculateRow): TuitionAmountOverride {
-  const o: TuitionAmountOverride = { tuition: row.tuition };
-  if (typeof row.baseTuition === "number") o.baseTuition = row.baseTuition;
-  if (row.siblingDiscountApplied) {
-    o.siblingDiscountApplied = true;
-    if (typeof row.siblingDiscountPercent === "number") {
-      o.siblingDiscountPercent = row.siblingDiscountPercent;
-    }
-  }
-  return o;
+export function rowToTuitionOverride(
+  row: TuitionCalculateRow,
+  options?: { manual?: boolean }
+): TuitionAmountOverride {
+  return {
+    tuition: row.tuition,
+    ...(options?.manual ? { manual: true } : {}),
+  };
 }
 
 export function normalizeTuitionOverridesMap(raw: unknown): TuitionOverridesMap {
@@ -61,9 +62,30 @@ export function buildTuitionOverridesFromEdits(
     if (baseline !== undefined && row.tuition === baseline && !row.siblingDiscountApplied) {
       continue;
     }
-    out[swimmerId] = rowToTuitionOverride(row);
+    out[swimmerId] = rowToTuitionOverride(row, { manual: true });
   }
   return out;
+}
+
+/** True when a saved override should change the freshly calculated row. */
+export function shouldApplyTuitionOverride(
+  calculated: TuitionCalculateRow,
+  saved: TuitionAmountOverride
+): boolean {
+  // Legacy auto-saved sibling discount snapshots must not block updated policy.
+  if (saved.siblingDiscountApplied && !calculated.siblingDiscountApplied) {
+    return false;
+  }
+  if (saved.manual === true) {
+    return saved.tuition !== calculated.tuition;
+  }
+  // Legacy entry with sibling metadata: only apply while discount still active.
+  if (saved.siblingDiscountApplied) {
+    return (
+      calculated.siblingDiscountApplied === true && saved.tuition !== calculated.tuition
+    );
+  }
+  return saved.tuition !== calculated.tuition;
 }
 
 export function applyTuitionOverridesMap(
@@ -74,13 +96,10 @@ export function applyTuitionOverridesMap(
   if (ids.length === 0) return calculated;
   return calculated.map((row) => {
     const saved = overrides[row.swimmerId];
-    if (!saved) return row;
+    if (!saved || !shouldApplyTuitionOverride(row, saved)) return row;
     return {
       ...row,
       tuition: saved.tuition,
-      baseTuition: saved.baseTuition,
-      siblingDiscountApplied: saved.siblingDiscountApplied,
-      siblingDiscountPercent: saved.siblingDiscountPercent,
     };
   });
 }

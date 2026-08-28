@@ -296,6 +296,7 @@ export default function MonthlyTuitionPage() {
           overwriteUnpaidComputed: true,
           rows: results,
           tuitionBaseline: Object.fromEntries(baselineTuitionRef.current),
+          ...buildOverridePayload(results),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -470,9 +471,7 @@ export default function MonthlyTuitionPage() {
       string,
       {
         tuition: number;
-        baseTuition?: number;
-        siblingDiscountApplied?: boolean;
-        siblingDiscountPercent?: number;
+        manual?: boolean;
       }
     > = {};
     const clearTuitionOverrideIds: string[] = [];
@@ -484,18 +483,7 @@ export default function MonthlyTuitionPage() {
         clearTuitionOverrideIds.push(swimmerId);
         continue;
       }
-      tuitionOverrides[swimmerId] = {
-        tuition: row.tuition,
-        ...(typeof row.baseTuition === "number" ? { baseTuition: row.baseTuition } : {}),
-        ...(row.siblingDiscountApplied
-          ? {
-              siblingDiscountApplied: true,
-              ...(typeof row.siblingDiscountPercent === "number"
-                ? { siblingDiscountPercent: row.siblingDiscountPercent }
-                : {}),
-            }
-          : {}),
-      };
+      tuitionOverrides[swimmerId] = { tuition: row.tuition, manual: true };
     }
     return { tuitionOverrides, clearTuitionOverrideIds };
   }, []);
