@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Menu } from "lucide-react";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
+import { AdminNavMenu } from "@/components/admin-nav-menu";
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -144,95 +145,7 @@ export default function Header() {
                   Admin
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="max-h-[600px] overflow-y-auto">
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/swimmers">Swimmers</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/slots">Slots</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/events">Events</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/events/new">New Event</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/evaluations">Evaluations</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/evaluations/new">New Evaluation</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/evaluations/templates">Templates</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/attendance">Attendance</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/attendance/report">Attendance Report</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/activity">Activity</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/activity/placement">Activity Placement</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/clinic">Clinic</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/clinic/placement">Clinic Placement</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/clinic/registrations">Clinic Registrations</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/makeup">Makeup</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/makeup/attendees">Makeup Attendees</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/tryout-swimmers">Tryout Swimmers</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/private-lesson-swimmers">Private Lesson Swimmers</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/tuition">Tuition</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/monthly-tuition">Monthly Tuition</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/tuition-billing">Tuition Billing</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/sendemail">Send Email</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/test-reminder">Test Reminder</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/bulk-insert">Bulk Insert</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/news/add">Add News</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/news">Edit News</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/testimonials">Parent Testimonials</Link>
-                  </DropdownMenuItem>
+                  <AdminNavMenu variant="desktop" />
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -293,33 +206,7 @@ export default function Header() {
           {isAdmin === true && (
             <div className="space-y-1 border-t pt-2 mt-2">
               <p className="font-semibold">Admin</p>
-              <Link href="/admin/swimmers" className="block ml-4">Swimmers</Link>
-              <Link href="/admin/slots" className="block ml-4">Slots</Link>
-              <Link href="/admin/events" className="block ml-4">Events</Link>
-              <Link href="/admin/events/new" className="block ml-6">New Event</Link>
-              <Link href="/admin/evaluations" className="block ml-4">Evaluations</Link>
-              <Link href="/admin/evaluations/new" className="block ml-6">New Evaluation</Link>
-              <Link href="/admin/evaluations/templates" className="block ml-6">Templates</Link>
-              <Link href="/admin/attendance" className="block ml-4">Attendance</Link>
-              <Link href="/admin/attendance/report" className="block ml-6">Attendance Report</Link>
-              <Link href="/admin/activity" className="block ml-4">Activity</Link>
-              <Link href="/admin/activity/placement" className="block ml-6">Activity Placement</Link>
-              <Link href="/admin/clinic" className="block ml-4">Clinic</Link>
-              <Link href="/admin/clinic/placement" className="block ml-6">Clinic Placement</Link>
-              <Link href="/admin/clinic/registrations" className="block ml-6">Clinic Registrations</Link>
-              <Link href="/admin/makeup" className="block ml-4">Makeup</Link>
-              <Link href="/admin/makeup/attendees" className="block ml-6">Makeup Attendees</Link>
-              <Link href="/admin/tryout-swimmers" className="block ml-4">Tryout Swimmers</Link>
-              <Link href="/admin/private-lesson-swimmers" className="block ml-4">Private Lesson Swimmers</Link>
-              <Link href="/admin/tuition" className="block ml-4">Tuition</Link>
-              <Link href="/admin/monthly-tuition" className="block ml-4">Monthly Tuition</Link>
-              <Link href="/admin/tuition-billing" className="block ml-4">Tuition Billing</Link>
-              <Link href="/admin/sendemail" className="block ml-4">Send Email</Link>
-              <Link href="/admin/test-reminder" className="block ml-4">Test Reminder</Link>
-              <Link href="/admin/bulk-insert" className="block ml-4">Bulk Insert</Link>
-              <Link href="/news/add" className="block ml-4">Add News</Link>
-              <Link href="/admin/news" className="block ml-4">Edit News</Link>
-              <Link href="/admin/testimonials" className="block ml-4">Parent Testimonials</Link>
+              <AdminNavMenu variant="mobile" />
             </div>
           )}
         </div>

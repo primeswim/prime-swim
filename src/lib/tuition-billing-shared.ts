@@ -11,6 +11,10 @@ export type TuitionBillingRow = {
   parentName: string;
   parentEmail: string;
   amount: number;
+  /** Full tuition before sibling discount, when applicable */
+  baseAmount?: number | null;
+  siblingDiscountPercent?: number | null;
+  siblingDiscountApplied?: boolean;
   practiceText: string;
   dueDate: string;
   /** e.g. ["February 2026"] for the invoice email */

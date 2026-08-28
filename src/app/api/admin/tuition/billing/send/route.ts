@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       if (du != null && du >= 0) daysUntilDue = du;
     }
 
+    const siblingDiscountApplied = d.siblingDiscountApplied === true;
     const payload = {
       parentName: String(d.parentName || "Parent/Guardian"),
       parentEmail,
@@ -96,6 +97,13 @@ export async function POST(req: Request) {
       practiceText: String(d.practiceText || ""),
       dueDate: String(d.dueDate || ""),
       amount: typeof d.amount === "number" ? d.amount : Number(d.amount) || 0,
+      baseAmount:
+        siblingDiscountApplied && typeof d.baseAmount === "number" ? d.baseAmount : undefined,
+      siblingDiscountPercent:
+        siblingDiscountApplied && typeof d.siblingDiscountPercent === "number"
+          ? d.siblingDiscountPercent
+          : undefined,
+      siblingDiscountApplied: siblingDiscountApplied || undefined,
       afterFeeNote: typeof d.afterFeeNote === "string" && d.afterFeeNote.trim() ? d.afterFeeNote : undefined,
       variant,
       daysUntilDue,

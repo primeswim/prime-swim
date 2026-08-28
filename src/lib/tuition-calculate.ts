@@ -7,13 +7,19 @@ import {
   DEFAULT_LEVEL_CONFIG,
   type LevelConfigMap,
   type LevelConfigItem,
-  type LevelScheduleSlot,
 } from "@/lib/tuition-defaults";
 import {
   applySiblingTuitionDiscounts,
   getSwimmerEnrollmentMillis,
   normalizeSiblingIds,
 } from "@/lib/swimmer-siblings";
+import { isSwimmerEligibleForMonthlyTuition } from "@/lib/membership";
+import {
+  normalizeTrainingSchedule,
+  resolveTimeLocForWeekday,
+  scheduleByWeekdayFromSlots,
+  type TrainingScheduleSlot,
+} from "@/lib/tuition-schedule";
 
 export type TuitionCalculateRow = {
   swimmerId: string;
@@ -31,6 +37,7 @@ export type TuitionCalculateRow = {
   scheduleLines: string[];
   timeSlot: string;
   location: string;
+  trainingSchedule?: TrainingScheduleSlot[];
   needsConfig?: boolean;
 };
 
@@ -164,7 +171,7 @@ export async function runTuitionCalculate(
         : "") ||
       "";
     const parentEmail = typeof parentEmailRaw === "string" ? parentEmailRaw.trim() : "";
-    if (data.isFrozen) continue;
+    if (!isSwimmerEligibleForMonthlyTuition(data)) continue;
     if (!level) continue;
     if (levelSet && !levelSet.has(level)) continue;
 
@@ -172,29 +179,24 @@ export async function runTuitionCalculate(
       ? data.trainingWeekdays.filter((n) => typeof n === "number" && n >= 0 && n <= 6)
       : [];
     const levelCfg = level ? levels[level] : null;
-    const swimmerTimeOverride =
+    const swimmerSchedule = scheduleByWeekdayFromSlots(
+      normalizeTrainingSchedule(data.trainingSchedule)
+    );
+    const legacyTime =
       data.trainingTimeSlot && String(data.trainingTimeSlot).trim()
         ? String(data.trainingTimeSlot).trim()
         : null;
-    const swimmerLocationOverride =
+    const legacyLoc =
       data.trainingLocation && String(data.trainingLocation).trim()
         ? String(data.trainingLocation).trim()
         : null;
-    const scheduleByWeekday: Record<number, { timeSlot: string; location: string }> = {};
-    if (levelCfg?.schedule?.length) {
-      for (const slot of levelCfg.schedule) {
-        scheduleByWeekday[slot.weekday] = { timeSlot: slot.timeSlot, location: slot.location };
-      }
-    }
     const defaultTime = levelCfg?.defaultTimeSlot ?? "7-8PM";
     const defaultLoc = levelCfg?.defaultLocation ?? "Mary Wayte Pool";
-    const getTimeLoc = (wd: number) => {
-      if (swimmerTimeOverride && swimmerLocationOverride) {
-        return { timeSlot: swimmerTimeOverride, location: swimmerLocationOverride };
-      }
-      const s = scheduleByWeekday[wd];
-      return s ? { timeSlot: s.timeSlot, location: s.location } : { timeSlot: defaultTime, location: defaultLoc };
-    };
+    const getTimeLoc = (wd: number) =>
+      resolveTimeLocForWeekday(wd, swimmerSchedule, levelCfg, {
+        timeSlot: legacyTime,
+        location: legacyLoc,
+      });
 
     let sessionCount = 0;
     const scheduleEntries: { mmdd: string; wd: number }[] = [];
@@ -233,8 +235,9 @@ export async function runTuitionCalculate(
       const { timeSlot, location } = getTimeLoc(wd);
       return `${mmdd} ${timeSlot} ${location}`;
     });
-    const timeSlot = swimmerTimeOverride ?? defaultTime;
-    const location = swimmerLocationOverride ?? defaultLoc;
+    const firstWd = trainingWeekdays[0];
+    const firstSlot = firstWd != null ? getTimeLoc(firstWd) : { timeSlot: defaultTime, location: defaultLoc };
+    const storedSchedule = normalizeTrainingSchedule(data.trainingSchedule);
 
     results.push({
       swimmerId,
@@ -247,8 +250,9 @@ export async function runTuitionCalculate(
       ratePerHour,
       tuition,
       scheduleLines,
-      timeSlot,
-      location,
+      timeSlot: firstSlot.timeSlot,
+      location: firstSlot.location,
+      trainingSchedule: storedSchedule.length > 0 ? storedSchedule : undefined,
       needsConfig: Boolean(!level || (levelCfg && trainingWeekdays.length === 0)),
     });
   }

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { normalizeTrainingSchedule } from "@/lib/tuition-schedule";
 
 async function requireAdmin(req: Request): Promise<void> {
   const authz = req.headers.get("authorization") || "";
@@ -30,6 +31,7 @@ export async function PATCH(
       trainingWeekdays?: number[];
       trainingTimeSlot?: string | null;
       trainingLocation?: string | null;
+      trainingSchedule?: unknown;
       ratePerHourOverride?: number | string | null;
     };
 
@@ -39,11 +41,24 @@ export async function PATCH(
         (n) => typeof n === "number" && n >= 0 && n <= 6
       );
     }
-    if (body.trainingTimeSlot !== undefined) {
-      updates.trainingTimeSlot = body.trainingTimeSlot == null || body.trainingTimeSlot === "" ? null : String(body.trainingTimeSlot);
-    }
-    if (body.trainingLocation !== undefined) {
-      updates.trainingLocation = body.trainingLocation == null || body.trainingLocation === "" ? null : String(body.trainingLocation);
+    if (body.trainingSchedule !== undefined) {
+      const schedule = normalizeTrainingSchedule(body.trainingSchedule);
+      updates.trainingSchedule = schedule.length > 0 ? schedule : null;
+      updates.trainingTimeSlot = null;
+      updates.trainingLocation = null;
+    } else {
+      if (body.trainingTimeSlot !== undefined) {
+        updates.trainingTimeSlot =
+          body.trainingTimeSlot == null || body.trainingTimeSlot === ""
+            ? null
+            : String(body.trainingTimeSlot);
+      }
+      if (body.trainingLocation !== undefined) {
+        updates.trainingLocation =
+          body.trainingLocation == null || body.trainingLocation === ""
+            ? null
+            : String(body.trainingLocation);
+      }
     }
     if (body.ratePerHourOverride !== undefined) {
       const v = body.ratePerHourOverride;

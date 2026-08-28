@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { runTuitionCalculate } from "@/lib/tuition-calculate";
+import { calculateWithSavedTuitionOverrides } from "@/lib/tuition-month-overrides";
 
 async function requireAdmin(req: Request): Promise<void> {
   const authz = req.headers.get("authorization") || "";
@@ -33,12 +34,17 @@ export async function GET(req: Request) {
           .filter(Boolean)
       : undefined;
 
-    const { month: m, noTrainingDates, results, levelsFilter } =
+    const { month: m, noTrainingDates, results: calculated, levelsFilter } =
       await runTuitionCalculate(adminDb, month, { levels });
+    const results = await calculateWithSavedTuitionOverrides(adminDb, month, calculated);
+    const calculatedTuitionBySwimmerId = Object.fromEntries(
+      calculated.map((r) => [r.swimmerId, r.tuition])
+    );
     return NextResponse.json({
       month: m,
       noTrainingDates,
       results,
+      calculatedTuitionBySwimmerId,
       levelsFilter,
     });
   } catch (e) {

@@ -194,3 +194,8 @@ export function buildMembershipResumeDates(
     extensionDays,
   };
 }
+
+/** Monthly tuition includes all swimmers except those explicitly frozen. */
+export function isSwimmerEligibleForMonthlyTuition(data: Record<string, unknown>): boolean {
+  return !data.isFrozen;
+}

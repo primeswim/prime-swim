@@ -4,6 +4,10 @@
 
 export const SIBLING_TUITION_DISCOUNT_PERCENT = 10;
 
+export function siblingDiscountEmailNote(baseTuition: number, percent = SIBLING_TUITION_DISCOUNT_PERCENT): string {
+  return `A ${percent}% sibling discount has been applied (standard monthly tuition would be $${baseTuition}).`;
+}
+
 export function normalizeSiblingIds(ids: unknown, selfId: string): string[] {
   if (!Array.isArray(ids)) return [];
   const unique = [

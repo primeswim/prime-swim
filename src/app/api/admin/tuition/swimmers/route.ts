@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { isSwimmerEligibleForMonthlyTuition } from "@/lib/membership";
+import { normalizeTrainingSchedule } from "@/lib/tuition-schedule";
 
 async function requireAdmin(req: Request): Promise<void> {
   const authz = req.headers.get("authorization") || "";
@@ -27,12 +29,13 @@ export async function GET(req: Request) {
       trainingWeekdays: number[];
       trainingTimeSlot: string | null;
       trainingLocation: string | null;
+      trainingSchedule: { weekday: number; timeSlot: string; location: string }[];
       ratePerHourOverride: number | null;
     }[] = [];
     for (const doc of snap.docs) {
       const data = doc.data();
       const level = (data.level && String(data.level).trim()) || "";
-      if (!level || data.isFrozen) continue;
+      if (!level || !isSwimmerEligibleForMonthlyTuition(data)) continue;
       const swimmerName = [data.childFirstName, data.childLastName].filter(Boolean).join(" ").trim() || doc.id;
       const trainingWeekdays = Array.isArray(data.trainingWeekdays)
         ? data.trainingWeekdays.filter((n) => typeof n === "number" && n >= 0 && n <= 6)
@@ -44,6 +47,7 @@ export async function GET(req: Request) {
         trainingWeekdays,
         trainingTimeSlot: data.trainingTimeSlot && String(data.trainingTimeSlot).trim() ? String(data.trainingTimeSlot).trim() : null,
         trainingLocation: data.trainingLocation && String(data.trainingLocation).trim() ? String(data.trainingLocation).trim() : null,
+        trainingSchedule: normalizeTrainingSchedule(data.trainingSchedule),
         ratePerHourOverride: typeof data.ratePerHourOverride === "number" ? data.ratePerHourOverride : null,
       });
     }

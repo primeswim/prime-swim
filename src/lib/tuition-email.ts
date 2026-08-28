@@ -2,6 +2,8 @@
  * Shared tuition invoice email HTML (tuition-invoice API + billing reminders).
  */
 
+import { siblingDiscountEmailNote } from "@/lib/swimmer-siblings";
+
 export const QR_IMG: string =
   process.env.NEXT_PUBLIC_QR_IMAGE_URL ||
   "https://www.primeswimacademy.com/images/zelle_qr.jpeg";
@@ -18,6 +20,10 @@ export type TuitionEmailPayload = {
   practiceText: string;
   dueDate: string;
   amount: number;
+  /** Full tuition before sibling discount */
+  baseAmount?: number;
+  siblingDiscountPercent?: number;
+  siblingDiscountApplied?: boolean;
   afterFeeNote?: string;
   /** invoice = first notice; reminder = due soon; past_due = overdue */
   variant?: TuitionEmailVariant;
@@ -160,6 +166,22 @@ export function buildTuitionEmailHtml(data: TuitionEmailPayload): string {
     ? escapeHtml(data.afterFeeNote).replace(/\r?\n/g, "<br/>")
     : "";
 
+  const siblingApplied = Boolean(data.siblingDiscountApplied);
+  const baseAmount =
+    siblingApplied && typeof data.baseAmount === "number" ? data.baseAmount : null;
+  const siblingPercent = data.siblingDiscountPercent ?? 10;
+  const siblingNoteHtml =
+    siblingApplied && baseAmount != null
+      ? `<p style="font-size:15px;margin:0 0 16px;padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;color:#166534;">${escapeHtml(siblingDiscountEmailNote(baseAmount, siblingPercent))}</p>`
+      : "";
+  const amountDetailHtml = siblingApplied
+    ? `<span style="text-align:right;">
+        ${baseAmount != null ? `<span style="display:block;font-size:13px;color:#94a3b8;text-decoration:line-through;">$${escapeHtml(String(baseAmount))}</span>` : ""}
+        <strong>$${safe.amount}</strong>
+        <span style="display:block;font-size:13px;color:#15803d;margin-top:4px;">${escapeHtml(String(siblingPercent))}% sibling discount</span>
+      </span>`
+    : `<strong>$${safe.amount}</strong>`;
+
   const { h2, sub } = greetingTitle(variant);
 
   return `<!DOCTYPE html>
@@ -213,11 +235,13 @@ export function buildTuitionEmailHtml(data: TuitionEmailPayload): string {
           : ""
       }
 
+      ${siblingNoteHtml}
+
       <div class="tuition-details">
         <div class="detail-row"><span>Swimmer:</span><span><strong>${safe.swimmerName}</strong></span></div>
         <div class="detail-row"><span>Due Date:</span><span>${safe.dueDate}</span></div>
         <div class="detail-row"><span>Practice Schedule:</span><span>${practiceHtml}</span></div>
-        <div class="detail-row"><span>Amount:</span><span><strong>$${safe.amount}</strong></span></div>
+        <div class="detail-row"><span>Amount:</span><span>${amountDetailHtml}</span></div>
       </div>
 
       <div class="payment-methods">

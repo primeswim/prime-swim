@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 import Header from "@/components/header";
@@ -58,7 +59,7 @@ export default function TuitionBillingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
-  const [overwriteUnpaidComputed, setOverwriteUnpaidComputed] = useState(false);
+  const [overwriteUnpaidComputed, setOverwriteUnpaidComputed] = useState(true);
   const [prepareBusy, setPrepareBusy] = useState(false);
   const [editRow, setEditRow] = useState<TuitionBillingRow | null>(null);
   const [editForm, setEditForm] = useState({
@@ -158,7 +159,7 @@ export default function TuitionBillingPage() {
         return;
       }
       setStatus(
-        `Prepared: ${data.counts.created} created, ${data.counts.updated} updated, ${data.counts.skipped} skipped (${data.counts.totalCalculateRows} swimmers in calculator).`
+        `Re-synced: ${data.counts.created} created, ${data.counts.updated} updated, ${data.counts.skipped} skipped (${data.counts.totalCalculateRows} swimmers in calculator).`
       );
       await loadRows();
     } finally {
@@ -298,12 +299,30 @@ export default function TuitionBillingPage() {
       <div className="container mx-auto px-4 py-8 max-w-[1100px]">
         <h1 className="text-3xl font-bold text-slate-800 mb-2 flex items-center gap-2">
           <Mail className="w-8 h-8 text-blue-600" />
-          Monthly tuition billing
+          Send Tuition Email
         </h1>
-        <p className="text-slate-600 mb-6 max-w-3xl">
-          Create per-swimmer drafts from the calculator (typically the week before the billed month begins), edit amount and schedule,
-          then use <strong>Send email</strong>: the template is chosen automatically from the due date (invoice-style before the last few days,
-          reminder within 3 days including due day, past-due after the due date). Finally mark paid with the payment date.
+        <p className="text-slate-600 mb-4 max-w-3xl">
+          <strong>Step 2 — billing &amp; emails.</strong> This page shows <strong>saved billing rows</strong> from Firestore. After you calculate and click{" "}
+          <strong>Save billing drafts</strong> on{" "}
+          <Link href="/admin/monthly-tuition" className="text-blue-600 underline hover:text-blue-800">
+            Calculate Tuition
+          </Link>
+          , reload here to review, send emails, and mark paid.
+        </p>
+        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 max-w-3xl">
+          <p className="font-medium text-slate-800 mb-1">How this differs from Calculate Tuition</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>Calculate Tuition</strong> — configure month (no-training dates, level rates, training days), preview amounts, edit if needed, then <strong>Save billing drafts</strong>.
+            </li>
+            <li>
+              <strong>Send Tuition Email</strong> — loads saved rows; <strong>Re-sync from calculator</strong> re-runs the formula from config (ignores unsaved preview edits on the other page).
+            </li>
+          </ul>
+        </div>
+        <p className="text-slate-600 mb-6 max-w-3xl text-sm">
+          Use <strong>Send email</strong> when ready: the template is chosen from the due date (invoice before the last few days,
+          reminder within 3 days including due day, past-due after the due date). Sibling discounts appear in the table and in the email when applicable.
         </p>
 
         {prepWeek && (
@@ -330,9 +349,9 @@ export default function TuitionBillingPage() {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Month &amp; prepare</CardTitle>
+            <CardTitle>Month &amp; billing rows</CardTitle>
             <CardDescription>
-              Run &quot;Prepare&quot; after you set no-training dates and swimmers on Monthly Tuition. New swimmers get rows; unpaid rows stay as-is unless you check overwrite. Once a row exists, you can edit amounts, send emails, and mark paid <strong>without</strong> Prepare again—only use Prepare when adding new swimmers to the month or re-syncing from the calculator.
+              Rows come from billing drafts or <strong>Re-sync from calculator</strong>. Re-sync recalculates schedules from config and applies <strong>manual prices saved on Calculate Tuition</strong> (including auto-saved edits). Check overwrite to refresh unpaid rows.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-end gap-4">
@@ -350,7 +369,7 @@ export default function TuitionBillingPage() {
             </label>
             <Button onClick={runPrepare} disabled={prepareBusy}>
               {prepareBusy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Prepare drafts
+              Re-sync from calculator
             </Button>
           </CardContent>
         </Card>
@@ -367,7 +386,7 @@ export default function TuitionBillingPage() {
           </CardHeader>
           <CardContent>
             {!loading && rows.length === 0 ? (
-              <p className="text-slate-500 py-6">No billing rows yet. Choose the month and click Prepare drafts.</p>
+              <p className="text-slate-500 py-6">No billing rows yet. Calculate tuition, click <strong>Save billing drafts</strong> on the calculate page, then reload here.</p>
             ) : (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-end gap-3">
@@ -464,7 +483,19 @@ export default function TuitionBillingPage() {
                               {r.level?.trim() || "—"}
                             </td>
                             <td className="p-2 max-w-[140px] truncate">{r.parentEmail || "—"}</td>
-                            <td className="p-2 text-right">${r.amount}</td>
+                            <td className="p-2 text-right whitespace-nowrap">
+                              {r.siblingDiscountApplied && r.baseAmount != null && r.baseAmount > r.amount ? (
+                                <>
+                                  <div className="text-slate-400 line-through text-xs">${r.baseAmount}</div>
+                                  <div className="font-medium">${r.amount}</div>
+                                  <div className="text-xs text-green-700">
+                                    -{r.siblingDiscountPercent ?? 10}% sibling
+                                  </div>
+                                </>
+                              ) : (
+                                <>${r.amount}</>
+                              )}
+                            </td>
                             <td className="p-2 whitespace-nowrap">
                               {r.dueDate}
                               {typeof du === "number" && !r.paid && (
@@ -581,6 +612,12 @@ export default function TuitionBillingPage() {
                     value={editForm.amount}
                     onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))}
                   />
+                  {editRow?.siblingDiscountApplied && editRow.baseAmount != null && (
+                    <p className="text-xs text-green-700">
+                      {editRow.siblingDiscountPercent ?? 10}% sibling discount applied (standard tuition ${editRow.baseAmount}).
+                      Re-run Prepare with overwrite to refresh from calculator.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Due date</Label>

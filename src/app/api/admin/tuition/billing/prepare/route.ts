@@ -1,16 +1,20 @@
 export const runtime = "nodejs";
 
-import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { runTuitionCalculate } from "@/lib/tuition-calculate";
 import {
-  TUITION_BILLING_COLLECTION,
-  TUITION_BILLING_ROWS_SUBCOL,
-  billingMonthLabel,
-  defaultDueDateForBilledMonth,
-} from "@/lib/tuition-billing-shared";
+  normalizeClientCalculateRows,
+  upsertBillingRowsFromCalculate,
+} from "@/lib/tuition-billing-prepare";
+import {
+  applyTuitionOverridesMap,
+  loadMonthTuitionOverrides,
+  mergeMonthTuitionOverrides,
+  normalizeTuitionOverridesMap,
+  rowToTuitionOverride,
+} from "@/lib/tuition-month-overrides";
 
 async function requireAdmin(req: Request): Promise<void> {
   const authz = req.headers.get("authorization") || "";
@@ -23,7 +27,7 @@ async function requireAdmin(req: Request): Promise<void> {
   if (!adminDoc.exists) throw new Error("FORBIDDEN");
 }
 
-/** POST — create/update billing rows from calculator. Body: { month, overwriteUnpaidComputed?: boolean } */
+/** POST — create/update billing rows from calculator or saved preview rows */
 export async function POST(req: Request) {
   try {
     await requireAdmin(req);
@@ -31,6 +35,13 @@ export async function POST(req: Request) {
       month?: string;
       overwriteUnpaidComputed?: boolean;
       levels?: string[];
+      /** When set, use these rows (e.g. from Calculate Tuition preview with manual edits) instead of re-running the calculator */
+      rows?: unknown;
+      /** Compact manual tuition overrides (merged into month config) */
+      tuitionOverrides?: unknown;
+      clearTuitionOverrideIds?: string[];
+      /** Last calculated baseline tuition per swimmer (for extracting overrides from full rows) */
+      tuitionBaseline?: Record<string, number>;
     };
     const month = body.month?.trim();
     const overwriteUnpaidComputed = Boolean(body.overwriteUnpaidComputed);
@@ -41,68 +52,55 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
     }
 
-    const { results } = await runTuitionCalculate(adminDb, month, { levels });
-    const monthParent = billingMonthLabel(month);
-    const defaultDue = defaultDueDateForBilledMonth(month);
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
+    const clientRows = normalizeClientCalculateRows(body.rows);
+    let source: "preview" | "calculator" | "calculator_with_overrides";
 
-    const col = adminDb.collection(TUITION_BILLING_COLLECTION).doc(month).collection(TUITION_BILLING_ROWS_SUBCOL);
-
-    for (const r of results) {
-      const ref = col.doc(r.swimmerId);
-      const existing = await ref.get();
-      const practiceText = r.scheduleLines.join("\n");
-
-      if (!existing.exists) {
-        await ref.set({
-          month,
-          swimmerName: r.swimmerName,
-          level: r.level,
-          parentName: r.parentName,
-          parentEmail: r.parentEmail,
-          amount: r.tuition,
-          practiceText,
-          dueDate: defaultDue,
-          months: monthParent,
-          afterFeeNote: "",
-          paid: false,
-          paidOn: null,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        created += 1;
-        continue;
-      }
-
-      const d = existing.data()!;
-      if (d.paid === true) {
-        skipped += 1;
-        continue;
-      }
-
-      if (overwriteUnpaidComputed) {
-        await ref.update({
-          swimmerName: r.swimmerName,
-          level: r.level,
-          parentName: r.parentName,
-          parentEmail: r.parentEmail || d.parentEmail,
-          amount: r.tuition,
-          practiceText,
-          months: monthParent,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        updated += 1;
-      } else {
-        skipped += 1;
-      }
+    let results: Awaited<ReturnType<typeof runTuitionCalculate>>["results"];
+    if (clientRows.length > 0) {
+      results = clientRows;
+      source = "preview";
+      const explicitOverrides = normalizeTuitionOverridesMap(body.tuitionOverrides);
+      const baseline = new Map(
+        Object.entries(body.tuitionBaseline ?? {}).map(([id, t]) => [id, Number(t)])
+      );
+      const fromRows =
+        Object.keys(explicitOverrides).length > 0
+          ? explicitOverrides
+          : Object.fromEntries(
+              clientRows
+                .filter((r) => {
+                  const base = baseline.get(r.swimmerId);
+                  return base === undefined || r.tuition !== base || r.siblingDiscountApplied;
+                })
+                .map((r) => [r.swimmerId, rowToTuitionOverride(r)])
+            );
+      await mergeMonthTuitionOverrides(
+        adminDb,
+        month,
+        fromRows,
+        body.clearTuitionOverrideIds ?? []
+      );
+    } else {
+      const calculated = (await runTuitionCalculate(adminDb, month, { levels })).results;
+      const overrides = await loadMonthTuitionOverrides(adminDb, month);
+      results = applyTuitionOverridesMap(calculated, overrides);
+      source = Object.keys(overrides).length > 0 ? "calculator_with_overrides" : "calculator";
     }
+
+    const counts = await upsertBillingRowsFromCalculate(adminDb, month, results, {
+      overwriteUnpaidComputed,
+    });
 
     return NextResponse.json({
       ok: true,
       month,
-      counts: { created, updated, skipped, totalCalculateRows: results.length },
+      source,
+      counts: {
+        created: counts.created,
+        updated: counts.updated,
+        skipped: counts.skipped,
+        totalCalculateRows: counts.totalRows,
+      },
     });
   } catch (e) {
     if (e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "FORBIDDEN")) {

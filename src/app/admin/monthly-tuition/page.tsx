@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,16 @@ import {
   Loader2,
   AlertCircle,
   Users,
+  Mail,
 } from "lucide-react";
 import type { LevelConfigMap } from "@/lib/tuition-defaults";
 import { SWIMMER_LEVELS } from "@/lib/swimmer-levels";
+import {
+  buildEditScheduleForWeekdays,
+  defaultTimeLocForWeekday,
+  trainingScheduleFromEditForm,
+  type TrainingScheduleSlot,
+} from "@/lib/tuition-schedule";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -50,6 +58,7 @@ type CalculateRow = {
   scheduleLines: string[];
   timeSlot: string;
   location: string;
+  trainingSchedule?: TrainingScheduleSlot[];
   needsConfig?: boolean;
 };
 
@@ -60,6 +69,7 @@ type SwimmerConfigRow = {
   trainingWeekdays: number[];
   trainingTimeSlot: string | null;
   trainingLocation: string | null;
+  trainingSchedule: TrainingScheduleSlot[];
   ratePerHourOverride: number | null;
 };
 
@@ -101,14 +111,18 @@ export default function MonthlyTuitionPage() {
   const [editingRow, setEditingRow] = useState<CalculateRow | null>(null);
   const [editForm, setEditForm] = useState({
     trainingWeekdays: [] as number[],
-    trainingTimeSlot: "",
-    trainingLocation: "",
+    scheduleByWeekday: {} as Record<number, { timeSlot: string; location: string }>,
     ratePerHourOverride: "" as string | number,
   });
   const [savingSwimmer, setSavingSwimmer] = useState(false);
   const [swimmerList, setSwimmerList] = useState<SwimmerConfigRow[]>([]);
   const [loadingSwimmerList, setLoadingSwimmerList] = useState(false);
   const [savingSwimmerId, setSavingSwimmerId] = useState<string | null>(null);
+  const [saveBillingBusy, setSaveBillingBusy] = useState(false);
+  const [billingStatus, setBillingStatus] = useState("");
+  const previewSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baselineTuitionRef = useRef<Map<string, number>>(new Map());
+  const editedSwimmerIdsRef = useRef<Set<string>>(new Set());
 
   const fetchToken = useCallback(async () => {
     const user = auth.currentUser;
@@ -251,14 +265,67 @@ export default function MonthlyTuitionPage() {
       const data = await res.json();
       setResults(data.results || []);
       setLastLevelsFilter(Array.isArray(data.levelsFilter) ? data.levelsFilter : []);
+      const baseline = data.calculatedTuitionBySwimmerId;
+      if (baseline && typeof baseline === "object") {
+        baselineTuitionRef.current = new Map(
+          Object.entries(baseline as Record<string, number>).map(([id, t]) => [id, Number(t)])
+        );
+      }
+      editedSwimmerIdsRef.current = new Set();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveBillingDrafts = async () => {
+    if (results.length === 0) {
+      setError("Calculate tuition first, then save billing drafts.");
+      return;
+    }
+    const token = await fetchToken();
+    if (!token) return;
+    setSaveBillingBusy(true);
+    setBillingStatus("");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/tuition/billing/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          month: selectedMonth,
+          overwriteUnpaidComputed: true,
+          rows: results,
+          tuitionBaseline: Object.fromEntries(baselineTuitionRef.current),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Failed to save billing drafts");
+        return;
+      }
+      setBillingStatus(
+        `Saved ${data.counts.created} new + ${data.counts.updated} updated billing rows for ${monthLabel(selectedMonth)}. Go to Send Tuition Email to review and send.`
+      );
+    } finally {
+      setSaveBillingBusy(false);
     }
   };
 
   const availableCalcLevels = levelConfig
     ? [...new Set([...SWIMMER_LEVELS, ...Object.keys(levelConfig)])]
     : [...SWIMMER_LEVELS];
+
+  const poolOptions = useMemo(() => {
+    const seen = new Set<string>();
+    if (!levelConfig) return [];
+    for (const cfg of Object.values(levelConfig)) {
+      if (cfg.defaultLocation?.trim()) seen.add(cfg.defaultLocation.trim());
+      for (const slot of cfg.schedule ?? []) {
+        if (slot.location?.trim()) seen.add(slot.location.trim());
+      }
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [levelConfig]);
 
   const toggleCalcLevel = (level: string, checked: boolean) => {
     if (calcAllLevels) {
@@ -298,22 +365,41 @@ export default function MonthlyTuitionPage() {
   };
 
   const openEdit = (row: CalculateRow) => {
+    const levelCfg = levelConfig?.[row.level] ?? null;
     setEditingRow(row);
     setEditForm({
       trainingWeekdays: [...row.trainingWeekdays],
-      trainingTimeSlot: row.timeSlot,
-      trainingLocation: row.location,
+      scheduleByWeekday: buildEditScheduleForWeekdays(
+        row.trainingWeekdays,
+        row.trainingSchedule ?? [],
+        levelCfg
+      ),
       ratePerHourOverride: "",
     });
   };
 
   const toggleEditWeekday = (wd: number) => {
-    setEditForm((prev) => ({
-      ...prev,
-      trainingWeekdays: prev.trainingWeekdays.includes(wd)
-        ? prev.trainingWeekdays.filter((n) => n !== wd)
-        : [...prev.trainingWeekdays, wd].sort((a, b) => a - b),
-    }));
+    const levelCfg = editingRow ? levelConfig?.[editingRow.level] ?? null : null;
+    setEditForm((prev) => {
+      const has = prev.trainingWeekdays.includes(wd);
+      if (has) {
+        const nextSchedule = { ...prev.scheduleByWeekday };
+        delete nextSchedule[wd];
+        return {
+          ...prev,
+          trainingWeekdays: prev.trainingWeekdays.filter((n) => n !== wd),
+          scheduleByWeekday: nextSchedule,
+        };
+      }
+      return {
+        ...prev,
+        trainingWeekdays: [...prev.trainingWeekdays, wd].sort((a, b) => a - b),
+        scheduleByWeekday: {
+          ...prev.scheduleByWeekday,
+          [wd]: prev.scheduleByWeekday[wd] ?? defaultTimeLocForWeekday(wd, levelCfg),
+        },
+      };
+    });
   };
 
   const saveSwimmerConfig = async () => {
@@ -323,15 +409,18 @@ export default function MonthlyTuitionPage() {
     setSavingSwimmer(true);
     setError("");
     try {
+      const levelCfg = levelConfig?.[editingRow.level] ?? null;
+      const trainingSchedule = trainingScheduleFromEditForm(
+        editForm.scheduleByWeekday,
+        levelCfg
+      );
       const body: {
         trainingWeekdays: number[];
-        trainingTimeSlot: string | null;
-        trainingLocation: string | null;
+        trainingSchedule: TrainingScheduleSlot[] | null;
         ratePerHourOverride: number | null;
       } = {
         trainingWeekdays: editForm.trainingWeekdays,
-        trainingTimeSlot: editForm.trainingTimeSlot.trim() || null,
-        trainingLocation: editForm.trainingLocation.trim() || null,
+        trainingSchedule,
         ratePerHourOverride:
           editForm.ratePerHourOverride === "" || editForm.ratePerHourOverride === null
             ? null
@@ -376,7 +465,94 @@ export default function MonthlyTuitionPage() {
     }
   };
 
+  const buildOverridePayload = useCallback((rows: CalculateRow[]) => {
+    const tuitionOverrides: Record<
+      string,
+      {
+        tuition: number;
+        baseTuition?: number;
+        siblingDiscountApplied?: boolean;
+        siblingDiscountPercent?: number;
+      }
+    > = {};
+    const clearTuitionOverrideIds: string[] = [];
+    for (const swimmerId of editedSwimmerIdsRef.current) {
+      const row = rows.find((r) => r.swimmerId === swimmerId);
+      if (!row) continue;
+      const baseline = baselineTuitionRef.current.get(swimmerId);
+      if (baseline !== undefined && row.tuition === baseline && !row.siblingDiscountApplied) {
+        clearTuitionOverrideIds.push(swimmerId);
+        continue;
+      }
+      tuitionOverrides[swimmerId] = {
+        tuition: row.tuition,
+        ...(typeof row.baseTuition === "number" ? { baseTuition: row.baseTuition } : {}),
+        ...(row.siblingDiscountApplied
+          ? {
+              siblingDiscountApplied: true,
+              ...(typeof row.siblingDiscountPercent === "number"
+                ? { siblingDiscountPercent: row.siblingDiscountPercent }
+                : {}),
+            }
+          : {}),
+      };
+    }
+    return { tuitionOverrides, clearTuitionOverrideIds };
+  }, []);
+
+  const persistTuitionOverrides = useCallback(
+    async (rows: CalculateRow[]) => {
+      if (editedSwimmerIdsRef.current.size === 0) return;
+      const token = await fetchToken();
+      if (!token) return;
+      const { tuitionOverrides, clearTuitionOverrideIds } = buildOverridePayload(rows);
+      if (
+        Object.keys(tuitionOverrides).length === 0 &&
+        clearTuitionOverrideIds.length === 0
+      ) {
+        return;
+      }
+      await fetch("/api/admin/tuition/month-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          month: selectedMonth,
+          tuitionOverrides,
+          clearTuitionOverrideIds,
+        }),
+      });
+    },
+    [buildOverridePayload, fetchToken, selectedMonth]
+  );
+
   const datesInMonth = getDatesInMonth(selectedMonth);
+
+  const totalTuition = useMemo(
+    () => results.reduce((sum, row) => sum + (row.tuition || 0), 0),
+    [results]
+  );
+
+  const updateRowTuition = (swimmerId: string, value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return;
+    editedSwimmerIdsRef.current.add(swimmerId);
+    setResults((prev) => {
+      const next = prev.map((row) =>
+        row.swimmerId === swimmerId ? { ...row, tuition: Math.round(parsed) } : row
+      );
+      if (previewSaveTimer.current) clearTimeout(previewSaveTimer.current);
+      previewSaveTimer.current = setTimeout(() => {
+        void persistTuitionOverrides(next);
+      }, 600);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (previewSaveTimer.current) clearTimeout(previewSaveTimer.current);
+    };
+  }, []);
 
   if (!isAdmin) return null;
 
@@ -387,10 +563,11 @@ export default function MonthlyTuitionPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-800 mb-2 flex items-center gap-3">
             <DollarSign className="w-8 h-8 text-blue-600" />
-            Monthly Tuition & Schedule
+            Calculate Tuition
           </h1>
           <p className="text-slate-600">
-            Calculate next month&apos;s tuition and training schedule by level and training days. Set no-training dates, then run calculation.
+            <strong>Step 1 — configure &amp; preview.</strong> Set no-training dates, level rates, and training days, then calculate tuition (frozen swimmers are excluded). Manual price edits are saved automatically and will carry over when you <strong>Re-sync</strong> on Send Tuition Email. Click{" "}
+            <strong>Save billing drafts</strong> when ready to write rows for emailing.{" "}
           </p>
         </div>
 
@@ -398,6 +575,12 @@ export default function MonthlyTuitionPage() {
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {billingStatus && (
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900 text-sm">
+            {billingStatus}
           </div>
         )}
 
@@ -559,6 +742,24 @@ export default function MonthlyTuitionPage() {
                 {lastLevelsFilter.length === 0 && results.length > 0 && (
                   <p className="text-sm text-slate-500">Levels: all</p>
                 )}
+                {results.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
+                    <p className="text-lg font-semibold text-slate-800">
+                      Total: ${totalTuition.toLocaleString()}
+                      <span className="text-sm font-normal text-slate-500 ml-2">
+                        ({results.length} swimmer{results.length === 1 ? "" : "s"})
+                      </span>
+                    </p>
+                    <Button onClick={saveBillingDrafts} disabled={saveBillingBusy}>
+                      {saveBillingBusy ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      Save billing drafts
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                   {results.length === 0 ? (
@@ -607,18 +808,26 @@ export default function MonthlyTuitionPage() {
                                 <td className="p-2 text-right">{row.sessionCount}</td>
                                 <td className="p-2 text-right">${row.ratePerHour}</td>
                                 <td className="p-2 text-right font-medium">
-                                  {row.siblingDiscountApplied ? (
-                                    <div>
-                                      <div className="line-through text-slate-400 text-xs">
-                                        ${row.baseTuition ?? row.tuition}
-                                      </div>
-                                      <div>${row.tuition}</div>
-                                      <div className="text-xs text-green-700">
-                                        -{row.siblingDiscountPercent}% sibling
-                                      </div>
+                                  {row.siblingDiscountApplied && (
+                                    <div className="text-xs text-slate-400 line-through mb-0.5">
+                                      ${row.baseTuition ?? row.tuition}
                                     </div>
-                                  ) : (
-                                    `$${row.tuition}`
+                                  )}
+                                  <div className="flex items-center justify-end gap-1">
+                                    <span className="text-slate-500">$</span>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={1}
+                                      className="w-24 h-8 text-right"
+                                      value={row.tuition}
+                                      onChange={(e) => updateRowTuition(row.swimmerId, e.target.value)}
+                                    />
+                                  </div>
+                                  {row.siblingDiscountApplied && (
+                                    <div className="text-xs text-green-700 mt-0.5">
+                                      -{row.siblingDiscountPercent}% sibling
+                                    </div>
                                   )}
                                 </td>
                                 <td className="p-2">
@@ -648,6 +857,17 @@ export default function MonthlyTuitionPage() {
                             </React.Fragment>
                           ))}
                         </tbody>
+                        <tfoot>
+                          <tr className="border-t-2 border-slate-300 bg-slate-50">
+                            <td colSpan={6} className="p-3 text-right font-semibold text-slate-800">
+                              Total
+                            </td>
+                            <td className="p-3 text-right font-bold text-slate-900 text-base">
+                              ${totalTuition.toLocaleString()}
+                            </td>
+                            <td />
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   )}
@@ -921,7 +1141,7 @@ export default function MonthlyTuitionPage() {
         </Tabs>
 
         <Dialog open={!!editingRow} onOpenChange={(open) => !open && setEditingRow(null)}>
-          <DialogContent showCloseButton className="sm:max-w-md">
+          <DialogContent showCloseButton className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit training config — {editingRow?.swimmerName}</DialogTitle>
             </DialogHeader>
@@ -941,24 +1161,66 @@ export default function MonthlyTuitionPage() {
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-time">Time slot</Label>
-                  <Input
-                    id="edit-time"
-                    value={editForm.trainingTimeSlot}
-                    onChange={(e) => setEditForm((p) => ({ ...p, trainingTimeSlot: e.target.value }))}
-                    placeholder="e.g. 7-8PM"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-location">Location</Label>
-                  <Input
-                    id="edit-location"
-                    value={editForm.trainingLocation}
-                    onChange={(e) => setEditForm((p) => ({ ...p, trainingLocation: e.target.value }))}
-                    placeholder="e.g. Mary Wayte Pool"
-                  />
-                </div>
+                {editForm.trainingWeekdays.length > 0 ? (
+                  <div className="space-y-3">
+                    <Label>Time &amp; pool per day</Label>
+                    <p className="text-xs text-slate-500">
+                      Defaults come from level config. Change only days that differ for this swimmer.
+                    </p>
+                    {editForm.trainingWeekdays.map((wd) => {
+                      const slot = editForm.scheduleByWeekday[wd] ?? {
+                        timeSlot: "",
+                        location: "",
+                      };
+                      return (
+                        <div
+                          key={wd}
+                          className="grid grid-cols-[3rem_1fr_1fr] gap-2 items-center border rounded-md p-2 bg-slate-50/80"
+                        >
+                          <span className="text-sm font-medium text-slate-700">{WEEKDAYS[wd]}</span>
+                          <Input
+                            value={slot.timeSlot}
+                            onChange={(e) =>
+                              setEditForm((p) => ({
+                                ...p,
+                                scheduleByWeekday: {
+                                  ...p.scheduleByWeekday,
+                                  [wd]: { ...slot, timeSlot: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="7-8PM"
+                            className="h-8 text-sm"
+                          />
+                          <Input
+                            value={slot.location}
+                            onChange={(e) =>
+                              setEditForm((p) => ({
+                                ...p,
+                                scheduleByWeekday: {
+                                  ...p.scheduleByWeekday,
+                                  [wd]: { ...slot, location: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="Pool name"
+                            className="h-8 text-sm"
+                            list="tuition-pool-options"
+                          />
+                        </div>
+                      );
+                    })}
+                    {poolOptions.length > 0 && (
+                      <datalist id="tuition-pool-options">
+                        {poolOptions.map((pool) => (
+                          <option key={pool} value={pool} />
+                        ))}
+                      </datalist>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-amber-700">Select at least one training day.</p>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="edit-rate">Rate per hour override (optional)</Label>
                   <Input

@@ -39,6 +39,14 @@ function serializeRow(docSnap: DocumentSnapshot): TuitionBillingRow {
     parentName: String(d.parentName || ""),
     parentEmail: String(d.parentEmail || ""),
     amount: typeof d.amount === "number" ? d.amount : 0,
+    baseAmount: typeof d.baseAmount === "number" ? d.baseAmount : d.baseAmount === null ? null : undefined,
+    siblingDiscountPercent:
+      typeof d.siblingDiscountPercent === "number"
+        ? d.siblingDiscountPercent
+        : d.siblingDiscountPercent === null
+          ? null
+          : undefined,
+    siblingDiscountApplied: d.siblingDiscountApplied === true ? true : d.siblingDiscountApplied === false ? false : undefined,
     practiceText: typeof d.practiceText === "string" ? d.practiceText : "",
     dueDate: String(d.dueDate || ""),
     months: Array.isArray(d.months) ? (d.months as string[]) : [],
