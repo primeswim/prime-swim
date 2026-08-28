@@ -27,14 +27,21 @@ async function requireAdmin(req: Request): Promise<void> {
 export async function POST(req: Request) {
   try {
     await requireAdmin(req);
-    const body = (await req.json()) as { month?: string; overwriteUnpaidComputed?: boolean };
+    const body = (await req.json()) as {
+      month?: string;
+      overwriteUnpaidComputed?: boolean;
+      levels?: string[];
+    };
     const month = body.month?.trim();
     const overwriteUnpaidComputed = Boolean(body.overwriteUnpaidComputed);
+    const levels = Array.isArray(body.levels)
+      ? body.levels.map((l) => String(l).trim()).filter(Boolean)
+      : undefined;
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
     }
 
-    const { results } = await runTuitionCalculate(adminDb, month);
+    const { results } = await runTuitionCalculate(adminDb, month, { levels });
     const monthParent = billingMonthLabel(month);
     const defaultDue = defaultDueDateForBilledMonth(month);
     let created = 0;

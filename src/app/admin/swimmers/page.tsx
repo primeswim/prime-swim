@@ -59,6 +59,7 @@ interface Swimmer {
   emergencyContactPhone?: string
   level?: SwimmerLevel
   practiceText?: string
+  siblingIds?: string[]
 }
 
 type Row = Swimmer & {
@@ -81,6 +82,7 @@ export default function AdminSwimmerPage() {
   const [levelFilter, setLevelFilter] = useState<SwimmerLevel | 'all' | null>(null)
   const [remindBusy, setRemindBusy] = useState(false)
   const [membershipPauseBusy, setMembershipPauseBusy] = useState(false)
+  const [siblingSavingId, setSiblingSavingId] = useState<string | null>(null)
 
   const [page, setPage] = useState(1)
   const pageSize = 20
@@ -172,6 +174,9 @@ export default function AdminSwimmerPage() {
       return {
         id: d.id,
         ...raw,
+        siblingIds: Array.isArray(raw.siblingIds)
+          ? raw.siblingIds.filter((id): id is string => typeof id === "string")
+          : [],
         familyDoctorName,
         familyDoctorPhone,
         emergencyContactName,
@@ -620,6 +625,58 @@ export default function AdminSwimmerPage() {
     await fetchSwimmers()
   }
 
+  const swimmerDisplayName = (s: Swimmer) =>
+    `${s.childFirstName ?? ''} ${s.childLastName ?? ''}`.trim() || s.id
+
+  const toggleSiblingLink = async (swimmerId: string, siblingId: string, linked: boolean) => {
+    setSiblingSavingId(swimmerId)
+    try {
+      const swimmerRef = doc(db, 'swimmers', swimmerId)
+      const siblingRef = doc(db, 'swimmers', siblingId)
+      const [swimmerSnap, siblingSnap] = await Promise.all([
+        getDoc(swimmerRef),
+        getDoc(siblingRef),
+      ])
+      if (!swimmerSnap.exists() || !siblingSnap.exists()) {
+        alert('Swimmer not found.')
+        return
+      }
+
+      const swimmerSiblingIds = Array.isArray(swimmerSnap.data()?.siblingIds)
+        ? (swimmerSnap.data()!.siblingIds as string[]).filter((id) => id !== swimmerId)
+        : []
+      const siblingSiblingIds = Array.isArray(siblingSnap.data()?.siblingIds)
+        ? (siblingSnap.data()!.siblingIds as string[]).filter((id) => id !== siblingId)
+        : []
+
+      if (linked) {
+        await Promise.all([
+          updateDoc(swimmerRef, {
+            siblingIds: [...new Set([...swimmerSiblingIds, siblingId])],
+          }),
+          updateDoc(siblingRef, {
+            siblingIds: [...new Set([...siblingSiblingIds, swimmerId])],
+          }),
+        ])
+      } else {
+        await Promise.all([
+          updateDoc(swimmerRef, {
+            siblingIds: swimmerSiblingIds.filter((id) => id !== siblingId),
+          }),
+          updateDoc(siblingRef, {
+            siblingIds: siblingSiblingIds.filter((id) => id !== swimmerId),
+          }),
+        ])
+      }
+      await fetchSwimmers()
+    } catch (error) {
+      console.error(error)
+      alert('Failed to update sibling link.')
+    } finally {
+      setSiblingSavingId(null)
+    }
+  }
+
   const membershipPauseAction = async (action: 'pause' | 'resume') => {
     const targets = rows.filter(r => selectedIds.has(r.id))
     if (targets.length === 0) {
@@ -826,6 +883,9 @@ export default function AdminSwimmerPage() {
             ))}
           </SelectContent>
         </Select>
+        <p className="text-sm text-slate-600 w-full">
+          <span className="font-medium text-slate-800">Siblings:</span> click a swimmer row to expand, then use the Siblings section to link brothers/sisters (10% tuition discount for later-enrolled sibling).
+        </p>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button 
             variant="outline" 
@@ -947,8 +1007,23 @@ export default function AdminSwimmerPage() {
                   </TableCell>
 
                   <TableCell>
-                    <div className="font-medium">{s.childFirstName} {s.childLastName}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <span className="text-slate-400 text-xs">{isExpanded ? '▼' : '▶'}</span>
+                      <span>{s.childFirstName} {s.childLastName}</span>
+                    </div>
                     <div className="text-xs text-slate-500">{s.childGender ?? '-'}</div>
+                    {s.siblingIds && s.siblingIds.length > 0 && (
+                      <div className="text-xs text-blue-700 mt-1">
+                        Siblings:{' '}
+                        {s.siblingIds
+                          .map((id) => {
+                            const sibling = swimmers.find((x) => x.id === id)
+                            return sibling ? swimmerDisplayName(sibling) : null
+                          })
+                          .filter(Boolean)
+                          .join(', ')}
+                      </div>
+                    )}
                   </TableCell>
 
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -1048,6 +1123,49 @@ export default function AdminSwimmerPage() {
                             <span className="text-slate-500">Notes:</span>{" "}
                             {s.medicalNotes || "-"}
                           </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className="mt-4 p-4 rounded-lg border-2 border-blue-200 bg-blue-50/50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="font-semibold mb-1 text-slate-800">Siblings</div>
+                        <p className="text-xs text-slate-600 mb-3">
+                          Check swimmers who are siblings with {swimmerDisplayName(s)}. Later-enrolled siblings get 10% off monthly tuition.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                          {swimmers
+                            .filter((candidate) => candidate.id !== s.id)
+                            .sort((a, b) => swimmerDisplayName(a).localeCompare(swimmerDisplayName(b)))
+                            .map((candidate) => {
+                              const checked = (s.siblingIds ?? []).includes(candidate.id)
+                              const busy = siblingSavingId === s.id
+                              return (
+                                <label
+                                  key={candidate.id}
+                                  className="flex items-start gap-2 rounded border border-white bg-white px-3 py-2 shadow-sm"
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    disabled={busy}
+                                    onCheckedChange={(value) => {
+                                      void toggleSiblingLink(
+                                        s.id,
+                                        candidate.id,
+                                        value === true
+                                      )
+                                    }}
+                                  />
+                                  <span className="text-xs leading-5">
+                                    <span className="font-medium">{swimmerDisplayName(candidate)}</span>
+                                    <span className="block text-slate-500">
+                                      {candidate.parentEmail || "No parent email"}
+                                    </span>
+                                  </span>
+                                </label>
+                              )
+                            })}
                         </div>
                       </div>
 

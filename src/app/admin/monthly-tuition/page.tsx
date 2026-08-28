@@ -30,6 +30,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LevelConfigMap } from "@/lib/tuition-defaults";
+import { SWIMMER_LEVELS } from "@/lib/swimmer-levels";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -43,6 +44,9 @@ type CalculateRow = {
   sessionCount: number;
   ratePerHour: number;
   tuition: number;
+  baseTuition?: number;
+  siblingDiscountPercent?: number;
+  siblingDiscountApplied?: boolean;
   scheduleLines: string[];
   timeSlot: string;
   location: string;
@@ -88,6 +92,9 @@ export default function MonthlyTuitionPage() {
   const [levelConfig, setLevelConfig] = useState<LevelConfigMap | null>(null);
   const [savingLevelConfig, setSavingLevelConfig] = useState(false);
   const [results, setResults] = useState<CalculateRow[]>([]);
+  const [calcAllLevels, setCalcAllLevels] = useState(true);
+  const [selectedLevelsForCalc, setSelectedLevelsForCalc] = useState<string[]>([]);
+  const [lastLevelsFilter, setLastLevelsFilter] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -222,10 +229,18 @@ export default function MonthlyTuitionPage() {
   const runCalculate = async () => {
     const token = await fetchToken();
     if (!token) return;
+    if (!calcAllLevels && selectedLevelsForCalc.length === 0) {
+      setError("Select at least one level, or click All levels (default).");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tuition/calculate?month=${encodeURIComponent(selectedMonth)}`, {
+      const params = new URLSearchParams({ month: selectedMonth });
+      if (!calcAllLevels) {
+        params.set("levels", selectedLevelsForCalc.join(","));
+      }
+      const res = await fetch(`/api/admin/tuition/calculate?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -235,9 +250,35 @@ export default function MonthlyTuitionPage() {
       }
       const data = await res.json();
       setResults(data.results || []);
+      setLastLevelsFilter(Array.isArray(data.levelsFilter) ? data.levelsFilter : []);
     } finally {
       setLoading(false);
     }
+  };
+
+  const availableCalcLevels = levelConfig
+    ? [...new Set([...SWIMMER_LEVELS, ...Object.keys(levelConfig)])]
+    : [...SWIMMER_LEVELS];
+
+  const toggleCalcLevel = (level: string, checked: boolean) => {
+    if (calcAllLevels) {
+      if (!checked) {
+        setCalcAllLevels(false);
+        setSelectedLevelsForCalc(availableCalcLevels.filter((l) => l !== level));
+      }
+      return;
+    }
+    if (checked) {
+      const next = [...new Set([...selectedLevelsForCalc, level])];
+      if (next.length === availableCalcLevels.length) {
+        setCalcAllLevels(true);
+        setSelectedLevelsForCalc([]);
+      } else {
+        setSelectedLevelsForCalc(next);
+      }
+      return;
+    }
+    setSelectedLevelsForCalc(selectedLevelsForCalc.filter((l) => l !== level));
   };
 
   const toggleNoTraining = (date: string) => {
@@ -401,6 +442,84 @@ export default function MonthlyTuitionPage() {
                       Calculate Tuition
                     </Button>
                   </div>
+                  <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <Label className="text-slate-700 font-semibold">Levels to calculate</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCalcAllLevels(false);
+                            setSelectedLevelsForCalc([...availableCalcLevels]);
+                          }}
+                        >
+                          Select all
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCalcAllLevels(false);
+                            setSelectedLevelsForCalc([]);
+                          }}
+                        >
+                          Unselect all
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCalcAllLevels(true);
+                            setSelectedLevelsForCalc([]);
+                          }}
+                        >
+                          All levels (default)
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-3">
+                      Use All levels (default) to calculate everyone. Or pick specific levels when some groups do not train that month (e.g. September or summer).
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                      {availableCalcLevels.map((level) => {
+                        const checked =
+                          calcAllLevels || selectedLevelsForCalc.includes(level);
+                        const highlighted =
+                          calcAllLevels || selectedLevelsForCalc.includes(level);
+                        return (
+                          <label
+                            key={level}
+                            className={`flex items-center gap-2 rounded border px-3 py-2 text-sm cursor-pointer ${
+                              highlighted
+                                ? calcAllLevels
+                                  ? "bg-white border-slate-200"
+                                  : "bg-blue-50 border-blue-300"
+                                : "bg-white border-slate-200 opacity-60"
+                            }`}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(value) => {
+                                toggleCalcLevel(level, value === true);
+                              }}
+                            />
+                            <span>{level}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-600 mt-3">
+                      {calcAllLevels
+                        ? "Currently: all levels will be included."
+                        : selectedLevelsForCalc.length === 0
+                          ? "No levels selected — choose levels or click All levels (default)."
+                          : `Currently: ${selectedLevelsForCalc.length} level(s) selected.`}
+                    </p>
+                  </div>
                   <Label className="text-slate-600">Select dates when there is no training (pool closed / conflict):</Label>
                   <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-14 gap-2 mt-2">
                     {datesInMonth.map((dateStr) => {
@@ -432,6 +551,14 @@ export default function MonthlyTuitionPage() {
             <Card>
               <CardHeader>
                 <CardTitle>{monthLabel(selectedMonth)} — Results</CardTitle>
+                {lastLevelsFilter.length > 0 && (
+                  <p className="text-sm text-slate-500">
+                    Levels: {lastLevelsFilter.join(", ")}
+                  </p>
+                )}
+                {lastLevelsFilter.length === 0 && results.length > 0 && (
+                  <p className="text-sm text-slate-500">Levels: all</p>
+                )}
               </CardHeader>
               <CardContent>
                   {results.length === 0 ? (
@@ -479,7 +606,21 @@ export default function MonthlyTuitionPage() {
                                 </td>
                                 <td className="p-2 text-right">{row.sessionCount}</td>
                                 <td className="p-2 text-right">${row.ratePerHour}</td>
-                                <td className="p-2 text-right font-medium">${row.tuition}</td>
+                                <td className="p-2 text-right font-medium">
+                                  {row.siblingDiscountApplied ? (
+                                    <div>
+                                      <div className="line-through text-slate-400 text-xs">
+                                        ${row.baseTuition ?? row.tuition}
+                                      </div>
+                                      <div>${row.tuition}</div>
+                                      <div className="text-xs text-green-700">
+                                        -{row.siblingDiscountPercent}% sibling
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    `$${row.tuition}`
+                                  )}
+                                </td>
                                 <td className="p-2">
                                   <div className="flex flex-wrap gap-1">
                                     <Button size="sm" variant="outline" onClick={() => openEdit(row)} title="Edit training config">

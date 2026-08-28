@@ -9,6 +9,11 @@ import {
   type LevelConfigItem,
   type LevelScheduleSlot,
 } from "@/lib/tuition-defaults";
+import {
+  applySiblingTuitionDiscounts,
+  getSwimmerEnrollmentMillis,
+  normalizeSiblingIds,
+} from "@/lib/swimmer-siblings";
 
 export type TuitionCalculateRow = {
   swimmerId: string;
@@ -20,6 +25,9 @@ export type TuitionCalculateRow = {
   sessionCount: number;
   ratePerHour: number;
   tuition: number;
+  baseTuition?: number;
+  siblingDiscountPercent?: number;
+  siblingDiscountApplied?: boolean;
   scheduleLines: string[];
   timeSlot: string;
   location: string;
@@ -30,6 +38,13 @@ export type TuitionCalculateResult = {
   month: string;
   noTrainingDates: string[];
   results: TuitionCalculateRow[];
+  /** Empty = all levels included */
+  levelsFilter: string[];
+};
+
+export type TuitionCalculateOptions = {
+  /** If non-empty, only swimmers in these levels are calculated */
+  levels?: string[];
 };
 
 function getDatesInMonth(month: string): Date[] {
@@ -58,8 +73,12 @@ function toMMDD(d: Date): string {
 
 export async function runTuitionCalculate(
   db: Firestore,
-  month: string
+  month: string,
+  options?: TuitionCalculateOptions
 ): Promise<TuitionCalculateResult> {
+  const levelsFilter = (options?.levels ?? []).map((l) => l.trim()).filter(Boolean);
+  const levelSet =
+    levelsFilter.length > 0 ? new Set(levelsFilter) : null;
   const [levelSnap, monthSnap, swimmersSnap] = await Promise.all([
     db.collection("tuition_level_config").doc("default").get(),
     db.collection("tuition_month_config").doc(month).get(),
@@ -120,10 +139,17 @@ export async function runTuitionCalculate(
   }
 
   const results: TuitionCalculateRow[] = [];
+  const enrollmentById = new Map<string, number>();
+  const siblingIdsBySwimmer = new Map<string, string[]>();
 
   for (const doc of swimmersSnap.docs) {
     const data = doc.data();
     const swimmerId = doc.id;
+    enrollmentById.set(swimmerId, getSwimmerEnrollmentMillis(data));
+    siblingIdsBySwimmer.set(
+      swimmerId,
+      normalizeSiblingIds(data.siblingIds, swimmerId)
+    );
     const swimmerName =
       [data.childFirstName, data.childLastName].filter(Boolean).join(" ").trim() || doc.id;
     const level = (data.level && String(data.level).trim()) || "";
@@ -140,6 +166,7 @@ export async function runTuitionCalculate(
     const parentEmail = typeof parentEmailRaw === "string" ? parentEmailRaw.trim() : "";
     if (data.isFrozen) continue;
     if (!level) continue;
+    if (levelSet && !levelSet.has(level)) continue;
 
     const trainingWeekdays: number[] = Array.isArray(data.trainingWeekdays)
       ? data.trainingWeekdays.filter((n) => typeof n === "number" && n >= 0 && n <= 6)
@@ -226,11 +253,18 @@ export async function runTuitionCalculate(
     });
   }
 
-  results.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName));
+  const discountedResults = applySiblingTuitionDiscounts(
+    results,
+    enrollmentById,
+    siblingIdsBySwimmer
+  );
+
+  discountedResults.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName));
 
   return {
     month,
     noTrainingDates: Array.from(noTrainingSet),
-    results,
+    results: discountedResults,
+    levelsFilter,
   };
 }

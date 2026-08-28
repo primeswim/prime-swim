@@ -25,11 +25,21 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Invalid month (use YYYY-MM)" }, { status: 400 });
     }
 
-    const { month: m, noTrainingDates, results } = await runTuitionCalculate(adminDb, month);
+    const levelsParam = searchParams.get("levels");
+    const levels = levelsParam
+      ? levelsParam
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+
+    const { month: m, noTrainingDates, results, levelsFilter } =
+      await runTuitionCalculate(adminDb, month, { levels });
     return NextResponse.json({
       month: m,
       noTrainingDates,
       results,
+      levelsFilter,
     });
   } catch (e) {
     if (e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "FORBIDDEN")) {
