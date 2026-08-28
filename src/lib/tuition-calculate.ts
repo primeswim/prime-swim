@@ -7,6 +7,7 @@ import {
   DEFAULT_LEVEL_CONFIG,
   type LevelConfigMap,
   type LevelConfigItem,
+  type LevelScheduleSlot,
 } from "@/lib/tuition-defaults";
 import {
   applySiblingTuitionDiscounts,
