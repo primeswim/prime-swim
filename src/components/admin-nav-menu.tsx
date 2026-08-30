@@ -48,8 +48,11 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
           <MobileLink href="/admin/makeup/attendees" nested>Makeup Attendees</MobileLink>
         </MobileSection>
         <MobileSection title="Tuition">
-          <MobileLink href="/admin/monthly-tuition">Calculate Tuition</MobileLink>
-          <MobileLink href="/admin/tuition-billing">Send Tuition Email</MobileLink>
+          <MobileLink href="/admin/tuition-v2/plan">V2 Monthly Plan</MobileLink>
+          <MobileLink href="/admin/tuition-v2/review" nested>V2 Tuition Review</MobileLink>
+          <MobileLink href="/admin/tuition-v2/email" nested>V2 Email</MobileLink>
+          <MobileLink href="/admin/monthly-tuition">Calculate Tuition (V1)</MobileLink>
+          <MobileLink href="/admin/tuition-billing">Send Tuition Email (V1)</MobileLink>
           <MobileLink href="/admin/tuition">Manual Tuition Email</MobileLink>
         </MobileSection>
         <MobileSection title="Programs">
@@ -115,7 +118,16 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Tuition</DropdownMenuLabel>
       <DropdownMenuItem asChild>
-        <Link href="/admin/monthly-tuition">Calculate Tuition</Link>
+        <Link href="/admin/tuition-v2/plan">V2 Monthly Plan</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/admin/tuition-v2/review">V2 Tuition Review</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/admin/tuition-v2/email">V2 Email</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/admin/monthly-tuition">Calculate Tuition (V1)</Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/admin/tuition-billing">Send Tuition Email</Link>
