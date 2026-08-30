@@ -53,6 +53,34 @@ function testRegularWeekdayStillRequiredForNormalSessions() {
   assert(billable.length === 0, "Friday session not billed when only Monday is regular");
 }
 
+function testUnavailableWeekdayExcludesRegularFriday() {
+  const sessions = [session("2026-09-05", 5, false)];
+  const billable = getBillableSessionsForSwimmer(enrollment(), sessions, {
+    swimmerId: "s1",
+    weekdayAvailability: { 5: "unavailable" },
+  });
+  assert(billable.length === 0, "unavailable Friday excludes regular Friday session");
+}
+
+function testUnavailableWeekdayExcludesExtraTrainingFriday() {
+  const sessions = [session("2026-09-05", 5, true)];
+  const billable = getBillableSessionsForSwimmer(enrollment(), sessions, {
+    swimmerId: "s1",
+    weekdayAvailability: { 5: "unavailable" },
+  });
+  assert(billable.length === 0, "unavailable Friday excludes extra training on Friday");
+}
+
+function testUnavailableWeekdayDoesNotBlockSwapToFriday() {
+  const sessions = [session("2026-09-05", 5, true)];
+  const billable = getBillableSessionsForSwimmer(enrollment(), sessions, {
+    swimmerId: "s1",
+    weekdayAvailability: { 5: "unavailable" },
+    adjustments: [{ type: "swap_session", toSessionId: sessions[0].id }],
+  });
+  assert(billable.length === 1, "explicit swap/add still bills unavailable weekday");
+}
+
 function testExplicitKeysFromPlan() {
   const sessions = [session("2026-09-08", 2, false)];
   const keys = new Set([sessions[0].id]);
@@ -64,6 +92,9 @@ function run() {
   testExtraTrainingOutsideRegularWeekdays();
   testExtraTrainingSkipped();
   testRegularWeekdayStillRequiredForNormalSessions();
+  testUnavailableWeekdayExcludesRegularFriday();
+  testUnavailableWeekdayExcludesExtraTrainingFriday();
+  testUnavailableWeekdayDoesNotBlockSwapToFriday();
   testExplicitKeysFromPlan();
   console.log("tuition-v2 calculate-engine tests passed");
 }

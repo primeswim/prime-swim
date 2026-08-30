@@ -89,6 +89,7 @@ export function getBillableSessionsForSwimmer(
       continue;
     }
     if (isExtraTraining(session)) {
+      if (isWeekdayUnavailable(session.weekday, enrollment, response)) continue;
       billableIds.add(session.id);
       continue;
     }
