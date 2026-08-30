@@ -36,9 +36,17 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Users,
 } from "lucide-react";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+type TrainingDayRow = {
+  id: string;
+  swimmerName: string;
+  level: string;
+  regularWeekdays: number[];
+};
 
 function getDatesInMonth(month: string): string[] {
   const [y, m] = month.split("-").map(Number);
@@ -128,6 +136,9 @@ function TuitionV2PlanContent() {
   const [expandedTemplateLevel, setExpandedTemplateLevel] = useState<string | null>(null);
   const [savingTemplates, setSavingTemplates] = useState(false);
   const [seedingTemplates, setSeedingTemplates] = useState(false);
+  const [trainingDayList, setTrainingDayList] = useState<TrainingDayRow[]>([]);
+  const [loadingTrainingDays, setLoadingTrainingDays] = useState(false);
+  const [savingTrainingDayId, setSavingTrainingDayId] = useState<string | null>(null);
 
   const templateSourceLabel =
     templateSource === "v2_saved"
@@ -191,6 +202,67 @@ function TuitionV2PlanContent() {
   useEffect(() => {
     if (isAdmin) void loadSwimmerResponses();
   }, [isAdmin, loadSwimmerResponses]);
+
+  const loadTrainingDayList = useCallback(async () => {
+    const token = await fetchToken();
+    if (!token) return;
+    setLoadingTrainingDays(true);
+    try {
+      const res = await fetch("/api/admin/tuition-v2/enrollments", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setTrainingDayList(data.swimmers || []);
+    } finally {
+      setLoadingTrainingDays(false);
+    }
+  }, [fetchToken]);
+
+  useEffect(() => {
+    if (isAdmin) void loadTrainingDayList();
+  }, [isAdmin, loadTrainingDayList]);
+
+  const toggleTrainingDayWeekday = (id: string, wd: number) => {
+    setTrainingDayList((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        const has = s.regularWeekdays.includes(wd);
+        const next = has
+          ? s.regularWeekdays.filter((n) => n !== wd)
+          : [...s.regularWeekdays, wd].sort((a, b) => a - b);
+        return { ...s, regularWeekdays: next };
+      })
+    );
+  };
+
+  const saveTrainingDays = async (row: TrainingDayRow) => {
+    const token = await fetchToken();
+    if (!token) return;
+    setSavingTrainingDayId(row.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/tuition-v2/enrollments/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ regularWeekdays: row.regularWeekdays }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to save training days");
+        return;
+      }
+      setSwimmerRows((prev) =>
+        prev.map(({ enrollment, response }) =>
+          enrollment.swimmerId === row.id
+            ? { enrollment: { ...enrollment, regularWeekdays: row.regularWeekdays }, response }
+            : { enrollment, response }
+        )
+      );
+      setStatusMsg(`Training days saved for ${row.swimmerName}.`);
+    } finally {
+      setSavingTrainingDayId(null);
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -718,6 +790,7 @@ function TuitionV2PlanContent() {
             <TabsTrigger value="level-plans">Level Plans</TabsTrigger>
             <TabsTrigger value="no-training">No-training</TabsTrigger>
             <TabsTrigger value="sessions">Sessions ({activeSessions.length})</TabsTrigger>
+            <TabsTrigger value="training-days">Training Days</TabsTrigger>
             <TabsTrigger value="swimmers">Swimmer Responses</TabsTrigger>
           </TabsList>
 
@@ -1173,6 +1246,89 @@ function TuitionV2PlanContent() {
                                 checked={!s.cancelled}
                                 onCheckedChange={(v) => void toggleSessionCancelled(s, !Boolean(v))}
                               />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="training-days" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Swimmer training days
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Default weekdays each swimmer trains (used for tuition calculation). Stored in V2
+                  enrollment only — does not use V1 swimmer config.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void loadTrainingDayList()}
+                    disabled={loadingTrainingDays}
+                  >
+                    {loadingTrainingDays ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Refresh list
+                  </Button>
+                </div>
+                {loadingTrainingDays && trainingDayList.length === 0 ? (
+                  <p className="text-muted-foreground py-8 text-center">Loading swimmers…</p>
+                ) : trainingDayList.length === 0 ? (
+                  <p className="text-muted-foreground py-8 text-center">
+                    No active swimmers with a group assignment. Assign a level to swimmers first.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left border-b text-muted-foreground">
+                          <th className="p-2 font-semibold">Swimmer</th>
+                          <th className="p-2 font-semibold">Level</th>
+                          {WEEKDAYS.map((d) => (
+                            <th key={d} className="p-1 text-center font-semibold w-12">
+                              {d.slice(0, 2)}
+                            </th>
+                          ))}
+                          <th className="p-2 font-semibold">Save</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {trainingDayList.map((row) => (
+                          <tr key={row.id} className="border-b">
+                            <td className="p-2 font-medium">{row.swimmerName}</td>
+                            <td className="p-2">{row.level}</td>
+                            {WEEKDAYS.map((_, wd) => (
+                              <td key={wd} className="p-1 text-center">
+                                <Checkbox
+                                  checked={row.regularWeekdays.includes(wd)}
+                                  onCheckedChange={() => toggleTrainingDayWeekday(row.id, wd)}
+                                />
+                              </td>
+                            ))}
+                            <td className="p-2">
+                              <Button
+                                size="sm"
+                                onClick={() => void saveTrainingDays(row)}
+                                disabled={savingTrainingDayId === row.id}
+                              >
+                                {savingTrainingDayId === row.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  "Save"
+                                )}
+                              </Button>
                             </td>
                           </tr>
                         ))}

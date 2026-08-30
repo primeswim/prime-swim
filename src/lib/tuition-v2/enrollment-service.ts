@@ -172,10 +172,29 @@ export async function saveSwimmerEnrollment(
     .collection(TUITION_V2_ENROLLMENT_COLLECTION)
     .doc(enrollment.swimmerId)
     .set(
-      {
+      withoutUndefined({
         ...enrollment,
         updatedAt: new Date().toISOString(),
-      },
+      }),
       { merge: true }
     );
+}
+
+/** Update default training weekdays (V2-only; does not touch swimmers collection). */
+export async function updateEnrollmentRegularWeekdays(
+  db: Firestore,
+  swimmerId: string,
+  regularWeekdays: number[]
+): Promise<TuitionV2SwimmerEnrollment | null> {
+  const ref = db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(swimmerId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const parsed = parseEnrollmentDoc(swimmerId, snap.data());
+  if (!parsed || parsed.active === false) return null;
+
+  const sorted = [...regularWeekdays].sort((a, b) => a - b);
+  const updated: TuitionV2SwimmerEnrollment = { ...parsed, regularWeekdays: sorted };
+  await saveSwimmerEnrollment(db, updated);
+  return updated;
 }
