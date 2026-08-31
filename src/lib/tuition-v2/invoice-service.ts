@@ -16,7 +16,7 @@ import {
 } from "@/lib/tuition-v2/calculate-engine";
 import { loadSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
 import { ensureMonthDoc, loadLevelPlans, loadSessions, normalizeMonthDoc } from "@/lib/tuition-v2/month-service";
-import { explicitTrainingSessionKeys } from "@/lib/tuition-v2/session-generator";
+import { resolveSessionsForMonth, schedulePeriodCoverage } from "@/lib/tuition-v2/session-generator";
 import { loadSwimmerResponses } from "@/lib/tuition-v2/swimmer-response-service";
 import { loadV2Templates } from "@/lib/tuition-v2/templates";
 import { defaultDueDateForMonth, monthLabel } from "@/lib/tuition-v2/shared-ui";
@@ -79,23 +79,45 @@ export async function loadInvoices(db: Firestore, month: string): Promise<Tuitio
   return out;
 }
 
-export async function recalculateInvoices(db: Firestore, month: string): Promise<{
+export type RecalculateInvoicesOptions = {
+  /** When set, only compute and write invoices for these swimmer levels. */
+  levels?: string[];
+};
+
+export async function recalculateInvoices(
+  db: Firestore,
+  month: string,
+  options: RecalculateInvoicesOptions = {}
+): Promise<{
   month: TuitionV2MonthDoc;
   invoices: TuitionV2Invoice[];
   count: number;
+  levelsFilter: string[] | null;
 }> {
-  await ensureMonthDoc(db, month);
+  const levelFilter =
+    options.levels?.length &&
+    options.levels.every((l) => typeof l === "string" && l.trim().length > 0)
+      ? new Set(options.levels.map((l) => l.trim()))
+      : null;
+
+  const monthDoc = await ensureMonthDoc(db, month);
   const [templates, enrollments, sessions, responses, existingInvoices, levelPlans] =
     await Promise.all([
     loadV2Templates(db),
-    loadSwimmerEnrollments(db),
+    loadSwimmerEnrollments(db, { syncRoster: !levelFilter }),
     loadSessions(db, month),
     loadSwimmerResponses(db, month),
     loadInvoices(db, month),
     loadLevelPlans(db, month),
   ]);
 
-  const explicitTrainingKeys = explicitTrainingSessionKeys(levelPlans);
+  const billingSessions = resolveSessionsForMonth(
+    month,
+    levelPlans,
+    sessions,
+    monthDoc.noTrainingDates
+  );
+  const periodCoverage = schedulePeriodCoverage(levelPlans, month);
 
   const responseById = new Map(responses.map((r) => [r.swimmerId, r]));
   const existingById = new Map(existingInvoices.map((i) => [i.swimmerId, i]));
@@ -111,13 +133,15 @@ export async function recalculateInvoices(db: Firestore, month: string): Promise
   }> = [];
 
   for (const enrollment of enrollments) {
+    if (levelFilter && !levelFilter.has(enrollment.level)) continue;
     const template = templates[enrollment.level];
     const rate = getMonthlyRate(enrollment, template);
     const billable = getBillableSessionsForSwimmer(
       enrollment,
-      sessions,
+      billingSessions,
       responseById.get(enrollment.swimmerId) ?? null,
-      explicitTrainingKeys
+      periodCoverage.explicit,
+      periodCoverage.periodDatesByLevel
     );
     if (billable.length === 0) continue;
     const lineItems = buildLineItems(billable, rate.ratePerHour);
@@ -230,11 +254,15 @@ export async function recalculateInvoices(db: Firestore, month: string): Promise
   });
 
   await commitWrites(db, writes);
-  const monthSnap = await db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).get();
+  const [monthSnap, allInvoices] = await Promise.all([
+    db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).get(),
+    loadInvoices(db, month),
+  ]);
   return {
     month: normalizeMonthDoc(month, monthSnap.data()),
-    invoices,
+    invoices: allInvoices,
     count: invoices.length,
+    levelsFilter: levelFilter ? [...levelFilter] : null,
   };
 }
 

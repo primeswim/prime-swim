@@ -3,10 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { authErrorResponse, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
-import {
-  loadSwimmerEnrollments,
-  updateEnrollmentRegularWeekdays,
-} from "@/lib/tuition-v2/enrollment-service";
+import { updateEnrollmentRegularWeekdays } from "@/lib/tuition-v2/enrollment-service";
 
 type RouteCtx = { params: Promise<{ swimmerId: string }> };
 
@@ -27,7 +24,6 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       (n): n is number => typeof n === "number" && n >= 0 && n <= 6
     );
 
-    await loadSwimmerEnrollments(adminDb);
     const enrollment = await updateEnrollmentRegularWeekdays(
       adminDb,
       swimmerId,

@@ -151,9 +151,8 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<void>
   if (writes.length > 0) await commitWrites(db, writes);
 }
 
-/** Active swimmers for V2 tuition (auto-synced from roster). */
-export async function loadSwimmerEnrollments(db: Firestore): Promise<TuitionV2SwimmerEnrollment[]> {
-  await syncActiveSwimmerEnrollments(db);
+/** Read enrollments only — no roster sync (cheap). */
+export async function listSwimmerEnrollments(db: Firestore): Promise<TuitionV2SwimmerEnrollment[]> {
   const snap = await db.collection(TUITION_V2_ENROLLMENT_COLLECTION).get();
   const out: TuitionV2SwimmerEnrollment[] = [];
   for (const doc of snap.docs) {
@@ -162,6 +161,15 @@ export async function loadSwimmerEnrollments(db: Firestore): Promise<TuitionV2Sw
   }
   out.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName));
   return out;
+}
+
+/** Active swimmers for V2 tuition. Sync roster only when syncRoster is true. */
+export async function loadSwimmerEnrollments(
+  db: Firestore,
+  options?: { syncRoster?: boolean }
+): Promise<TuitionV2SwimmerEnrollment[]> {
+  if (options?.syncRoster) await syncActiveSwimmerEnrollments(db);
+  return listSwimmerEnrollments(db);
 }
 
 export async function saveSwimmerEnrollment(

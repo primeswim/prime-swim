@@ -21,6 +21,11 @@ export function authErrorResponse(e: unknown) {
 }
 
 export function parseMonthParam(month: string | undefined): string | null {
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) return null;
-  return month;
+  if (!month) return null;
+  const decoded = decodeURIComponent(month.trim());
+  const normalized = /^\d{4}_\d{2}$/.test(decoded) ? decoded.replace("_", "-") : decoded;
+  if (!/^\d{4}-\d{2}$/.test(normalized)) return null;
+  const m = Number(normalized.slice(5, 7));
+  if (m < 1 || m > 12) return null;
+  return normalized;
 }

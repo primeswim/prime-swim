@@ -6,6 +6,7 @@ import type {
   TuitionV2RateTier,
   TuitionV2InvoiceLineItem,
 } from "@/lib/tuition-v2/types";
+import type { ExplicitTrainingRefs } from "@/lib/tuition-v2/session-generator";
 import { formatSessionLine } from "@/lib/tuition-v2/shared-ui";
 
 export type RateResult = {
@@ -57,7 +58,8 @@ export function getBillableSessionsForSwimmer(
   enrollment: TuitionV2SwimmerEnrollment,
   allSessions: TuitionV2Session[],
   response: TuitionV2SwimmerResponse | null,
-  explicitTrainingKeys: Set<string> = new Set()
+  explicit: ExplicitTrainingRefs = { sessionIds: new Set(), dateLevelKeys: new Set() },
+  periodDatesByLevel: Map<string, Set<string>> = new Map()
 ): TuitionV2Session[] {
   const levelSessions = allSessions.filter(
     (s) => s.level === enrollment.level && !s.cancelled
@@ -78,7 +80,12 @@ export function getBillableSessionsForSwimmer(
   }
 
   const isExtraTraining = (session: TuitionV2Session) =>
-    session.extraTraining === true || explicitTrainingKeys.has(session.id);
+    session.extraTraining === true ||
+    explicit.sessionIds.has(session.id) ||
+    explicit.dateLevelKeys.has(`${session.date}|${session.level}`);
+
+  const isInsideSchedulePeriod = (session: TuitionV2Session) =>
+    periodDatesByLevel.get(session.level)?.has(session.date) ?? false;
 
   const billableIds = new Set<string>();
 
@@ -93,6 +100,7 @@ export function getBillableSessionsForSwimmer(
       billableIds.add(session.id);
       continue;
     }
+    if (isInsideSchedulePeriod(session)) continue;
     if (!enrollment.regularWeekdays.includes(session.weekday)) continue;
     if (isWeekdayUnavailable(session.weekday, enrollment, response)) continue;
     billableIds.add(session.id);

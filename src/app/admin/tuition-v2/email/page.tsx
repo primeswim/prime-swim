@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
 import { billingVariantPreviewLabel } from "@/lib/tuition-billing-shared";
-import { getNextMonth, monthLabel, monthReadyToSendEmail } from "@/lib/tuition-v2/shared-ui";
+import { getNextMonth, monthLabel, monthReadyToSendEmail, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
 import { AlertCircle, Loader2, Mail, RefreshCw } from "lucide-react";
 
 export default function TuitionV2EmailPage() {
@@ -75,14 +75,16 @@ function TuitionV2EmailContent() {
   const load = useCallback(async () => {
     const token = await fetchToken();
     if (!token) return;
+    const month = normalizeBillingMonth(selectedMonth);
+    if (!month) return;
     setLoading(true);
     setError("");
     try {
       const [invRes, monthRes] = await Promise.all([
-        fetch(`/api/admin/tuition-v2/months/${selectedMonth}/invoices`, {
+        fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}/invoices`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`/api/admin/tuition-v2/months/${selectedMonth}`, {
+        fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -124,7 +126,7 @@ function TuitionV2EmailContent() {
     setError("");
     setStatusMsg("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/send`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ swimmerId, kind: "auto" }),
@@ -148,7 +150,7 @@ function TuitionV2EmailContent() {
     setBatchBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/send`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ batch: true, kind: "auto" }),
@@ -181,7 +183,7 @@ function TuitionV2EmailContent() {
     setSaveBusy(true);
     try {
       const res = await fetch(
-        `/api/admin/tuition-v2/months/${selectedMonth}/invoices/${encodeURIComponent(editInv.swimmerId)}`,
+        `/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/invoices/${encodeURIComponent(editInv.swimmerId)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -213,7 +215,7 @@ function TuitionV2EmailContent() {
     setError("");
     try {
       const res = await fetch(
-        `/api/admin/tuition-v2/months/${selectedMonth}/invoices/${encodeURIComponent(paidInv.swimmerId)}`,
+        `/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/invoices/${encodeURIComponent(paidInv.swimmerId)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -237,7 +239,7 @@ function TuitionV2EmailContent() {
     const token = await fetchToken();
     if (!token) return;
     const res = await fetch(
-      `/api/admin/tuition-v2/months/${selectedMonth}/invoices/${encodeURIComponent(inv.swimmerId)}`,
+      `/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/invoices/${encodeURIComponent(inv.swimmerId)}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

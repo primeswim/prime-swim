@@ -8,7 +8,7 @@ import {
   normalizeSwimmerResponse,
   saveSwimmerResponsesBatch,
 } from "@/lib/tuition-v2/swimmer-response-service";
-import { loadSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
+import { listSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
 import { ensureMonthDoc } from "@/lib/tuition-v2/month-service";
 import type { TuitionV2SwimmerResponse } from "@/lib/tuition-v2/types";
 
@@ -22,7 +22,7 @@ export async function GET(req: Request, ctx: RouteCtx) {
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
 
     const [enrollments, responses] = await Promise.all([
-      loadSwimmerEnrollments(adminDb),
+      listSwimmerEnrollments(adminDb),
       loadSwimmerResponses(adminDb, month),
     ]);
     const responseById = new Map(responses.map((r) => [r.swimmerId, r]));

@@ -3,7 +3,15 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { authErrorResponse, parseMonthParam, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
-import { updateSession } from "@/lib/tuition-v2/month-service";
+import {
+  ensureMonthDoc,
+  loadLevelPlans,
+  loadSessions,
+  normalizeMonthDoc,
+  updateSession,
+} from "@/lib/tuition-v2/month-service";
+import { resolveSessionsForMonth } from "@/lib/tuition-v2/session-generator";
+import { TUITION_V2_MONTHS_COLLECTION } from "@/lib/tuition-v2/constants";
 
 type RouteCtx = { params: Promise<{ month: string; sessionId: string }> };
 
@@ -22,12 +30,31 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       location?: string;
     };
 
-    const updated = await updateSession(adminDb, month, sessionId, {
+    const patch = {
       ...(body.cancelled !== undefined ? { cancelled: Boolean(body.cancelled) } : {}),
       ...(body.cancelReason !== undefined ? { cancelReason: body.cancelReason } : {}),
       ...(body.timeSlot !== undefined ? { timeSlot: body.timeSlot } : {}),
       ...(body.location !== undefined ? { location: body.location } : {}),
-    });
+    };
+
+    let updated = await updateSession(adminDb, month, sessionId, patch);
+    if (!updated) {
+      const monthSnap = await adminDb.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).get();
+      const monthDoc = normalizeMonthDoc(month, monthSnap.data());
+      const [levelPlans, stored] = await Promise.all([
+        loadLevelPlans(adminDb, month),
+        loadSessions(adminDb, month),
+      ]);
+      const resolved = resolveSessionsForMonth(
+        month,
+        levelPlans,
+        stored,
+        monthDoc.noTrainingDates
+      );
+      const fallback = resolved.find((s) => s.id === sessionId);
+      if (!fallback) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+      updated = await updateSession(adminDb, month, sessionId, patch, fallback);
+    }
 
     if (!updated) return NextResponse.json({ error: "Session not found" }, { status: 404 });
     return NextResponse.json({ ok: true, session: updated });

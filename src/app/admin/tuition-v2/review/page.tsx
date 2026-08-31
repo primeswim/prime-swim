@@ -19,8 +19,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
-import { getNextMonth, monthLabel } from "@/lib/tuition-v2/shared-ui";
+import { getNextMonth, monthLabel, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
+import { SWIMMER_LEVELS } from "@/lib/swimmer-levels";
 import { Loader2, RefreshCw } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function TuitionV2ReviewPage() {
   return (
@@ -48,6 +50,8 @@ function TuitionV2ReviewContent() {
   const [editReason, setEditReason] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
   const [nameSearch, setNameSearch] = useState("");
+  const [calcAllLevels, setCalcAllLevels] = useState(true);
+  const [selectedLevelsForCalc, setSelectedLevelsForCalc] = useState<string[]>([]);
 
   const fetchToken = useCallback(async () => {
     const user = auth.currentUser;
@@ -58,10 +62,12 @@ function TuitionV2ReviewContent() {
   const load = useCallback(async () => {
     const token = await fetchToken();
     if (!token) return;
+    const month = normalizeBillingMonth(selectedMonth);
+    if (!month) return;
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/invoices`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}/invoices`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
@@ -70,7 +76,7 @@ function TuitionV2ReviewContent() {
         return;
       }
       setInvoices(data.invoices || []);
-      const monthRes = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}`, {
+      const monthRes = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const monthData = await monthRes.json().catch(() => ({}));
@@ -96,16 +102,43 @@ function TuitionV2ReviewContent() {
 
   const total = useMemo(() => filtered.reduce((s, i) => s + i.amount, 0), [filtered]);
 
+  const toggleCalcLevel = (level: string, checked: boolean) => {
+    if (calcAllLevels) {
+      if (!checked) {
+        setCalcAllLevels(false);
+        setSelectedLevelsForCalc(SWIMMER_LEVELS.filter((l) => l !== level));
+      }
+      return;
+    }
+    if (checked) {
+      const next = [...new Set([...selectedLevelsForCalc, level])];
+      if (next.length === SWIMMER_LEVELS.length) {
+        setCalcAllLevels(true);
+        setSelectedLevelsForCalc([]);
+      } else {
+        setSelectedLevelsForCalc(next);
+      }
+      return;
+    }
+    setSelectedLevelsForCalc(selectedLevelsForCalc.filter((l) => l !== level));
+  };
+
   const recalculate = async () => {
     const token = await fetchToken();
     if (!token) return;
+    if (!calcAllLevels && selectedLevelsForCalc.length === 0) {
+      setError("Select at least one level, or use All levels (default).");
+      return;
+    }
     setRecalcBusy(true);
     setError("");
     setStatusMsg("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/recalculate`, {
+      const body = calcAllLevels ? {} : { levels: selectedLevelsForCalc };
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/recalculate`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -114,7 +147,13 @@ function TuitionV2ReviewContent() {
       }
       setInvoices(data.invoices || []);
       setMonthDoc(data.month);
-      setStatusMsg(`Recalculated ${data.count ?? 0} invoices. You can send emails from the Email hub.`);
+      const levelNote =
+        Array.isArray(data.levelsFilter) && data.levelsFilter.length > 0
+          ? ` (${data.levelsFilter.length} level(s))`
+          : "";
+      setStatusMsg(
+        `Recalculated ${data.count ?? 0} invoice(s)${levelNote}. Other levels were left unchanged.`
+      );
     } finally {
       setRecalcBusy(false);
     }
@@ -138,7 +177,7 @@ function TuitionV2ReviewContent() {
     setSaveBusy(true);
     try {
       const res = await fetch(
-        `/api/admin/tuition-v2/months/${selectedMonth}/invoices/${encodeURIComponent(editInv.swimmerId)}`,
+        `/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/invoices/${encodeURIComponent(editInv.swimmerId)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -212,6 +251,86 @@ function TuitionV2ReviewContent() {
             Recalculate tuition
           </Button>
         </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Levels to recalculate</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Pick specific levels to save Firestore writes when only some groups changed. Sibling discounts
+              apply within the selected levels only — recalculate linked siblings together when needed.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCalcAllLevels(false);
+                  setSelectedLevelsForCalc([...SWIMMER_LEVELS]);
+                }}
+              >
+                Select all
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCalcAllLevels(false);
+                  setSelectedLevelsForCalc([]);
+                }}
+              >
+                Unselect all
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCalcAllLevels(true);
+                  setSelectedLevelsForCalc([]);
+                }}
+              >
+                All levels (default)
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {SWIMMER_LEVELS.map((level) => {
+                const checked = calcAllLevels || selectedLevelsForCalc.includes(level);
+                const highlighted = calcAllLevels || selectedLevelsForCalc.includes(level);
+                return (
+                  <label
+                    key={level}
+                    className={`flex items-center gap-2 rounded border px-3 py-2 text-sm cursor-pointer ${
+                      highlighted
+                        ? calcAllLevels
+                          ? "bg-white border-slate-200"
+                          : "bg-blue-50 border-blue-300"
+                        : "bg-white border-slate-200 opacity-60"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(value) => {
+                        toggleCalcLevel(level, value === true);
+                      }}
+                    />
+                    <span>{level}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-slate-600">
+              {calcAllLevels
+                ? "Currently: all levels (includes roster sync)."
+                : selectedLevelsForCalc.length === 0
+                  ? "No levels selected — choose levels or click All levels (default)."
+                  : `Currently: ${selectedLevelsForCalc.length} level(s) selected (skips roster sync).`}
+            </p>
+          </CardContent>
+        </Card>
 
         <Input
           placeholder="Search swimmer…"

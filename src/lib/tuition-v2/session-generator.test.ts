@@ -1,6 +1,7 @@
 import {
   generateSessionsForMonth,
   mergeRegeneratedSessions,
+  resolveSessionsForMonth,
   sessionIdFor,
 } from "./session-generator";
 import type { TuitionV2LevelPlan } from "./types";
@@ -72,10 +73,35 @@ function testPreserveCancellation() {
   assert(merged[0].cancelled === true, "preserves cancellation");
 }
 
+function testResolveSessionsFromPlans() {
+  const plans: TuitionV2LevelPlan[] = [
+    {
+      level: "Silver Beginner",
+      weeklySlots: [{ weekday: 3, timeSlot: "7-8PM", location: "Mary Wayte Pool" }],
+      schedulePeriods: [
+        {
+          startDate: "2026-09-01",
+          endDate: "2026-09-11",
+          trainingDates: [
+            { date: "2026-09-02", timeSlot: "7-8PM", location: "Norwood Pool" },
+            { date: "2026-09-09", timeSlot: "7-8PM", location: "Norwood Pool" },
+          ],
+        },
+      ],
+    },
+  ];
+  const resolved = resolveSessionsForMonth("2026-09", plans, [], []);
+  assert(
+    resolved.some((s) => s.date === "2026-09-02" && s.level === "Silver Beginner"),
+    "plan training dates appear without a regenerate step"
+  );
+}
+
 function run() {
   testBasicGeneration();
   testSchedulePeriod();
   testPreserveCancellation();
+  testResolveSessionsFromPlans();
   console.log("tuition-v2 session-generator tests passed");
 }
 

@@ -2,12 +2,13 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { authErrorResponse, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
+import { authErrorResponse, parseMonthParam, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
 import {
   loadV2TemplatesWithSource,
   saveV2Templates,
   seedV2TemplatesDefaults,
 } from "@/lib/tuition-v2/templates";
+import { syncLevelPlansFromTemplates } from "@/lib/tuition-v2/month-service";
 import type { TuitionV2LevelTemplateMap } from "@/lib/tuition-v2/types";
 
 export async function GET(req: Request) {
@@ -26,12 +27,16 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   try {
     await requireTuitionV2Admin(req);
-    const body = (await req.json()) as { levels?: TuitionV2LevelTemplateMap };
+    const body = (await req.json()) as { levels?: TuitionV2LevelTemplateMap; syncMonth?: string };
     if (!body.levels || typeof body.levels !== "object") {
       return NextResponse.json({ error: "Missing levels object" }, { status: 400 });
     }
     const levels = await saveV2Templates(adminDb, body.levels);
-    return NextResponse.json({ ok: true, levels, source: "v2_saved" });
+    const syncMonth = parseMonthParam(body.syncMonth);
+    const levelPlans = syncMonth
+      ? await syncLevelPlansFromTemplates(adminDb, syncMonth, levels)
+      : undefined;
+    return NextResponse.json({ ok: true, levels, source: "v2_saved", ...(levelPlans ? { levelPlans } : {}) });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });

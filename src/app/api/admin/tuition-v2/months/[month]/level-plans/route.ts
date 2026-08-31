@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { authErrorResponse, parseMonthParam, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
-import { initLevelPlansFromTemplates, loadLevelPlans, saveLevelPlans } from "@/lib/tuition-v2/month-service";
+import { loadLevelPlans, saveLevelPlans, syncLevelPlansFromTemplates } from "@/lib/tuition-v2/month-service";
 import { loadV2Templates, loadV2TemplatesWithSource, normalizeLevelPlan } from "@/lib/tuition-v2/templates";
 import type { TuitionV2LevelPlan } from "@/lib/tuition-v2/types";
 
@@ -71,7 +71,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
 
     const body = (await req.json()) as { action?: string };
-    if (body.action === "init_from_templates") {
+    if (body.action === "init_from_templates" || body.action === "sync_from_templates") {
       const { levels, source } = await loadV2TemplatesWithSource(adminDb);
       if (source === "not_initialized") {
         return NextResponse.json(
@@ -79,7 +79,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
           { status: 400 }
         );
       }
-      const levelPlans = await initLevelPlansFromTemplates(adminDb, month, levels);
+      const levelPlans = await syncLevelPlansFromTemplates(adminDb, month, levels);
       return NextResponse.json({ ok: true, levelPlans, templateSource: source });
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

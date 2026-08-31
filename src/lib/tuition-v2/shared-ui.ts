@@ -17,6 +17,23 @@ export function getNextMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Validate YYYY-MM billing month (client + server). */
+export function normalizeBillingMonth(input: string | undefined | null): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!/^\d{4}-\d{2}$/.test(trimmed)) return null;
+  const m = Number(trimmed.slice(5, 7));
+  if (m < 1 || m > 12) return null;
+  return trimmed;
+}
+
+/** Use in API paths — hyphen in YYYY-MM can break some routers (2026-09 → 2026). */
+export function monthToApiPath(month: string): string {
+  const normalized = normalizeBillingMonth(month);
+  if (!normalized) return encodeURIComponent(month);
+  return normalized.replace("-", "_");
+}
+
 export function formatSessionLine(date: string, timeSlot: string, location: string): string {
   const [y, mo, d] = date.split("-").map(Number);
   const mmdd = `${String(mo).padStart(2, "0")}/${String(d).padStart(2, "0")}`;

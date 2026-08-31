@@ -166,6 +166,20 @@ export function levelPlanFromTemplate(level: string, template: TuitionV2LevelTem
   };
 }
 
+/** Copy template weekly slots into a plan; keep month-specific schedule periods and notes. */
+export function mergeTemplateWeeklySlotsIntoPlan(
+  existing: TuitionV2LevelPlan | null | undefined,
+  level: string,
+  template: TuitionV2LevelTemplate
+): TuitionV2LevelPlan {
+  const weeklySlots = template.weeklySlots.map((s) => ({ ...s }));
+  if (!existing) return levelPlanFromTemplate(level, template);
+  return {
+    ...existing,
+    weeklySlots,
+  };
+}
+
 function normalizeTrainingDates(raw: unknown): TuitionV2TrainingDate[] {
   if (!Array.isArray(raw)) return [];
   const out: TuitionV2TrainingDate[] = [];

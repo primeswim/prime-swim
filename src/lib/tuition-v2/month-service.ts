@@ -14,8 +14,10 @@ import {
 import {
   levelPlanFromTemplate,
   loadV2Templates,
+  mergeTemplateWeeklySlotsIntoPlan,
   normalizeLevelPlan,
 } from "@/lib/tuition-v2/templates";
+import type { TuitionV2LevelTemplateMap } from "@/lib/tuition-v2/types";
 import type {
   TuitionV2LevelPlan,
   TuitionV2MonthDoc,
@@ -142,30 +144,66 @@ async function shouldDowngradeApproved(db: Firestore, month: string): Promise<bo
   return snap.data()?.status === "approved";
 }
 
-export async function initLevelPlansFromTemplates(
+/**
+ * Sync default weekly schedule from templates into this month's level plans.
+ * Creates missing level docs; updates weeklySlots only — schedule periods and notes are preserved.
+ */
+export async function syncLevelPlansFromTemplates(
   db: Firestore,
   month: string,
-  templates?: Awaited<ReturnType<typeof loadV2Templates>>
+  templates?: TuitionV2LevelTemplateMap
 ): Promise<TuitionV2LevelPlan[]> {
   const tpl = templates ?? (await loadV2Templates(db));
   await ensureMonthDoc(db, month);
+  const existingSnap = await levelPlansCol(db, month).get();
+  const existingByLevel = new Map<string, TuitionV2LevelPlan>();
+  for (const doc of existingSnap.docs) {
+    const level = doc.id;
+    const template = tpl[level] ?? {
+      defaultRatePerHour: 0,
+      minDaysPerWeek: 2,
+      reducedRatePerHour: null,
+      weeklySlots: [],
+      defaultTimeSlot: "7-8PM",
+      defaultLocation: "Mary Wayte Pool",
+    };
+    existingByLevel.set(level, normalizeLevelPlan(level, doc.data(), template, month));
+  }
+
   const now = new Date().toISOString();
   const batch = db.batch();
   const plans: TuitionV2LevelPlan[] = [];
+
   for (const level of SWIMMER_LEVELS) {
     const template = tpl[level];
     if (!template) continue;
-    const plan = levelPlanFromTemplate(level, template);
+    const plan = mergeTemplateWeeklySlotsIntoPlan(existingByLevel.get(level), level, template);
     plans.push(plan);
     batch.set(
       levelPlansCol(db, month).doc(level),
-      { ...plan, updatedAt: now },
+      {
+        level: plan.level,
+        weeklySlots: plan.weeklySlots,
+        schedulePeriods: plan.schedulePeriods ?? [],
+        notes: plan.notes ?? "",
+        updatedAt: now,
+      },
       { merge: true }
     );
   }
+
   batch.update(monthRef(db, month), { updatedAt: now });
   await batch.commit();
   return plans;
+}
+
+/** @deprecated Use syncLevelPlansFromTemplates — same behavior (merge, not wipe). */
+export async function initLevelPlansFromTemplates(
+  db: Firestore,
+  month: string,
+  templates?: TuitionV2LevelTemplateMap
+): Promise<TuitionV2LevelPlan[]> {
+  return syncLevelPlansFromTemplates(db, month, templates);
 }
 
 export async function loadSessions(db: Firestore, month: string): Promise<TuitionV2Session[]> {
@@ -223,12 +261,13 @@ export async function updateSession(
   db: Firestore,
   month: string,
   sessionId: string,
-  patch: Partial<Pick<TuitionV2Session, "cancelled" | "cancelReason" | "timeSlot" | "location">>
+  patch: Partial<Pick<TuitionV2Session, "cancelled" | "cancelReason" | "timeSlot" | "location">>,
+  fallback?: TuitionV2Session
 ): Promise<TuitionV2Session | null> {
   const ref = sessionsCol(db, month).doc(sessionId);
   const snap = await ref.get();
-  if (!snap.exists) return null;
-  const current = normalizeSession(snap.data(), snap.id);
+  let current = snap.exists ? normalizeSession(snap.data(), snap.id) : null;
+  if (!current) current = fallback ?? null;
   if (!current) return null;
 
   const next = {
@@ -244,6 +283,7 @@ export async function updateSession(
       location: next.location,
       source: next.source,
       cancelled: next.cancelled,
+      ...(next.extraTraining ? { extraTraining: true } : {}),
       cancelReason: next.cancelReason ?? FieldValue.delete(),
     },
     { merge: true }

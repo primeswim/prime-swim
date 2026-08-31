@@ -26,7 +26,9 @@ import type {
   TuitionV2TrainingDate,
   TuitionV2WeeklySlot,
 } from "@/lib/tuition-v2/types";
-import { getNextMonth, monthLabel } from "@/lib/tuition-v2/shared-ui";
+import { getNextMonth, monthLabel, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
+import { getBillableSessionsForSwimmer } from "@/lib/tuition-v2/calculate-engine";
+import { resolveSessionsForMonth, schedulePeriodCoverage } from "@/lib/tuition-v2/session-generator";
 import {
   AlertCircle,
   Calendar,
@@ -98,6 +100,21 @@ function monthLastDate(month: string): string {
   return dates[dates.length - 1] ?? `${month}-31`;
 }
 
+function addMonths(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Schedule periods may start/end near billing month boundaries (e.g. Sep dates on an Oct plan). */
+function planPeriodDateMin(billingMonth: string): string {
+  return `${addMonths(billingMonth, -1)}-01`;
+}
+
+function planPeriodDateMax(billingMonth: string): string {
+  return monthLastDate(addMonths(billingMonth, 1));
+}
+
 export default function TuitionV2PlanPage() {
   return (
     <Suspense fallback={<div className="container mx-auto py-8 px-4">Loading…</div>}>
@@ -115,7 +132,7 @@ function TuitionV2PlanContent() {
   );
   const [monthDoc, setMonthDoc] = useState<TuitionV2MonthDoc | null>(null);
   const [levelPlans, setLevelPlans] = useState<TuitionV2LevelPlan[]>([]);
-  const [sessions, setSessions] = useState<TuitionV2Session[]>([]);
+  const [sessionOverrides, setSessionOverrides] = useState<TuitionV2Session[]>([]);
   const [swimmerRows, setSwimmerRows] = useState<
     { enrollment: TuitionV2SwimmerEnrollment; response: TuitionV2SwimmerResponse }[]
   >([]);
@@ -127,8 +144,6 @@ function TuitionV2PlanContent() {
   const [savingPlans, setSavingPlans] = useState(false);
   const [savingNoTraining, setSavingNoTraining] = useState(false);
   const [savingResponses, setSavingResponses] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [initializing, setInitializing] = useState(false);
   const [error, setError] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [templateSource, setTemplateSource] = useState<string>("");
@@ -156,14 +171,12 @@ function TuitionV2PlanContent() {
   const loadMonth = useCallback(async () => {
     const token = await fetchToken();
     if (!token) return;
+    const month = normalizeBillingMonth(selectedMonth);
+    if (!month) return;
     setLoading(true);
     setError("");
     try {
-      await fetch(`/api/admin/tuition-v2/months/${selectedMonth}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -174,7 +187,7 @@ function TuitionV2PlanContent() {
       const data = await res.json();
       setMonthDoc(data.month);
       setLevelPlans(data.levelPlans || []);
-      setSessions(data.sessions || []);
+      setSessionOverrides(data.sessions || []);
       setNoTrainingDates(data.month?.noTrainingDates || []);
     } finally {
       setLoading(false);
@@ -192,7 +205,9 @@ function TuitionV2PlanContent() {
   const loadSwimmerResponses = useCallback(async () => {
     const token = await fetchToken();
     if (!token) return;
-    const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/swimmer-responses`, {
+    const month = normalizeBillingMonth(selectedMonth);
+    if (!month) return;
+    const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}/swimmer-responses`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json().catch(() => ({}));
@@ -203,16 +218,22 @@ function TuitionV2PlanContent() {
     if (isAdmin) void loadSwimmerResponses();
   }, [isAdmin, loadSwimmerResponses]);
 
-  const loadTrainingDayList = useCallback(async () => {
+  const loadTrainingDayList = useCallback(async (syncRoster = false) => {
     const token = await fetchToken();
     if (!token) return;
     setLoadingTrainingDays(true);
     try {
-      const res = await fetch("/api/admin/tuition-v2/enrollments", {
+      const url = syncRoster
+        ? "/api/admin/tuition-v2/enrollments?sync=1"
+        : "/api/admin/tuition-v2/enrollments";
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) setTrainingDayList(data.swimmers || []);
+      if (res.ok) {
+        setTrainingDayList(data.swimmers || []);
+        if (syncRoster) setStatusMsg("Roster synced from active swimmers.");
+      }
     } finally {
       setLoadingTrainingDays(false);
     }
@@ -282,9 +303,31 @@ function TuitionV2PlanContent() {
 
   const datesInMonth = useMemo(() => getDatesInMonth(selectedMonth), [selectedMonth]);
 
+  const resolvedSessions = useMemo(
+    () => resolveSessionsForMonth(selectedMonth, levelPlans, sessionOverrides, noTrainingDates),
+    [selectedMonth, levelPlans, sessionOverrides, noTrainingDates]
+  );
+
+  const periodCoverage = useMemo(
+    () => schedulePeriodCoverage(levelPlans, selectedMonth),
+    [levelPlans, selectedMonth]
+  );
+
+  const billableSessionsForSwimmer = useCallback(
+    (enrollment: TuitionV2SwimmerEnrollment, response: TuitionV2SwimmerResponse) =>
+      getBillableSessionsForSwimmer(
+        enrollment,
+        resolvedSessions,
+        response,
+        periodCoverage.explicit,
+        periodCoverage.periodDatesByLevel
+      ),
+    [resolvedSessions, periodCoverage]
+  );
+
   const activeSessions = useMemo(
-    () => sessions.filter((s) => !s.cancelled),
-    [sessions]
+    () => resolvedSessions.filter((s) => !s.cancelled),
+    [resolvedSessions]
   );
 
   const toggleNoTraining = (date: string, checked: boolean) => {
@@ -300,7 +343,7 @@ function TuitionV2PlanContent() {
     setSavingNoTraining(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ noTrainingDates }),
@@ -318,42 +361,13 @@ function TuitionV2PlanContent() {
     }
   };
 
-  const initFromTemplates = async () => {
-    const token = await fetchToken();
-    if (!token) return;
-    setInitializing(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/level-plans`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "init_from_templates" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to initialize level plans");
-        return;
-      }
-      const data = await res.json();
-      setLevelPlans(data.levelPlans || []);
-      if (data.templateSource) setTemplateSource(data.templateSource);
-      setStatusMsg(
-        data.templateSource === "v2_saved"
-          ? "Level plans loaded from V2 templates."
-          : "Level plans loaded from templates."
-      );
-    } finally {
-      setInitializing(false);
-    }
-  };
-
   const saveLevelPlans = async () => {
     const token = await fetchToken();
     if (!token) return;
     setSavingPlans(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/level-plans`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/level-plans`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ levelPlans }),
@@ -365,35 +379,14 @@ function TuitionV2PlanContent() {
       }
       const data = await res.json();
       setLevelPlans(data.levelPlans || []);
-      setStatusMsg("Level plans saved.");
+      const periodCount = (data.levelPlans || []).reduce(
+        (sum: number, p: TuitionV2LevelPlan) => sum + (p.schedulePeriods?.length ?? 0),
+        0
+      );
+      setStatusMsg(`Level plans saved (${periodCount} schedule period(s) across all levels).`);
       await loadMonth();
     } finally {
       setSavingPlans(false);
-    }
-  };
-
-  const regenerateSessions = async () => {
-    const token = await fetchToken();
-    if (!token) return;
-    setRegenerating(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "regenerate" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to regenerate sessions");
-        return;
-      }
-      const data = await res.json();
-      setSessions(data.sessions || []);
-      setStatusMsg(`Generated ${data.count ?? 0} sessions.`);
-      await loadMonth();
-    } finally {
-      setRegenerating(false);
     }
   };
 
@@ -401,7 +394,7 @@ function TuitionV2PlanContent() {
     const token = await fetchToken();
     if (!token) return;
     const res = await fetch(
-      `/api/admin/tuition-v2/months/${selectedMonth}/sessions/${encodeURIComponent(session.id)}`,
+      `/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/sessions/${encodeURIComponent(session.id)}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -414,7 +407,11 @@ function TuitionV2PlanContent() {
       return;
     }
     const data = await res.json();
-    setSessions((prev) => prev.map((s) => (s.id === session.id ? data.session : s)));
+    setSessionOverrides((prev) => {
+      const has = prev.some((s) => s.id === session.id);
+      if (has) return prev.map((s) => (s.id === session.id ? data.session : s));
+      return [...prev, data.session];
+    });
     await loadMonth();
   };
 
@@ -452,7 +449,7 @@ function TuitionV2PlanContent() {
       const res = await fetch("/api/admin/tuition-v2/templates", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ levels: levelTemplates }),
+        body: JSON.stringify({ levels: levelTemplates, syncMonth: selectedMonth }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -462,7 +459,21 @@ function TuitionV2PlanContent() {
       const data = await res.json();
       setLevelTemplates(data.levels || {});
       setTemplateSource("v2_saved");
-      setStatusMsg("V2 level templates saved.");
+      if (data.levelPlans) {
+        setLevelPlans((prev) =>
+          prev.map((plan) => {
+            const synced = (data.levelPlans as TuitionV2LevelPlan[]).find((p) => p.level === plan.level);
+            if (!synced) return plan;
+            return {
+              ...plan,
+              weeklySlots: synced.weeklySlots,
+            };
+          })
+        );
+      }
+      setStatusMsg(
+        "V2 level templates saved. Weekly schedule synced to this month; your schedule periods and notes were kept."
+      );
     } finally {
       setSavingTemplates(false);
     }
@@ -645,8 +656,10 @@ function TuitionV2PlanContent() {
 
   const sessionsForLevel = useCallback(
     (level: string) =>
-      sessions.filter((s) => s.level === level && !s.cancelled).sort((a, b) => a.date.localeCompare(b.date)),
-    [sessions]
+      resolvedSessions
+        .filter((s) => s.level === level && !s.cancelled)
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [resolvedSessions]
   );
 
   const toggleWeekdayAvailability = (swimmerId: string, weekday: number, unavailable: boolean) => {
@@ -674,7 +687,7 @@ function TuitionV2PlanContent() {
     setSavingResponses(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${selectedMonth}/swimmer-responses`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/swimmer-responses`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ responses: swimmerRows.map((r) => r.response) }),
@@ -797,8 +810,9 @@ function TuitionV2PlanContent() {
           <TabsContent value="level-templates" className="mt-4 space-y-4">
             <p className="text-sm text-muted-foreground">
               V2-only level configuration (rates + weekly schedule). Stored in{" "}
-              <code className="text-xs">tuition_v2_level_templates</code> — does not read or write V1
-              level config.
+              <code className="text-xs">tuition_v2_level_templates</code>. Saving templates also updates
+              this month&apos;s default weekly schedule in Level Plans — schedule periods are not
+              cleared.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => void seedTemplates()} disabled={seedingTemplates}>
@@ -940,7 +954,7 @@ function TuitionV2PlanContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Check dates when the team does not train (holidays, breaks). Regenerate sessions after saving.
+                  Check dates when the team does not train (holidays, breaks). Sessions update automatically when saved.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
                   {datesInMonth.map((date) => {
@@ -974,15 +988,11 @@ function TuitionV2PlanContent() {
 
           <TabsContent value="level-plans" className="mt-4 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Monthly schedule source: <strong>{templateSourceLabel || "loading…"}</strong>. &quot;Load
-              from V2 templates&quot; copies saved templates into this month&apos;s plan (then add period
-              overrides if needed). Does not touch V1 data.
+              Monthly schedule source: <strong>{templateSourceLabel || "loading…"}</strong>. Saving
+              level templates automatically updates this month&apos;s default weekly schedule. Schedule
+              periods and training dates you add here are kept.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => void initFromTemplates()} disabled={initializing}>
-                {initializing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Load from V2 templates
-              </Button>
               <Button onClick={() => void saveLevelPlans()} disabled={savingPlans}>
                 {savingPlans ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Save level plans
@@ -1068,7 +1078,9 @@ function TuitionV2PlanContent() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           Within each period, default weekly schedule is ignored. Add only the
-                          specific training dates (date, time, pool) that actually happen.
+                          specific training dates (date, time, pool) that actually happen. Period
+                          dates can span into adjacent months; only dates inside{" "}
+                          {monthLabel(selectedMonth)} are billed for this month.
                         </p>
                         {(plan.schedulePeriods ?? []).length === 0 && (
                           <p className="text-sm text-muted-foreground mt-2">
@@ -1083,8 +1095,8 @@ function TuitionV2PlanContent() {
                                 <Input
                                   type="date"
                                   value={period.startDate}
-                                  min={`${selectedMonth}-01`}
-                                  max={monthLastDate(selectedMonth)}
+                                  min={planPeriodDateMin(selectedMonth)}
+                                  max={planPeriodDateMax(selectedMonth)}
                                   onChange={(e) =>
                                     updateSchedulePeriod(level, periodIdx, { startDate: e.target.value })
                                   }
@@ -1095,8 +1107,8 @@ function TuitionV2PlanContent() {
                                 <Input
                                   type="date"
                                   value={period.endDate}
-                                  min={period.startDate}
-                                  max={monthLastDate(selectedMonth)}
+                                  min={period.startDate || planPeriodDateMin(selectedMonth)}
+                                  max={planPeriodDateMax(selectedMonth)}
                                   onChange={(e) =>
                                     updateSchedulePeriod(level, periodIdx, { endDate: e.target.value })
                                   }
@@ -1136,8 +1148,8 @@ function TuitionV2PlanContent() {
                                     <Input
                                       type="date"
                                       value={training.date}
-                                      min={`${selectedMonth}-01`}
-                                      max={monthLastDate(selectedMonth)}
+                                      min={period.startDate || planPeriodDateMin(selectedMonth)}
+                                      max={period.endDate || planPeriodDateMax(selectedMonth)}
                                       onChange={(e) =>
                                         updateTrainingDate(level, periodIdx, dateIdx, {
                                           date: e.target.value,
@@ -1201,24 +1213,20 @@ function TuitionV2PlanContent() {
 
           <TabsContent value="sessions" className="mt-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle className="text-lg">Session preview</CardTitle>
-                <Button onClick={() => void regenerateSessions()} disabled={regenerating}>
-                  {regenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Regenerate sessions
-                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Derived live from level plans and no-training dates. Uncheck Active to cancel a
+                  specific session. Save level plans to refresh.
+                </p>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Generated from level plans and no-training dates. Cancel individual sessions if needed, then save
-                  plans and regenerate after schedule changes.
-                </p>
-                {sessions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No sessions yet. Save level plans, then click Regenerate sessions.
+                {resolvedSessions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">
+                    No sessions — save level plans for this month first.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-left">
@@ -1230,13 +1238,16 @@ function TuitionV2PlanContent() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sessions.map((s) => (
+                        {resolvedSessions.map((s) => (
                           <tr
                             key={s.id}
                             className={`border-b ${s.cancelled ? "opacity-50 line-through" : ""}`}
                           >
                             <td className="py-2 pr-2">
                               {WEEKDAYS[s.weekday]} {formatDateShort(s.date)}
+                              {s.extraTraining ? (
+                                <span className="text-xs text-muted-foreground ml-1">period</span>
+                              ) : null}
                             </td>
                             <td className="py-2 pr-2">{s.level}</td>
                             <td className="py-2 pr-2">{s.timeSlot}</td>
@@ -1270,11 +1281,19 @@ function TuitionV2PlanContent() {
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-end gap-2 mb-4">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void loadTrainingDayList()}
+                    onClick={() => void loadTrainingDayList(true)}
+                    disabled={loadingTrainingDays}
+                  >
+                    Sync roster
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void loadTrainingDayList(false)}
                     disabled={loadingTrainingDays}
                   >
                     {loadingTrainingDays ? (
@@ -1360,6 +1379,24 @@ function TuitionV2PlanContent() {
             {filteredSwimmers.map(({ enrollment, response }) => {
               const open = expandedSwimmer === enrollment.swimmerId;
               const levelSessions = sessionsForLevel(enrollment.level);
+              const billablePreview = billableSessionsForSwimmer(enrollment, response);
+              const plan = levelPlans.find((p) => p.level === enrollment.level);
+              const explicitPlanDates = [
+                ...new Set(
+                  (plan?.schedulePeriods ?? []).flatMap((period) =>
+                    period.trainingDates
+                      .map((t) => t.date)
+                      .filter((d) => d.startsWith(`${selectedMonth}-`))
+                  )
+                ),
+              ].sort();
+              const billableDates = new Set(billablePreview.map((s) => s.date));
+              const planDatesNotBillable = explicitPlanDates.filter((d) => !billableDates.has(d));
+              const skipIds = new Set(
+                (response.adjustments ?? [])
+                  .filter((a) => a.type === "skip_session" && a.fromSessionId)
+                  .map((a) => a.fromSessionId!)
+              );
               return (
                 <Card key={enrollment.swimmerId}>
                   <CardHeader
@@ -1378,6 +1415,42 @@ function TuitionV2PlanContent() {
                   </CardHeader>
                   {open && (
                     <CardContent className="space-y-4 border-t pt-4">
+                      <div>
+                        <Label className="text-sm">Billable sessions (preview)</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Schedule-period override dates bill even when not on regular training days.
+                          Save responses, then recalculate in Review.
+                        </p>
+                        {billablePreview.length === 0 ? (
+                          <p className="text-sm text-muted-foreground mt-2">None — check training days or level plan schedule periods.</p>
+                        ) : (
+                          <ul className="mt-2 space-y-1 text-sm">
+                            {billablePreview.map((s) => (
+                              <li key={s.id} className="flex items-center gap-2">
+                                <span>
+                                  {WEEKDAYS[s.weekday]} {formatDateShort(s.date)} · {s.timeSlot} · {s.location}
+                                  {s.extraTraining ? " · period" : ""}
+                                </span>
+                                {skipIds.has(s.id) && (
+                                  <span className="text-xs text-amber-700">skipped</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {explicitPlanDates.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Period dates in level plan:{" "}
+                            {explicitPlanDates.map((d) => formatDateShort(d)).join(", ")}
+                          </p>
+                        )}
+                        {planDatesNotBillable.length > 0 && (
+                          <p className="text-xs text-amber-700 mt-1">
+                            In plan but not billable (no-training or cancelled):{" "}
+                            {planDatesNotBillable.map((d) => formatDateShort(d)).join(", ")}
+                          </p>
+                        )}
+                      </div>
                       <div>
                         <Label className="text-sm">Cannot attend weekday (this month)</Label>
                         <div className="flex flex-wrap gap-2 mt-2">
@@ -1420,9 +1493,10 @@ function TuitionV2PlanContent() {
                             defaultValue=""
                           >
                             <option value="">Skip session…</option>
-                            {levelSessions.map((s) => (
+                            {(billablePreview.length > 0 ? billablePreview : levelSessions).map((s) => (
                               <option key={s.id} value={s.id}>
                                 {formatDateShort(s.date)} {s.timeSlot}
+                                {s.extraTraining ? " (period)" : ""}
                               </option>
                             ))}
                           </select>

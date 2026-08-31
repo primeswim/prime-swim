@@ -79,18 +79,91 @@ function makeSession(
   };
 }
 
-/** Session ids from explicit schedule-period training dates (for billing). */
-export function explicitTrainingSessionKeys(levelPlans: TuitionV2LevelPlan[]): Set<string> {
-  const keys = new Set<string>();
+/** Session ids + date/level keys from schedule-period training dates (for billing). */
+export type ExplicitTrainingRefs = {
+  sessionIds: Set<string>;
+  dateLevelKeys: Set<string>;
+};
+
+export function explicitTrainingRefs(levelPlans: TuitionV2LevelPlan[]): ExplicitTrainingRefs {
+  const sessionIds = new Set<string>();
+  const dateLevelKeys = new Set<string>();
   for (const plan of levelPlans) {
     if (!plan.level) continue;
     for (const period of plan.schedulePeriods ?? []) {
       for (const t of period.trainingDates) {
-        keys.add(sessionIdFor(t.date, plan.level, t.timeSlot));
+        sessionIds.add(sessionIdFor(t.date, plan.level, t.timeSlot));
+        dateLevelKeys.add(`${t.date}|${plan.level}`);
       }
     }
   }
-  return keys;
+  return { sessionIds, dateLevelKeys };
+}
+
+/** Session ids from explicit schedule-period training dates (for billing). */
+export function explicitTrainingSessionKeys(levelPlans: TuitionV2LevelPlan[]): Set<string> {
+  return explicitTrainingRefs(levelPlans).sessionIds;
+}
+
+export type SchedulePeriodCoverage = {
+  explicit: ExplicitTrainingRefs;
+  /** Dates inside a schedule period range — regular weekly sessions do not apply. */
+  periodDatesByLevel: Map<string, Set<string>>;
+};
+
+/** Which calendar dates fall inside schedule periods vs explicit training overrides. */
+export function schedulePeriodCoverage(
+  levelPlans: TuitionV2LevelPlan[],
+  month: string
+): SchedulePeriodCoverage {
+  const explicit = explicitTrainingRefs(levelPlans);
+  const periodDatesByLevel = new Map<string, Set<string>>();
+  const monthDates = getDatesInMonth(month);
+
+  for (const plan of levelPlans) {
+    if (!plan.level) continue;
+    const dates = new Set<string>();
+    for (const period of plan.schedulePeriods ?? []) {
+      for (const d of monthDates) {
+        if (d >= period.startDate && d <= period.endDate) dates.add(d);
+      }
+    }
+    if (dates.size > 0) periodDatesByLevel.set(plan.level, dates);
+  }
+
+  return { explicit, periodDatesByLevel };
+}
+
+/**
+ * Live session list for a month: generated from level plans + no-training dates,
+ * merged with Firestore overrides (cancellations, manual sessions). No separate regenerate step.
+ */
+export function resolveSessionsForMonth(
+  month: string,
+  levelPlans: TuitionV2LevelPlan[],
+  storedSessions: TuitionV2Session[],
+  noTrainingDates: string[] = []
+): TuitionV2Session[] {
+  const generated = generateSessionsForMonth(month, levelPlans, noTrainingDates);
+  const merged = mergeRegeneratedSessions(generated, storedSessions);
+  merged.sort((a, b) => {
+    const byDate = a.date.localeCompare(b.date);
+    if (byDate !== 0) return byDate;
+    const byLevel = a.level.localeCompare(b.level);
+    if (byLevel !== 0) return byLevel;
+    return a.timeSlot.localeCompare(b.timeSlot);
+  });
+  return merged;
+}
+
+/** @deprecated Use resolveSessionsForMonth */
+export function billingSessionsForMonth(
+  month: string,
+  levelPlans: TuitionV2LevelPlan[],
+  storedSessions: TuitionV2Session[],
+  noTrainingDates: string[] = []
+): TuitionV2Session[] {
+  return resolveSessionsForMonth(month, levelPlans, storedSessions, noTrainingDates);
 }
 
 /** Expand legacy weekday-based period into explicit training dates. */

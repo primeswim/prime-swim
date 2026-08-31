@@ -14,7 +14,17 @@ export async function POST(req: Request, ctx: RouteCtx) {
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
 
-    const result = await recalculateInvoices(adminDb, month);
+    let levels: string[] | undefined;
+    try {
+      const body: { levels?: unknown } = await req.json();
+      if (Array.isArray(body?.levels)) {
+        levels = body.levels.filter((l: unknown): l is string => typeof l === "string" && l.trim().length > 0);
+      }
+    } catch {
+      // empty body is fine — recalculate all levels
+    }
+
+    const result = await recalculateInvoices(adminDb, month, { levels });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const auth = authErrorResponse(e);
