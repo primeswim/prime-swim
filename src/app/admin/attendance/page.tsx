@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Header from "@/components/header";
-import { Calendar, CheckCircle2, XCircle, Clock, Save, AlertCircle, Loader2, Users } from "lucide-react";
+import { Calendar, CheckCircle2, XCircle, Clock, Save, AlertCircle, Loader2, Users, CalendarDays } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import Link from "next/link";
 
 interface Swimmer {
   id: string;
@@ -227,6 +228,13 @@ export default function AttendancePage() {
             Attendance Management
           </h1>
           <p className="text-slate-600 text-sm">Mark daily attendance for swimmers</p>
+          <Link
+            href="/admin/attendance/schedule"
+            className="inline-flex items-center gap-1.5 mt-2 text-sm text-blue-600 hover:underline"
+          >
+            <CalendarDays className="w-4 h-4" />
+            Monthly training schedule (who trains when)
+          </Link>
         </div>
 
         {status && (

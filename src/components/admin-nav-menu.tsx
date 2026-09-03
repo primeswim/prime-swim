@@ -43,6 +43,7 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
         <MobileLink href="/admin/slots">Slots</MobileLink>
         <MobileSection title="Group Training">
           <MobileLink href="/admin/attendance">Attendance</MobileLink>
+          <MobileLink href="/admin/attendance/schedule" nested>Training Schedule</MobileLink>
           <MobileLink href="/admin/attendance/report" nested>Attendance Report</MobileLink>
           <MobileLink href="/admin/makeup">Makeup Sessions</MobileLink>
           <MobileLink href="/admin/makeup/attendees" nested>Makeup Attendees</MobileLink>
@@ -104,6 +105,9 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
       <DropdownMenuLabel>Group Training</DropdownMenuLabel>
       <DropdownMenuItem asChild>
         <Link href="/admin/attendance">Attendance</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/admin/attendance/schedule">Training Schedule</Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/admin/attendance/report">Attendance Report</Link>
