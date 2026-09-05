@@ -2,7 +2,11 @@ import type { Firestore } from "firebase-admin/firestore";
 import { normalizeSiblingIds, getSwimmerEnrollmentMillis } from "@/lib/swimmer-siblings";
 import { isSwimmerEligibleForMonthlyTuition } from "@/lib/membership";
 import { commitWrites, withoutUndefined } from "@/lib/tuition-v2/firestore-utils";
-import { TUITION_V2_ENROLLMENT_COLLECTION } from "@/lib/tuition-v2/constants";
+import {
+  TUITION_V2_ENROLLMENT_COLLECTION,
+  TUITION_V2_SETTINGS_COLLECTION,
+  TUITION_V2_SETTINGS_DOC,
+} from "@/lib/tuition-v2/constants";
 import type { TuitionV2SwimmerEnrollment } from "@/lib/tuition-v2/types";
 
 function normalizeWeekdays(raw: unknown): number[] {
@@ -90,7 +94,17 @@ export function parseEnrollmentDoc(
  * Creates V2 docs for new active swimmers; marks frozen swimmers inactive.
  * Does not modify swimmers collection or V1 tuition data.
  */
-export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<void> {
+export type RosterSyncDelta = {
+  created: string[];
+  updated: string[];
+  deactivated: string[];
+  levelChanged: string[];
+  skipped?: boolean;
+};
+
+const ROSTER_SYNC_TTL_MS = 10 * 60 * 1000;
+
+export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<RosterSyncDelta> {
   const [swimmersSnap, existingSnap] = await Promise.all([
     db.collection("swimmers").get(),
     db.collection(TUITION_V2_ENROLLMENT_COLLECTION).get(),
@@ -98,6 +112,10 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<void>
   const existingById = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
   const now = new Date().toISOString();
   const writes: Parameters<typeof commitWrites>[1] = [];
+  const created: string[] = [];
+  const updated: string[] = [];
+  const deactivated: string[] = [];
+  const levelChanged: string[] = [];
 
   for (const doc of swimmersSnap.docs) {
     const data = doc.data();
@@ -115,6 +133,7 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<void>
           data: { active: false, updatedAt: now },
           merge: true,
         });
+        deactivated.push(doc.id);
       }
       continue;
     }
@@ -128,8 +147,20 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<void>
         ref: db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(doc.id),
         data: withoutUndefined({ ...fromRoster, updatedAt: now }),
       });
+      created.push(doc.id);
       continue;
     }
+
+    const same =
+      existing.swimmerName === fromRoster.swimmerName &&
+      existing.level === fromRoster.level &&
+      existing.parentName === fromRoster.parentName &&
+      existing.parentEmail === fromRoster.parentEmail &&
+      JSON.stringify(existing.siblingIds ?? []) === JSON.stringify(fromRoster.siblingIds ?? []) &&
+      existing.active !== false;
+    if (same) continue;
+    updated.push(doc.id);
+    if (existing.level !== fromRoster.level) levelChanged.push(doc.id);
 
     writes.push({
       type: "set",
@@ -149,6 +180,55 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<void>
   }
 
   if (writes.length > 0) await commitWrites(db, writes);
+  return { created, updated, deactivated, levelChanged };
+}
+
+/** Skip full swimmers scan if a roster sync ran recently (Review page opens). */
+export async function syncActiveSwimmerEnrollmentsIfStale(
+  db: Firestore,
+  options?: { force?: boolean; ttlMs?: number }
+): Promise<RosterSyncDelta> {
+  const ttl = options?.ttlMs ?? ROSTER_SYNC_TTL_MS;
+  const settingsRef = db.collection(TUITION_V2_SETTINGS_COLLECTION).doc(TUITION_V2_SETTINGS_DOC);
+  if (!options?.force) {
+    const settings = await settingsRef.get();
+    const last = settings.data()?.lastRosterSyncAt;
+    const lastMs = typeof last === "string" ? Date.parse(last) : NaN;
+    if (Number.isFinite(lastMs) && Date.now() - lastMs < ttl) {
+      return { created: [], updated: [], deactivated: [], levelChanged: [], skipped: true };
+    }
+  }
+  const delta = await syncActiveSwimmerEnrollments(db);
+  await settingsRef.set({ lastRosterSyncAt: new Date().toISOString() }, { merge: true });
+  return delta;
+}
+
+/** Create/update one V2 enrollment from a swimmer doc. Returns the enrollment if active. */
+export async function upsertEnrollmentFromSwimmer(
+  db: Firestore,
+  swimmerId: string
+): Promise<TuitionV2SwimmerEnrollment | null> {
+  const snap = await db.collection("swimmers").doc(swimmerId).get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  const eligible =
+    isSwimmerEligibleForMonthlyTuition(data) &&
+    typeof data.level === "string" &&
+    data.level.trim().length > 0;
+  const now = new Date().toISOString();
+
+  if (!eligible) {
+    await db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(swimmerId).set(
+      { active: false, updatedAt: now },
+      { merge: true }
+    );
+    return null;
+  }
+
+  const fromRoster = enrollmentFromRoster(swimmerId, data);
+  if (!fromRoster) return null;
+  await saveSwimmerEnrollment(db, { ...fromRoster, updatedAt: now });
+  return { ...fromRoster, updatedAt: now };
 }
 
 /** Read enrollments only — no roster sync (cheap). */

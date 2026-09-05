@@ -9,6 +9,7 @@ import {
   seedV2TemplatesDefaults,
 } from "@/lib/tuition-v2/templates";
 import { syncLevelPlansFromTemplates } from "@/lib/tuition-v2/month-service";
+import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 import type { TuitionV2LevelTemplateMap } from "@/lib/tuition-v2/types";
 
 export async function GET(req: Request) {
@@ -26,17 +27,29 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    await requireTuitionV2Admin(req);
+    const email = await requireTuitionV2Admin(req);
     const body = (await req.json()) as { levels?: TuitionV2LevelTemplateMap; syncMonth?: string };
     if (!body.levels || typeof body.levels !== "object") {
       return NextResponse.json({ error: "Missing levels object" }, { status: 400 });
     }
     const levels = await saveV2Templates(adminDb, body.levels);
     const syncMonth = parseMonthParam(body.syncMonth);
-    const levelPlans = syncMonth
-      ? await syncLevelPlansFromTemplates(adminDb, syncMonth, levels)
-      : undefined;
-    return NextResponse.json({ ok: true, levels, source: "v2_saved", ...(levelPlans ? { levelPlans } : {}) });
+    let levelPlans;
+    let invoiceCount: number | undefined;
+    let rosterSlotCount: number | undefined;
+    if (syncMonth) {
+      levelPlans = await syncLevelPlansFromTemplates(adminDb, syncMonth, levels);
+      const refreshed = await refreshMonthDerivedData(adminDb, syncMonth, { actor: email });
+      invoiceCount = refreshed.invoiceCount;
+      rosterSlotCount = refreshed.roster.slotCount;
+    }
+    return NextResponse.json({
+      ok: true,
+      levels,
+      source: "v2_saved",
+      ...(levelPlans ? { levelPlans } : {}),
+      ...(invoiceCount !== undefined ? { invoiceCount, rosterSlotCount } : {}),
+    });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });

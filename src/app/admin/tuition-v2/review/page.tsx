@@ -66,8 +66,9 @@ function TuitionV2ReviewContent() {
     if (!month) return;
     setLoading(true);
     setError("");
+    setStatusMsg("");
     try {
-      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}/invoices`, {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}/invoices?ensure=1`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
@@ -76,6 +77,9 @@ function TuitionV2ReviewContent() {
         return;
       }
       setInvoices(data.invoices || []);
+      if (data.refreshed) {
+        setStatusMsg("New swimmers or roster changes were applied to this month automatically.");
+      }
       const monthRes = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(month)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -217,7 +221,8 @@ function TuitionV2ReviewContent() {
           <div>
             <h1 className="text-2xl font-bold">Tuition V2 — Review</h1>
             <p className="text-sm text-muted-foreground">
-              Review amounts, then send emails from the Email hub.
+              Amounts update when you save the plan or add a swimmer. Recalculate is optional — pick
+              one or more levels to refresh cheaper writes.
             </p>
           </div>
           <Input
@@ -258,8 +263,9 @@ function TuitionV2ReviewContent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Pick specific levels to save Firestore writes when only some groups changed. Sibling discounts
-              apply within the selected levels only — recalculate linked siblings together when needed.
+              Optional. New swimmers are picked up when you open this page. Use this only to
+              recalculate selected levels (fewer invoice writes). Sibling discounts apply within
+              the selected levels only.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -324,10 +330,10 @@ function TuitionV2ReviewContent() {
             </div>
             <p className="text-xs text-slate-600">
               {calcAllLevels
-                ? "Currently: all levels (includes roster sync)."
+                ? "Currently: all levels (includes one roster sync)."
                 : selectedLevelsForCalc.length === 0
                   ? "No levels selected — choose levels or click All levels (default)."
-                  : `Currently: ${selectedLevelsForCalc.length} level(s) selected (skips roster sync).`}
+                  : `Currently: ${selectedLevelsForCalc.length} level(s) selected.`}
             </p>
           </CardContent>
         </Card>
@@ -346,7 +352,8 @@ function TuitionV2ReviewContent() {
           <CardContent className="overflow-x-auto">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No invoices yet. Set up the plan, then click Recalculate tuition.
+                No invoices yet. Set up the month in Plan — saving there (or adding a swimmer)
+                fills this list automatically.
               </p>
             ) : (
               <table className="w-full text-sm">

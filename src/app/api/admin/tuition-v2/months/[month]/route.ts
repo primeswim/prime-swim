@@ -11,6 +11,7 @@ import {
   updateMonthNoTraining,
 } from "@/lib/tuition-v2/month-service";
 import { TUITION_V2_MONTHS_COLLECTION } from "@/lib/tuition-v2/constants";
+import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 
 type RouteCtx = { params: Promise<{ month: string }> };
 
@@ -38,7 +39,7 @@ export async function GET(req: Request, ctx: RouteCtx) {
 
 export async function PUT(req: Request, ctx: RouteCtx) {
   try {
-    await requireTuitionV2Admin(req);
+    const email = await requireTuitionV2Admin(req);
     const { month: raw } = await ctx.params;
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
@@ -51,7 +52,13 @@ export async function PUT(req: Request, ctx: RouteCtx) {
       (d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
     );
     const monthDoc = await updateMonthNoTraining(adminDb, month, noTrainingDates);
-    return NextResponse.json({ ok: true, month: monthDoc });
+    const refreshed = await refreshMonthDerivedData(adminDb, month, { actor: email });
+    return NextResponse.json({
+      ok: true,
+      month: refreshed.month ?? monthDoc,
+      invoiceCount: refreshed.invoiceCount,
+      rosterSlotCount: refreshed.roster.slotCount,
+    });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });

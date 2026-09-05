@@ -292,7 +292,8 @@ function TuitionV2EmailContent() {
           <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>
-              Run <strong>Recalculate tuition</strong> in Review first, then you can Send or Resend here.
+              Save the month in <strong>V2 Monthly Plan</strong> (tuition updates automatically), then
+              you can Send or Resend here. Use Review → Recalculate only if you need a force refresh.
             </span>
           </div>
         )}

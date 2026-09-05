@@ -218,21 +218,18 @@ function TuitionV2PlanContent() {
     if (isAdmin) void loadSwimmerResponses();
   }, [isAdmin, loadSwimmerResponses]);
 
-  const loadTrainingDayList = useCallback(async (syncRoster = false) => {
+  const loadTrainingDayList = useCallback(async () => {
     const token = await fetchToken();
     if (!token) return;
     setLoadingTrainingDays(true);
     try {
-      const url = syncRoster
-        ? "/api/admin/tuition-v2/enrollments?sync=1"
-        : "/api/admin/tuition-v2/enrollments";
-      const res = await fetch(url, {
+      // Auto-syncs active roster into V2 enrollments.
+      const res = await fetch("/api/admin/tuition-v2/enrollments", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setTrainingDayList(data.swimmers || []);
-        if (syncRoster) setStatusMsg("Roster synced from active swimmers.");
       }
     } finally {
       setLoadingTrainingDays(false);
@@ -265,13 +262,17 @@ function TuitionV2PlanContent() {
       const res = await fetch(`/api/admin/tuition-v2/enrollments/${row.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ regularWeekdays: row.regularWeekdays }),
+        body: JSON.stringify({
+          regularWeekdays: row.regularWeekdays,
+          refreshMonth: selectedMonth,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error || "Failed to save training days");
         return;
       }
+      const data = await res.json().catch(() => ({}));
       setSwimmerRows((prev) =>
         prev.map(({ enrollment, response }) =>
           enrollment.swimmerId === row.id
@@ -279,7 +280,9 @@ function TuitionV2PlanContent() {
             : { enrollment, response }
         )
       );
-      setStatusMsg(`Training days saved for ${row.swimmerName}.`);
+      const invNote =
+        typeof data.invoiceCount === "number" ? ` Updated ${data.invoiceCount} invoice(s).` : "";
+      setStatusMsg(`Training days saved for ${row.swimmerName}.${invNote}`);
     } finally {
       setSavingTrainingDayId(null);
     }
@@ -355,7 +358,7 @@ function TuitionV2PlanContent() {
       }
       const data = await res.json();
       setMonthDoc(data.month);
-      setStatusMsg("No-training dates saved.");
+      setStatusMsg("No-training dates saved. Tuition and training schedule updated.");
     } finally {
       setSavingNoTraining(false);
     }
@@ -383,7 +386,9 @@ function TuitionV2PlanContent() {
         (sum: number, p: TuitionV2LevelPlan) => sum + (p.schedulePeriods?.length ?? 0),
         0
       );
-      setStatusMsg(`Level plans saved (${periodCount} schedule period(s) across all levels).`);
+      setStatusMsg(
+        `Level plans saved (${periodCount} schedule period(s)). Tuition and training schedule updated automatically.`
+      );
       await loadMonth();
     } finally {
       setSavingPlans(false);
@@ -472,7 +477,7 @@ function TuitionV2PlanContent() {
         );
       }
       setStatusMsg(
-        "V2 level templates saved. Weekly schedule synced to this month; your schedule periods and notes were kept."
+        "V2 level templates saved. Weekly schedule, tuition, and training calendar updated for this month."
       );
     } finally {
       setSavingTemplates(false);
@@ -697,7 +702,7 @@ function TuitionV2PlanContent() {
         setError(data.error || "Failed to save swimmer responses");
         return;
       }
-      setStatusMsg("Swimmer responses saved.");
+      setStatusMsg("Swimmer responses saved. Tuition and training schedule updated automatically.");
       await loadSwimmerResponses();
     } finally {
       setSavingResponses(false);
@@ -782,7 +787,8 @@ function TuitionV2PlanContent() {
         {(monthDoc?.status === "sent" || monthDoc?.status === "computed") && (
           <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            Schedule changes — recalculate in Review before sending updated amounts.
+            Saving plan changes auto-updates tuition amounts and the training calendar. Review invoices
+            before emailing parents.
           </div>
         )}
 
@@ -1285,15 +1291,7 @@ function TuitionV2PlanContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void loadTrainingDayList(true)}
-                    disabled={loadingTrainingDays}
-                  >
-                    Sync roster
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void loadTrainingDayList(false)}
+                    onClick={() => void loadTrainingDayList()}
                     disabled={loadingTrainingDays}
                   >
                     {loadingTrainingDays ? (
@@ -1419,7 +1417,7 @@ function TuitionV2PlanContent() {
                         <Label className="text-sm">Billable sessions (preview)</Label>
                         <p className="text-xs text-muted-foreground mt-1">
                           Schedule-period override dates bill even when not on regular training days.
-                          Save responses, then recalculate in Review.
+                          Saving responses updates tuition and the training calendar automatically.
                         </p>
                         {billablePreview.length === 0 ? (
                           <p className="text-sm text-muted-foreground mt-2">None — check training days or level plan schedule periods.</p>

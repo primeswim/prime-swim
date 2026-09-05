@@ -10,6 +10,7 @@ import {
 } from "@/lib/tuition-v2/swimmer-response-service";
 import { listSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
 import { ensureMonthDoc } from "@/lib/tuition-v2/month-service";
+import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 import type { TuitionV2SwimmerResponse } from "@/lib/tuition-v2/types";
 
 type RouteCtx = { params: Promise<{ month: string }> };
@@ -56,7 +57,13 @@ export async function PUT(req: Request, ctx: RouteCtx) {
     await ensureMonthDoc(adminDb, month);
     await saveSwimmerResponsesBatch(adminDb, month, body.responses, email);
     const responses = await loadSwimmerResponses(adminDb, month);
-    return NextResponse.json({ ok: true, responses });
+    const refreshed = await refreshMonthDerivedData(adminDb, month, { actor: email });
+    return NextResponse.json({
+      ok: true,
+      responses,
+      invoiceCount: refreshed.invoiceCount,
+      rosterSlotCount: refreshed.roster.slotCount,
+    });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });

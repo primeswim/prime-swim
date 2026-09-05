@@ -12,12 +12,13 @@ import {
 } from "@/lib/tuition-v2/month-service";
 import { resolveSessionsForMonth } from "@/lib/tuition-v2/session-generator";
 import { TUITION_V2_MONTHS_COLLECTION } from "@/lib/tuition-v2/constants";
+import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 
 type RouteCtx = { params: Promise<{ month: string; sessionId: string }> };
 
 export async function PATCH(req: Request, ctx: RouteCtx) {
   try {
-    await requireTuitionV2Admin(req);
+    const email = await requireTuitionV2Admin(req);
     const { month: raw, sessionId } = await ctx.params;
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
@@ -57,7 +58,13 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
     }
 
     if (!updated) return NextResponse.json({ error: "Session not found" }, { status: 404 });
-    return NextResponse.json({ ok: true, session: updated });
+    const refreshed = await refreshMonthDerivedData(adminDb, month, { actor: email });
+    return NextResponse.json({
+      ok: true,
+      session: updated,
+      invoiceCount: refreshed.invoiceCount,
+      rosterSlotCount: refreshed.roster.slotCount,
+    });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });

@@ -7,22 +7,21 @@ import { loadTrainingRoster, saveTrainingRoster } from "@/lib/training-roster";
 
 type RouteCtx = { params: Promise<{ month: string }> };
 
-/** GET — return cached roster for the month (404 if never generated). */
+/** GET — return cached roster; if missing, generate and save automatically. */
 export async function GET(req: Request, ctx: RouteCtx) {
   try {
-    await requireTuitionV2Admin(req);
+    const email = await requireTuitionV2Admin(req);
     const { month: raw } = await ctx.params;
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
 
-    const roster = await loadTrainingRoster(adminDb, month);
-    if (!roster) {
-      return NextResponse.json(
-        { error: "No saved roster for this month. Click Generate to create one.", month },
-        { status: 404 }
-      );
+    const cached = await loadTrainingRoster(adminDb, month);
+    if (cached) {
+      return NextResponse.json({ ok: true, roster: cached, cached: true });
     }
-    return NextResponse.json({ ok: true, roster, cached: true });
+
+    const roster = await saveTrainingRoster(adminDb, month, email);
+    return NextResponse.json({ ok: true, roster, cached: false });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -32,7 +31,7 @@ export async function GET(req: Request, ctx: RouteCtx) {
   }
 }
 
-/** POST — recompute from Tuition V2 and save one entry for this month. */
+/** POST — force recompute from Tuition V2 and overwrite the month entry. */
 export async function POST(req: Request, ctx: RouteCtx) {
   try {
     const email = await requireTuitionV2Admin(req);

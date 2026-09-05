@@ -23,6 +23,23 @@ import { defaultDueDateForMonth, monthLabel } from "@/lib/tuition-v2/shared-ui";
 import { commitWrites, withoutUndefined } from "@/lib/tuition-v2/firestore-utils";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
 
+function invoiceBillingUnchanged(prev: TuitionV2Invoice, next: TuitionV2Invoice): boolean {
+  return (
+    prev.swimmerName === next.swimmerName &&
+    prev.level === next.level &&
+    prev.parentEmail === next.parentEmail &&
+    prev.amount === next.amount &&
+    prev.baseAmount === next.baseAmount &&
+    prev.ratePerHour === next.ratePerHour &&
+    prev.rateTier === next.rateTier &&
+    prev.billableSessionCount === next.billableSessionCount &&
+    prev.practiceText === next.practiceText &&
+    prev.siblingDiscountApplied === next.siblingDiscountApplied &&
+    JSON.stringify(prev.regularWeekdays) === JSON.stringify(next.regularWeekdays) &&
+    JSON.stringify(prev.lineItems) === JSON.stringify(next.lineItems)
+  );
+}
+
 function invoicesCol(db: Firestore, month: string) {
   return db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).collection(TUITION_V2_INVOICES_SUBCOL);
 }
@@ -82,6 +99,11 @@ export async function loadInvoices(db: Firestore, month: string): Promise<Tuitio
 export type RecalculateInvoicesOptions = {
   /** When set, only compute and write invoices for these swimmer levels. */
   levels?: string[];
+  /**
+   * Sync active team roster into enrollments before calc.
+   * Default false — auto-refresh after plan saves must not scan all swimmers.
+   */
+  syncRoster?: boolean;
 };
 
 export async function recalculateInvoices(
@@ -93,6 +115,7 @@ export async function recalculateInvoices(
   invoices: TuitionV2Invoice[];
   count: number;
   levelsFilter: string[] | null;
+  wroteCount: number;
 }> {
   const levelFilter =
     options.levels?.length &&
@@ -104,7 +127,7 @@ export async function recalculateInvoices(
   const [templates, enrollments, sessions, responses, existingInvoices, levelPlans] =
     await Promise.all([
     loadV2Templates(db),
-    loadSwimmerEnrollments(db, { syncRoster: !levelFilter }),
+    loadSwimmerEnrollments(db, { syncRoster: options.syncRoster === true }),
     loadSessions(db, month),
     loadSwimmerResponses(db, month),
     loadInvoices(db, month),
@@ -233,27 +256,42 @@ export async function recalculateInvoices(
     };
 
     invoices.push(invoice);
-    writes.push({
-      type: "set",
-      ref: invoicesCol(db, month).doc(enrollment.swimmerId),
-      data: withoutUndefined(invoice as unknown as Record<string, unknown>),
-      merge: true,
-    });
+    if (!existing || !invoiceBillingUnchanged(existing, invoice)) {
+      writes.push({
+        type: "set",
+        ref: invoicesCol(db, month).doc(enrollment.swimmerId),
+        data: withoutUndefined(invoice as unknown as Record<string, unknown>),
+        merge: true,
+      });
+    }
   }
 
-  writes.push({
-    type: "update",
-    ref: db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month),
-    data: {
-      status: "computed",
-      lastCalculatedAt: now,
-      updatedAt: now,
-      approvedAt: FieldValue.delete(),
-      approvedBy: FieldValue.delete(),
-    },
-  });
+  if (writes.length > 0) {
+    writes.push({
+      type: "update",
+      ref: db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month),
+      data: {
+        status: "computed",
+        lastCalculatedAt: now,
+        updatedAt: now,
+        approvedAt: FieldValue.delete(),
+        approvedBy: FieldValue.delete(),
+      },
+    });
+    await commitWrites(db, writes);
+  }
 
-  await commitWrites(db, writes);
+  const wroteCount = writes.filter((w) => w.type === "set").length;
+  if (wroteCount === 0) {
+    return {
+      month: monthDoc,
+      invoices: invoices.length ? invoices : existingInvoices,
+      count: invoices.length,
+      levelsFilter: levelFilter ? [...levelFilter] : null,
+      wroteCount: 0,
+    };
+  }
+
   const [monthSnap, allInvoices] = await Promise.all([
     db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).get(),
     loadInvoices(db, month),
@@ -263,6 +301,7 @@ export async function recalculateInvoices(
     invoices: allInvoices,
     count: invoices.length,
     levelsFilter: levelFilter ? [...levelFilter] : null,
+    wroteCount,
   };
 }
 

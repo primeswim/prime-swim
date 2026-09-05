@@ -77,6 +77,30 @@ function parseIsoSafe(s?: string | null): Date | null {
   const t = Date.parse(s)
   return Number.isFinite(t) ? new Date(t) : null
 }
+
+function formatRegisteredOn(value: unknown): string | null {
+  if (!value) return null
+  if (typeof value === "string") {
+    const d = parseIsoSafe(value)
+    return d ? d.toLocaleDateString() : null
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const d = new Date(value > 1e12 ? value : value * 1000)
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString()
+  }
+  if (typeof value === "object" && value !== null) {
+    const v = value as { seconds?: number; toDate?: () => Date }
+    if (typeof v.toDate === "function") {
+      const d = v.toDate()
+      return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString() : null
+    }
+    if (typeof v.seconds === "number") {
+      const d = new Date(v.seconds * 1000)
+      return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString()
+    }
+  }
+  return null
+}
 function isUpcomingOrToday(evDate: Date) {
   const eventDay = new Date(evDate.getFullYear(), evDate.getMonth(), evDate.getDate())
   return eventDay.getTime() >= startOfTodayLocal().getTime()
@@ -560,9 +584,14 @@ export default function DashboardPage() {
                               </span>
                             )}
                           </CardDescription>
-                          <p className="text-sm text-slate-500 mt-1">
-                            Registered on: {new Date(swimmer.createdAt?.seconds * 1000).toLocaleDateString()}
-                          </p>
+                          {(() => {
+                            const registeredOn = formatRegisteredOn(swimmer.createdAt)
+                            return registeredOn ? (
+                              <p className="text-sm text-slate-500 mt-1">
+                                Registered on: {registeredOn}
+                              </p>
+                            ) : null
+                          })()}
                         </div>
                       </div>
 

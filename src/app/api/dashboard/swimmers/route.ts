@@ -53,14 +53,20 @@ export async function GET(req: Request) {
     // Helper to convert Firestore Timestamp to ISO string or null
     const toIsoOrNull = (ts: unknown): string | null => {
       if (!ts) return null;
+      if (typeof ts === "string") {
+        const parsed = Date.parse(ts);
+        return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+      }
+      if (typeof ts === "number" && Number.isFinite(ts)) {
+        const date = new Date(ts > 1e12 ? ts : ts * 1000);
+        return Number.isNaN(date.getTime()) ? null : date.toISOString();
+      }
       if (typeof ts === "object" && ts !== null) {
-        // Firestore Timestamp has toDate() method
-        if (typeof (ts as any).toDate === "function") {
+        if (typeof (ts as { toDate?: () => Date }).toDate === "function") {
           const date = (ts as { toDate: () => Date }).toDate();
           return date.toISOString();
         }
-        // Firestore Timestamp in seconds/nanoseconds format
-        if (typeof (ts as any).seconds === "number") {
+        if (typeof (ts as { seconds?: number }).seconds === "number") {
           const t = ts as { seconds: number; nanoseconds?: number };
           const date = new Date(t.seconds * 1000 + (t.nanoseconds || 0) / 1000000);
           return date.toISOString();

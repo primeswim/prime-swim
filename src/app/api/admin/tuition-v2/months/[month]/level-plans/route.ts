@@ -5,6 +5,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { authErrorResponse, parseMonthParam, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
 import { loadLevelPlans, saveLevelPlans, syncLevelPlansFromTemplates } from "@/lib/tuition-v2/month-service";
 import { loadV2Templates, loadV2TemplatesWithSource, normalizeLevelPlan } from "@/lib/tuition-v2/templates";
+import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 import type { TuitionV2LevelPlan } from "@/lib/tuition-v2/types";
 
 type RouteCtx = { params: Promise<{ month: string }> };
@@ -27,7 +28,7 @@ export async function GET(req: Request, ctx: RouteCtx) {
 
 export async function PUT(req: Request, ctx: RouteCtx) {
   try {
-    await requireTuitionV2Admin(req);
+    const email = await requireTuitionV2Admin(req);
     const { month: raw } = await ctx.params;
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
@@ -54,7 +55,13 @@ export async function PUT(req: Request, ctx: RouteCtx) {
       )
     );
     await saveLevelPlans(adminDb, month, levelPlans);
-    return NextResponse.json({ ok: true, levelPlans });
+    const refreshed = await refreshMonthDerivedData(adminDb, month, { actor: email });
+    return NextResponse.json({
+      ok: true,
+      levelPlans,
+      invoiceCount: refreshed.invoiceCount,
+      rosterSlotCount: refreshed.roster.slotCount,
+    });
   } catch (e) {
     const auth = authErrorResponse(e);
     if (auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -65,7 +72,7 @@ export async function PUT(req: Request, ctx: RouteCtx) {
 
 export async function POST(req: Request, ctx: RouteCtx) {
   try {
-    await requireTuitionV2Admin(req);
+    const email = await requireTuitionV2Admin(req);
     const { month: raw } = await ctx.params;
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
@@ -80,7 +87,14 @@ export async function POST(req: Request, ctx: RouteCtx) {
         );
       }
       const levelPlans = await syncLevelPlansFromTemplates(adminDb, month, levels);
-      return NextResponse.json({ ok: true, levelPlans, templateSource: source });
+      const refreshed = await refreshMonthDerivedData(adminDb, month, { actor: email });
+      return NextResponse.json({
+        ok: true,
+        levelPlans,
+        templateSource: source,
+        invoiceCount: refreshed.invoiceCount,
+        rosterSlotCount: refreshed.roster.slotCount,
+      });
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (e) {

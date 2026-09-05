@@ -15,16 +15,20 @@ export async function POST(req: Request, ctx: RouteCtx) {
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
 
     let levels: string[] | undefined;
+    let syncRoster = true;
     try {
-      const body: { levels?: unknown } = await req.json();
+      const body: { levels?: unknown; syncRoster?: unknown } = await req.json();
       if (Array.isArray(body?.levels)) {
         levels = body.levels.filter((l: unknown): l is string => typeof l === "string" && l.trim().length > 0);
       }
+      // Partial level recalc skips full roster sync unless explicitly requested.
+      syncRoster = body.syncRoster === true ? true : body.syncRoster === false ? false : !levels?.length;
     } catch {
-      // empty body is fine — recalculate all levels
+      // empty body — all levels + one roster sync
+      syncRoster = true;
     }
 
-    const result = await recalculateInvoices(adminDb, month, { levels });
+    const result = await recalculateInvoices(adminDb, month, { levels, syncRoster });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const auth = authErrorResponse(e);

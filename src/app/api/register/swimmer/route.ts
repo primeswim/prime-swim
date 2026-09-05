@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { upsertEnrollmentFromSwimmer } from "@/lib/tuition-v2/enrollment-service";
+import { openBillingMonths, refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +49,17 @@ export async function POST(req: Request) {
     };
 
     const docRef = await adminDb.collection("swimmers").add(payload);
+    try {
+      const enrollment = await upsertEnrollmentFromSwimmer(adminDb, docRef.id);
+      if (enrollment) {
+        const actor = decoded.email || "register";
+        for (const month of openBillingMonths()) {
+          await refreshMonthDerivedData(adminDb, month, { actor, syncRoster: false });
+        }
+      }
+    } catch (refreshErr) {
+      console.error(`[register:swimmer:POST:${reqId}] tuition auto-refresh skipped`, refreshErr);
+    }
     return NextResponse.json({ ok: true, id: docRef.id });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -126,17 +126,15 @@ function TrainingScheduleContent() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 404) {
-        setRoster(null);
-        setStatusMsg(data.error || "No saved roster yet — click Generate.");
-        return;
-      }
       if (!res.ok) {
         setError(data.error || "Failed to load roster");
         setRoster(null);
         return;
       }
       setRoster(data.roster);
+      if (data.cached === false) {
+        setStatusMsg(`Built schedule for ${monthLabel(month)} automatically.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -218,7 +216,8 @@ function TrainingScheduleContent() {
               Monthly Training Schedule
             </h1>
             <p className="text-sm text-slate-600 mt-1">
-              Calendar view of who trains when. Click a day for times, pools, levels, and names.
+              Calendar of who trains when. Updated automatically when you save the Tuition V2 plan —
+              open a day for times, pools, levels, and names.
             </p>
             <div className="mt-2 flex flex-wrap gap-3 text-sm">
               <Link href="/admin/attendance" className="text-blue-600 hover:underline">
@@ -264,7 +263,7 @@ function TrainingScheduleContent() {
           </Button>
           <Button onClick={() => void generate()} disabled={loading || generating}>
             {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Users className="h-4 w-4 mr-2" />}
-            Generate &amp; save
+            Refresh from plan
           </Button>
           {roster && (
             <span className="text-sm text-slate-600 ml-1">
@@ -293,8 +292,8 @@ function TrainingScheduleContent() {
         {!roster && !loading && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No roster saved for {monthLabel(selectedMonth)} yet. Set up the month in Tuition V2
-              Plan, then click <strong>Generate &amp; save</strong>.
+              No schedule for {monthLabel(selectedMonth)} yet. Save the month in Tuition V2 Plan,
+              or click <strong>Refresh from plan</strong>.
             </CardContent>
           </Card>
         )}
