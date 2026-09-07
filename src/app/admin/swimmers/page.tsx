@@ -89,22 +89,47 @@ export default function AdminSwimmerPage() {
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push('/login')
-        return
-      }
-      const adminDocRef = doc(db, 'admin', user.email ?? '')
-      const adminSnap = await getDoc(adminDocRef)
-      if (adminSnap.exists()) {
-        setIsAdmin(true)
-        fetchSwimmers()
-      } else {
-        router.push('/not-authorized')
-      }
+    let finished = false
+    const failSafe = window.setTimeout(() => {
+      if (finished) return
+      finished = true
       setCheckedAuth(true)
+      router.push('/login')
+    }, 10_000)
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        if (!user?.email) {
+          router.push('/login')
+          return
+        }
+        const adminSnap = await Promise.race([
+          getDoc(doc(db, 'admin', user.email)),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('admin check timeout')), 8000)
+          ),
+        ])
+        if (finished) return
+        if (adminSnap.exists()) {
+          setIsAdmin(true)
+          void fetchSwimmers()
+        } else {
+          router.push('/not-authorized')
+        }
+      } catch (err) {
+        console.error('admin swimmers auth check failed', err)
+        router.push('/login')
+      } finally {
+        finished = true
+        window.clearTimeout(failSafe)
+        setCheckedAuth(true)
+      }
     })
-    return () => unsubscribe()
+    return () => {
+      finished = true
+      window.clearTimeout(failSafe)
+      unsubscribe()
+    }
   }, [router])
 
   const fetchSwimmers = async () => {

@@ -197,6 +197,14 @@ function TrainingScheduleContent() {
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   }, []);
 
+  if (isAdmin === null) {
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto py-8 px-4">Checking permission…</div>
+      </>
+    );
+  }
   if (!isAdmin) {
     return (
       <>

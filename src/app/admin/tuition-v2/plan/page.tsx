@@ -735,6 +735,14 @@ function TuitionV2PlanContent() {
     );
   };
 
+  if (isAdmin === null) {
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto py-8 px-4">Checking permission…</div>
+      </>
+    );
+  }
   if (!isAdmin) {
     return (
       <>
