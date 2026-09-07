@@ -631,42 +631,20 @@ export default function AdminSwimmerPage() {
   const toggleSiblingLink = async (swimmerId: string, siblingId: string, linked: boolean) => {
     setSiblingSavingId(swimmerId)
     try {
-      const swimmerRef = doc(db, 'swimmers', swimmerId)
-      const siblingRef = doc(db, 'swimmers', siblingId)
-      const [swimmerSnap, siblingSnap] = await Promise.all([
-        getDoc(swimmerRef),
-        getDoc(siblingRef),
-      ])
-      if (!swimmerSnap.exists() || !siblingSnap.exists()) {
-        alert('Swimmer not found.')
+      const user = auth.currentUser
+      if (!user) {
+        alert('Not signed in.')
         return
       }
-
-      const swimmerSiblingIds = Array.isArray(swimmerSnap.data()?.siblingIds)
-        ? (swimmerSnap.data()!.siblingIds as string[]).filter((id) => id !== swimmerId)
-        : []
-      const siblingSiblingIds = Array.isArray(siblingSnap.data()?.siblingIds)
-        ? (siblingSnap.data()!.siblingIds as string[]).filter((id) => id !== siblingId)
-        : []
-
-      if (linked) {
-        await Promise.all([
-          updateDoc(swimmerRef, {
-            siblingIds: [...new Set([...swimmerSiblingIds, siblingId])],
-          }),
-          updateDoc(siblingRef, {
-            siblingIds: [...new Set([...siblingSiblingIds, swimmerId])],
-          }),
-        ])
-      } else {
-        await Promise.all([
-          updateDoc(swimmerRef, {
-            siblingIds: swimmerSiblingIds.filter((id) => id !== siblingId),
-          }),
-          updateDoc(siblingRef, {
-            siblingIds: siblingSiblingIds.filter((id) => id !== swimmerId),
-          }),
-        ])
+      const token = await user.getIdToken()
+      const res = await fetch('/api/admin/tuition-v2/siblings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ swimmerId, siblingId, linked }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update sibling link.')
       }
       await fetchSwimmers()
     } catch (error) {
@@ -1132,7 +1110,9 @@ export default function AdminSwimmerPage() {
                       >
                         <div className="font-semibold mb-1 text-slate-800">Siblings</div>
                         <p className="text-xs text-slate-600 mb-3">
-                          Check swimmers who are siblings with {swimmerDisplayName(s)}. Later-enrolled siblings get 10% off monthly tuition.
+                          Check swimmers who are siblings with {swimmerDisplayName(s)}. Later-enrolled
+                          siblings get 10% off monthly tuition only if everyone in the sibling group
+                          meets their level&apos;s minimum training days per week.
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                           {swimmers

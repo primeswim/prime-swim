@@ -14,6 +14,7 @@ import type {
   TuitionV2SwimmerResponse,
 } from "./tuition-v2/types";
 import type { TrainingRosterSlot } from "./training-roster-types";
+import { omitEmptyRosterLevels } from "./training-roster-types";
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
@@ -50,6 +51,7 @@ function buildSlotsFromBillable(
       slotMap.set(key, slot);
     }
     const attendees = attendeesBySession.get(s.id) ?? [];
+    if (attendees.length === 0) continue;
     slot.byLevel.set(s.level, attendees);
   }
 
@@ -186,9 +188,41 @@ function testSameTimeSlotAggregatesLevels() {
   assert(slots[0].levels.length === 2, "two levels in slot");
 }
 
+function testOmitEmptyLevels() {
+  const slots: TrainingRosterSlot[] = [
+    {
+      date: "2026-10-01",
+      weekday: 4,
+      weekdayLabel: "Thu",
+      timeSlot: "5-6PM",
+      location: "Redmond Pool",
+      totalCount: 3,
+      levels: [
+        { level: "Bronze Beginner", count: 3, attendees: [] },
+        { level: "Gold Performance", count: 0, attendees: [] },
+      ],
+    },
+    {
+      date: "2026-10-01",
+      weekday: 4,
+      weekdayLabel: "Thu",
+      timeSlot: "6-8PM",
+      location: "Redmond Pool",
+      totalCount: 0,
+      levels: [{ level: "Gold Performance", count: 0, attendees: [] }],
+    },
+  ];
+  const cleaned = omitEmptyRosterLevels(slots);
+  assert(cleaned.length === 1, "drop time slots with nobody");
+  assert(cleaned[0].levels.length === 1, "drop empty level");
+  assert(cleaned[0].levels[0].level === "Bronze Beginner", "keep occupied level");
+  assert(cleaned[0].totalCount === 3, "recount after dropping zeros");
+}
+
 function run() {
   testRosterCountsMatchBillable();
   testSameTimeSlotAggregatesLevels();
+  testOmitEmptyLevels();
   console.log("training-roster tests passed");
 }
 

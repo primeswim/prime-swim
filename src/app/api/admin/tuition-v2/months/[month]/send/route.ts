@@ -90,6 +90,8 @@ async function sendOneInvoice(
     lastSentAt: now,
     lastEmailKind: variant,
     updatedAt: now,
+    publishedToApp: true,
+    publishedAt: now,
     ...(variant === "invoice" && !d.firstInvoiceSentAt ? { firstInvoiceSentAt: now } : {}),
   });
 

@@ -10,7 +10,7 @@
     "migrate:pilot": "DOTENV_CONFIG_PATH=.env.local ts-node -r dotenv/config scripts/migratePilot.ts",
     "test:membership": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/lib/membership-renewal.test.ts",
     "test:membership-pause": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/lib/membership-pause.test.ts",
-    "test:tuition-v2": "ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/session-generator.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/templates.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/calculate-engine.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/training-roster.test.ts"
+    "test:tuition-v2": "ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/session-generator.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/templates.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/calculate-engine.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/training-roster.test.ts && ts-node -r tsconfig-paths/register --compiler-options '{\"module\":\"commonjs\"}' src/lib/tuition-v2/parent-tuition.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.2",

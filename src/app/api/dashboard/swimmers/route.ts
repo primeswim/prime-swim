@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { loadParentTuitionForSwimmers } from "@/lib/tuition-v2/parent-tuition-service";
+import type { ParentTuitionView } from "@/lib/tuition-v2/parent-tuition";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +25,7 @@ type SwimmerOut = {
   isFrozen?: boolean;
   membershipPaused?: boolean;
   membershipPausedAt?: unknown;
+  tuition?: ParentTuitionView | null;
 };
 
 function isValidDocId(id: unknown): id is string {
@@ -75,6 +78,11 @@ export async function GET(req: Request) {
       return null;
     };
 
+    const tuitionBundle = await loadParentTuitionForSwimmers(
+      adminDb,
+      swimmersSnap.docs.map((d) => d.id)
+    );
+
     const swimmers: SwimmerOut[] = swimmersSnap.docs.map((d) => {
       const data = d.data() || {};
       return {
@@ -94,6 +102,7 @@ export async function GET(req: Request) {
         isFrozen: !!data.isFrozen,
         membershipPaused: !!data.membershipPaused,
         membershipPausedAt: toIsoOrNull(data.membershipPausedAt),
+        tuition: tuitionBundle.bySwimmerId[d.id] ?? null,
       };
     });
 

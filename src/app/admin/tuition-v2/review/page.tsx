@@ -9,7 +9,7 @@ import { TuitionV2HubNav } from "@/components/tuition-v2-hub-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -20,9 +20,37 @@ import {
 } from "@/components/ui/dialog";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
 import { getNextMonth, monthLabel, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
-import { SWIMMER_LEVELS } from "@/lib/swimmer-levels";
-import { Loader2, RefreshCw } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { LEVEL_GROUPS, SWIMMER_LEVELS } from "@/lib/swimmer-levels";
+import {
+  invoiceNeedsAppPublish,
+  invoicesNeedingAppPublish,
+  invoicesPublishedToApp,
+} from "@/lib/tuition-v2/parent-tuition";
+import { cn } from "@/lib/utils";
+import { Loader2, RefreshCw, Search } from "lucide-react";
+
+const LEVEL_FILTER_STYLES: Record<string, { dot: string; on: string; off: string }> = {
+  Bronze: {
+    dot: "bg-amber-500",
+    on: "bg-amber-600 text-white shadow-sm",
+    off: "text-slate-600 hover:bg-amber-50 hover:text-amber-900",
+  },
+  Silver: {
+    dot: "bg-slate-400",
+    on: "bg-slate-700 text-white shadow-sm",
+    off: "text-slate-600 hover:bg-slate-100",
+  },
+  Gold: {
+    dot: "bg-yellow-400",
+    on: "bg-yellow-600 text-white shadow-sm",
+    off: "text-slate-600 hover:bg-yellow-50 hover:text-yellow-900",
+  },
+  Platinum: {
+    dot: "bg-purple-500",
+    on: "bg-purple-600 text-white shadow-sm",
+    off: "text-slate-600 hover:bg-purple-50 hover:text-purple-900",
+  },
+};
 
 export default function TuitionV2ReviewPage() {
   return (
@@ -43,6 +71,8 @@ function TuitionV2ReviewContent() {
   const [invoices, setInvoices] = useState<TuitionV2Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [recalcBusy, setRecalcBusy] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [editInv, setEditInv] = useState<TuitionV2Invoice | null>(null);
@@ -50,8 +80,7 @@ function TuitionV2ReviewContent() {
   const [editReason, setEditReason] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
   const [nameSearch, setNameSearch] = useState("");
-  const [calcAllLevels, setCalcAllLevels] = useState(true);
-  const [selectedLevelsForCalc, setSelectedLevelsForCalc] = useState<string[]>([]);
+  const [listLevels, setListLevels] = useState<string[]>([]);
 
   const fetchToken = useCallback(async () => {
     const user = auth.currentUser;
@@ -100,45 +129,54 @@ function TuitionV2ReviewContent() {
 
   const filtered = useMemo(() => {
     const q = nameSearch.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter((i) => i.swimmerName.toLowerCase().includes(q));
-  }, [invoices, nameSearch]);
+    return invoices.filter((i) => {
+      if (listLevels.length > 0 && !listLevels.includes(i.level)) return false;
+      if (q && !i.swimmerName.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [invoices, nameSearch, listLevels]);
 
   const total = useMemo(() => filtered.reduce((s, i) => s + i.amount, 0), [filtered]);
+  const publishedCount = useMemo(
+    () => invoices.filter((i) => !invoiceNeedsAppPublish(i)).length,
+    [invoices]
+  );
+  const unpublishedInList = useMemo(() => invoicesNeedingAppPublish(filtered), [filtered]);
+  const publishedInList = useMemo(() => invoicesPublishedToApp(filtered), [filtered]);
+  const levelFilter = listLevels.length > 0 ? listLevels : null;
+  const levelCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const invoice of invoices) {
+      counts[invoice.level] = (counts[invoice.level] ?? 0) + 1;
+    }
+    return counts;
+  }, [invoices]);
 
-  const toggleCalcLevel = (level: string, checked: boolean) => {
-    if (calcAllLevels) {
-      if (!checked) {
-        setCalcAllLevels(false);
-        setSelectedLevelsForCalc(SWIMMER_LEVELS.filter((l) => l !== level));
-      }
-      return;
-    }
-    if (checked) {
-      const next = [...new Set([...selectedLevelsForCalc, level])];
-      if (next.length === SWIMMER_LEVELS.length) {
-        setCalcAllLevels(true);
-        setSelectedLevelsForCalc([]);
-      } else {
-        setSelectedLevelsForCalc(next);
-      }
-      return;
-    }
-    setSelectedLevelsForCalc(selectedLevelsForCalc.filter((l) => l !== level));
+  const toggleListLevel = (level: string) => {
+    setListLevels((prev) => {
+      const next = prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level];
+      return next.length === SWIMMER_LEVELS.length ? [] : next;
+    });
+  };
+
+  const toggleLevelGroup = (levels: readonly string[]) => {
+    setListLevels((prev) => {
+      const allOn = levels.every((level) => prev.includes(level));
+      const next = allOn
+        ? prev.filter((level) => !levels.includes(level))
+        : [...new Set([...prev, ...levels])];
+      return next.length === SWIMMER_LEVELS.length ? [] : next;
+    });
   };
 
   const recalculate = async () => {
     const token = await fetchToken();
     if (!token) return;
-    if (!calcAllLevels && selectedLevelsForCalc.length === 0) {
-      setError("Select at least one level, or use All levels (default).");
-      return;
-    }
     setRecalcBusy(true);
     setError("");
     setStatusMsg("");
     try {
-      const body = calcAllLevels ? {} : { levels: selectedLevelsForCalc };
+      const body = levelFilter ? { levels: levelFilter } : {};
       const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/recalculate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -160,6 +198,55 @@ function TuitionV2ReviewContent() {
       );
     } finally {
       setRecalcBusy(false);
+    }
+  };
+
+  const publishToApp = async (
+    scope: { swimmerIds?: string[]; levels?: string[] },
+    action: "publish" | "unpublish" = "publish"
+  ) => {
+    const token = await fetchToken();
+    if (!token) return;
+    const singleId = scope.swimmerIds?.length === 1 ? scope.swimmerIds[0] : null;
+    if (singleId) setPublishingId(singleId);
+    else setPublishBusy(true);
+    setError("");
+    setStatusMsg("");
+    try {
+      const res = await fetch(`/api/admin/tuition-v2/months/${monthToApiPath(selectedMonth)}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...scope, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || (action === "unpublish" ? "Unpublish failed" : "Publish failed"));
+        return;
+      }
+      if (data.month) setMonthDoc(data.month);
+      if (Array.isArray(data.invoices)) setInvoices(data.invoices);
+      if (action === "unpublish") {
+        const n = typeof data.unpublishedCount === "number" ? data.unpublishedCount : 0;
+        setStatusMsg(
+          n === 0
+            ? "Nothing to unpublish in this selection."
+            : n === 1
+              ? "Unpublished 1 swimmer. App shows 核算中."
+              : `Unpublished ${n} swimmers. App shows 核算中.`
+        );
+        return;
+      }
+      const n = typeof data.publishedCount === "number" ? data.publishedCount : 0;
+      setStatusMsg(
+        n === 0
+          ? "Nothing new to publish in this selection."
+          : n === 1
+            ? "Published 1 swimmer to the app."
+            : `Published ${n} swimmers to the app.`
+      );
+    } finally {
+      setPublishBusy(false);
+      setPublishingId(null);
     }
   };
 
@@ -221,8 +308,8 @@ function TuitionV2ReviewContent() {
           <div>
             <h1 className="text-2xl font-bold">Tuition V2 — Review</h1>
             <p className="text-sm text-muted-foreground">
-              Amounts update when you save the plan or add a swimmer. Recalculate is optional — pick
-              one or more levels to refresh cheaper writes.
+              Tuition recalculates automatically. Publish is per swimmer: a new kid or a schedule
+              change only needs that row (or this level) published. Others stay as they are.
             </p>
           </div>
           <Input
@@ -237,6 +324,9 @@ function TuitionV2ReviewContent() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{monthDoc?.status ?? "planning"}</Badge>
+          <Badge variant={unpublishedInList.length === 0 && invoices.length > 0 ? "default" : "outline"}>
+            App: {publishedCount} published · {invoices.length - publishedCount} 核算中
+          </Badge>
           <span className="text-sm text-muted-foreground">{monthLabel(selectedMonth)}</span>
           <span className="text-sm font-medium ml-auto">Total: ${total}</span>
         </div>
@@ -255,99 +345,122 @@ function TuitionV2ReviewContent() {
             {recalcBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Recalculate tuition
           </Button>
+          <Button
+            onClick={() =>
+              void publishToApp(
+                levelFilter
+                  ? { levels: levelFilter }
+                  : { swimmerIds: unpublishedInList.map((i) => i.swimmerId) }
+              )
+            }
+            disabled={publishBusy || unpublishedInList.length === 0}
+          >
+            {publishBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {levelFilter
+              ? levelFilter.length === 1
+                ? `Publish ${levelFilter[0]} (${unpublishedInList.length})`
+                : `Publish ${levelFilter.length} levels (${unpublishedInList.length})`
+              : `Publish unpublished (${unpublishedInList.length})`}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              void publishToApp(
+                levelFilter
+                  ? { levels: levelFilter }
+                  : { swimmerIds: publishedInList.map((i) => i.swimmerId) },
+                "unpublish"
+              )
+            }
+            disabled={publishBusy || publishedInList.length === 0}
+          >
+            {levelFilter
+              ? levelFilter.length === 1
+                ? `Unpublish ${levelFilter[0]} (${publishedInList.length})`
+                : `Unpublish ${levelFilter.length} levels (${publishedInList.length})`
+              : `Unpublish (${publishedInList.length})`}
+          </Button>
+        </div>
+
+        <div className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-xs">
+          <button
+            type="button"
+            aria-pressed={!levelFilter}
+            onClick={() => setListLevels([])}
+            className={cn(
+              "h-8 rounded-lg px-3 text-xs font-semibold transition-colors",
+              !levelFilter ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            All
+          </button>
+          {(Object.entries(LEVEL_GROUPS) as [string, readonly string[]][]).map(([group, levels], index) => {
+            const style = LEVEL_FILTER_STYLES[group];
+            const groupOn =
+              Boolean(levelFilter) && levels.every((level) => listLevels.includes(level));
+            return (
+              <div
+                key={group}
+                className={cn(
+                  "inline-flex items-center gap-0.5 whitespace-nowrap",
+                  index > 0 && "border-l border-slate-200 pl-1 ml-0.5"
+                )}
+              >
+                <button
+                  type="button"
+                  aria-pressed={groupOn}
+                  title={`All ${group}`}
+                  onClick={() => toggleLevelGroup(levels)}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors",
+                    groupOn ? style.on : style.off
+                  )}
+                >
+                  <span className={cn("h-2 w-2 rounded-full", style.dot, groupOn && "bg-white/90")} />
+                  {group}
+                </button>
+                {levels.map((level) => {
+                  const selected = listLevels.includes(level);
+                  const short = level.includes("Beginner") ? "Beg" : "Perf";
+                  const count = levelCounts[level] ?? 0;
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      aria-pressed={selected}
+                      title={level}
+                      onClick={() => toggleListLevel(level)}
+                      className={cn(
+                        "inline-flex h-8 items-center rounded-lg px-2 text-xs font-medium transition-colors",
+                        selected ? style.on : style.off
+                      )}
+                    >
+                      {short}
+                      <span className={cn("ml-1 tabular-nums text-[11px]", selected ? "text-white/80" : "text-slate-400")}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Levels to recalculate</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Optional. New swimmers are picked up when you open this page. Use this only to
-              recalculate selected levels (fewer invoice writes). Sibling discounts apply within
-              the selected levels only.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCalcAllLevels(false);
-                  setSelectedLevelsForCalc([...SWIMMER_LEVELS]);
-                }}
-              >
-                Select all
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCalcAllLevels(false);
-                  setSelectedLevelsForCalc([]);
-                }}
-              >
-                Unselect all
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCalcAllLevels(true);
-                  setSelectedLevelsForCalc([]);
-                }}
-              >
-                All levels (default)
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              {SWIMMER_LEVELS.map((level) => {
-                const checked = calcAllLevels || selectedLevelsForCalc.includes(level);
-                const highlighted = calcAllLevels || selectedLevelsForCalc.includes(level);
-                return (
-                  <label
-                    key={level}
-                    className={`flex items-center gap-2 rounded border px-3 py-2 text-sm cursor-pointer ${
-                      highlighted
-                        ? calcAllLevels
-                          ? "bg-white border-slate-200"
-                          : "bg-blue-50 border-blue-300"
-                        : "bg-white border-slate-200 opacity-60"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(value) => {
-                        toggleCalcLevel(level, value === true);
-                      }}
-                    />
-                    <span>{level}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <p className="text-xs text-slate-600">
-              {calcAllLevels
-                ? "Currently: all levels (includes one roster sync)."
-                : selectedLevelsForCalc.length === 0
-                  ? "No levels selected — choose levels or click All levels (default)."
-                  : `Currently: ${selectedLevelsForCalc.length} level(s) selected.`}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Input
-          placeholder="Search swimmer…"
-          value={nameSearch}
-          onChange={(e) => setNameSearch(e.target.value)}
-          className="max-w-xs"
-        />
-
-        <Card>
-          <CardHeader>
+          <CardHeader className="border-b">
             <CardTitle className="text-lg">Invoices ({filtered.length})</CardTitle>
+            <CardAction>
+              <div className="relative w-56">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search swimmer…"
+                  value={nameSearch}
+                  onChange={(e) => setNameSearch(e.target.value)}
+                  className="h-8 pl-9"
+                />
+              </div>
+            </CardAction>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             {filtered.length === 0 ? (
@@ -365,37 +478,71 @@ function TuitionV2ReviewContent() {
                     <th className="py-2 pr-2">Rate</th>
                     <th className="py-2 pr-2">Sessions</th>
                     <th className="py-2 pr-2">Amount</th>
+                    <th className="py-2 pr-2">App</th>
                     <th className="py-2 pr-2"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((inv) => (
-                    <tr key={inv.swimmerId} className="border-b">
-                      <td className="py-2 pr-2 font-medium">{inv.swimmerName}</td>
-                      <td className="py-2 pr-2">{inv.level}</td>
-                      <td className="py-2 pr-2">{inv.regularWeekdays.length} d/wk</td>
-                      <td className="py-2 pr-2">
-                        <span title={inv.rateTierReason}>
-                          ${inv.ratePerHour} ({inv.rateTier})
-                        </span>
-                      </td>
-                      <td className="py-2 pr-2">{inv.billableSessionCount}</td>
-                      <td className="py-2 pr-2">
-                        ${inv.amount}
-                        {inv.siblingDiscountApplied && (
-                          <span className="block text-xs text-green-700">-{inv.siblingDiscountPercent}% sibling</span>
-                        )}
-                        {inv.manualOverride && (
-                          <span className="block text-xs text-amber-700">override</span>
-                        )}
-                      </td>
-                      <td className="py-2 pr-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(inv)}>
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((inv) => {
+                    const needsPublish = invoiceNeedsAppPublish(inv);
+                    return (
+                      <tr key={inv.swimmerId} className="border-b">
+                        <td className="py-2 pr-2 font-medium">{inv.swimmerName}</td>
+                        <td className="py-2 pr-2">{inv.level}</td>
+                        <td className="py-2 pr-2">{inv.regularWeekdays.length} d/wk</td>
+                        <td className="py-2 pr-2">
+                          <span title={inv.rateTierReason}>
+                            ${inv.ratePerHour} ({inv.rateTier})
+                          </span>
+                        </td>
+                        <td className="py-2 pr-2">{inv.billableSessionCount}</td>
+                        <td className="py-2 pr-2">
+                          ${inv.amount}
+                          {inv.siblingDiscountApplied && (
+                            <span className="block text-xs text-green-700">-{inv.siblingDiscountPercent}% sibling</span>
+                          )}
+                          {inv.manualOverride && (
+                            <span className="block text-xs text-amber-700">override</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-2">
+                          <Badge variant={needsPublish ? "outline" : "default"}>
+                            {needsPublish ? "核算中" : "In app"}
+                          </Badge>
+                        </td>
+                        <td className="py-2 pr-2 whitespace-nowrap">
+                          {needsPublish ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={publishingId === inv.swimmerId || publishBusy}
+                              onClick={() => void publishToApp({ swimmerIds: [inv.swimmerId] })}
+                            >
+                              {publishingId === inv.swimmerId ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                              ) : null}
+                              Publish
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={publishingId === inv.swimmerId || publishBusy}
+                              onClick={() => void publishToApp({ swimmerIds: [inv.swimmerId] }, "unpublish")}
+                            >
+                              {publishingId === inv.swimmerId ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                              ) : null}
+                              Unpublish
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(inv)}>
+                            Edit
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

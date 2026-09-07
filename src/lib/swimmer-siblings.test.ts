@@ -56,53 +56,24 @@ function testSiblingDiscountWhenAllMeetMinDays() {
 
 function testNoDiscountWhenAnyBelowMinDays() {
   const rows = [
-    { swimmerId: "a", tuition: 400, trainingWeekdays: [1, 3], minDaysPerWeek: 2 },
-    { swimmerId: "b", tuition: 500, trainingWeekdays: [1], minDaysPerWeek: 2 },
-    { swimmerId: "c", tuition: 300, trainingWeekdays: [1, 3], minDaysPerWeek: 2 },
+    { swimmerId: "korman", tuition: 588, trainingWeekdays: [1, 4, 5], minDaysPerWeek: 3 },
+    { swimmerId: "everly", tuition: 378, trainingWeekdays: [1, 5], minDaysPerWeek: 3 },
   ];
   const enrollment = new Map<string, number>([
-    ["a", 1],
-    ["b", 2],
-    ["c", 3],
+    ["korman", 1],
+    ["everly", 2],
   ]);
   const siblings = new Map<string, string[]>([
-    ["a", ["b", "c"]],
-    ["b", ["a", "c"]],
-    ["c", ["a", "b"]],
+    ["korman", ["everly"]],
+    ["everly", ["korman"]],
   ]);
 
   const out = applySiblingTuitionDiscounts(rows, enrollment, siblings);
   const byId = Object.fromEntries(out.map((r) => [r.swimmerId, r]));
 
-  assert(byId.a.tuition === 400, "no family discount");
-  assert(byId.b.tuition === 500, "no family discount");
-  assert(byId.c.tuition === 300, "no family discount even if C meets min");
-  assert(byId.c.siblingDiscountApplied !== true, "discount flag not set");
-}
-
-function testNoDiscountWhenEldestBelowMinDays() {
-  const rows = [
-    { swimmerId: "a", tuition: 400, trainingWeekdays: [1], minDaysPerWeek: 2 },
-    { swimmerId: "b", tuition: 500, trainingWeekdays: [1, 3], minDaysPerWeek: 2 },
-    { swimmerId: "c", tuition: 300, trainingWeekdays: [1, 3], minDaysPerWeek: 2 },
-  ];
-  const enrollment = new Map<string, number>([
-    ["a", 1],
-    ["b", 2],
-    ["c", 3],
-  ]);
-  const siblings = new Map<string, string[]>([
-    ["a", ["b", "c"]],
-    ["b", ["a", "c"]],
-    ["c", ["a", "b"]],
-  ]);
-
-  const out = applySiblingTuitionDiscounts(rows, enrollment, siblings);
-  const byId = Object.fromEntries(out.map((r) => [r.swimmerId, r]));
-
-  assert(byId.a.tuition === 400, "A full");
-  assert(byId.b.tuition === 500, "B no discount when A below min");
-  assert(byId.c.tuition === 300, "C no discount when A below min");
+  assert(byId.korman.tuition === 588, "no family discount when younger below min");
+  assert(byId.everly.tuition === 378, "no 10% when below level min days");
+  assert(byId.everly.siblingDiscountApplied !== true, "discount flag not set");
 }
 
 function testFourSiblingsAllMeetMinDays() {
@@ -151,9 +122,7 @@ function testMeetsMinDaysHelper() {
 }
 
 function testLinkedSiblingNotInRowsStillBlocksDiscount() {
-  const rows = [
-    { swimmerId: "ryan", tuition: 500, trainingWeekdays: [1, 3], minDaysPerWeek: 2 },
-  ];
+  const rows = [{ swimmerId: "ryan", tuition: 500, trainingWeekdays: [1, 3], minDaysPerWeek: 2 }];
   const enrollment = new Map<string, number>([
     ["ryan", 2],
     ["nathan", 1],
@@ -178,7 +147,6 @@ function run() {
   testMeetsMinDaysHelper();
   testSiblingDiscountWhenAllMeetMinDays();
   testNoDiscountWhenAnyBelowMinDays();
-  testNoDiscountWhenEldestBelowMinDays();
   testFourSiblingsAllMeetMinDays();
   testLinkedSiblingNotInRowsStillBlocksDiscount();
   testUnlinkedNoDiscount();

@@ -22,6 +22,7 @@ import {
   normalizeBillingMonth,
 } from "@/lib/tuition-v2/shared-ui";
 import type { TrainingRosterDoc, TrainingRosterSlot } from "@/lib/training-roster-types";
+import { omitEmptyRosterLevels } from "@/lib/training-roster-types";
 import { CalendarDays, ChevronLeft, ChevronRight, Loader2, RefreshCw, Users } from "lucide-react";
 
 const WEEKDAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -178,7 +179,7 @@ function TrainingScheduleContent() {
   const slotsByDate = useMemo(() => {
     const map = new Map<string, TrainingRosterSlot[]>();
     if (!roster) return map;
-    for (const slot of roster.slots) {
+    for (const slot of omitEmptyRosterLevels(roster.slots)) {
       const list = map.get(slot.date) ?? [];
       list.push(slot);
       map.set(slot.date, list);
@@ -365,9 +366,11 @@ function TrainingScheduleContent() {
                       {slots.length > 3 && (
                         <div className="text-[10px] text-slate-500 pl-0.5">+{slots.length - 3} more</div>
                       )}
-                      {slots.length === 1 && slots[0].levels.length > 0 && (
+                      {slots.length === 1 && (
                         <div className="text-[9px] text-slate-500 truncate px-0.5">
-                          {slots[0].levels.map((l) => `${shortLevel(l.level)} ${l.count}`).join(" · ")}
+                          {slots[0].levels
+                            .map((l) => `${shortLevel(l.level)} ${l.count}`)
+                            .join(" · ")}
                         </div>
                       )}
                     </div>
@@ -417,15 +420,11 @@ function TrainingScheduleContent() {
                           {lg.level}{" "}
                           <span className="text-muted-foreground font-normal">({lg.count})</span>
                         </div>
-                        {lg.attendees.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">No attendees</p>
-                        ) : (
-                          <ul className="text-sm text-slate-800 space-y-0.5">
-                            {lg.attendees.map((a) => (
-                              <li key={a.swimmerId}>{a.swimmerName}</li>
-                            ))}
-                          </ul>
-                        )}
+                        <ul className="text-sm text-slate-800 space-y-0.5">
+                          {lg.attendees.map((a) => (
+                            <li key={a.swimmerId}>{a.swimmerName}</li>
+                          ))}
+                        </ul>
                       </div>
                     ))}
                   </div>

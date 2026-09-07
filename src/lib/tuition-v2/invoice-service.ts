@@ -21,6 +21,11 @@ import { loadSwimmerResponses } from "@/lib/tuition-v2/swimmer-response-service"
 import { loadV2Templates } from "@/lib/tuition-v2/templates";
 import { defaultDueDateForMonth, monthLabel } from "@/lib/tuition-v2/shared-ui";
 import { commitWrites, withoutUndefined } from "@/lib/tuition-v2/firestore-utils";
+import {
+  invoicesNeedingAppPublish,
+  invoicesPublishedToApp,
+  keepPublishedToAppAfterRecalc,
+} from "@/lib/tuition-v2/parent-tuition";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
 
 function invoiceBillingUnchanged(prev: TuitionV2Invoice, next: TuitionV2Invoice): boolean {
@@ -81,6 +86,9 @@ export function normalizeInvoice(swimmerId: string, raw: Record<string, unknown>
     lastSentAt: typeof raw.lastSentAt === "string" ? raw.lastSentAt : undefined,
     lastEmailKind: typeof raw.lastEmailKind === "string" ? raw.lastEmailKind : undefined,
     firstInvoiceSentAt: typeof raw.firstInvoiceSentAt === "string" ? raw.firstInvoiceSentAt : undefined,
+    publishedToApp:
+      raw.publishedToApp === true ? true : raw.publishedToApp === false ? false : undefined,
+    publishedAt: typeof raw.publishedAt === "string" ? raw.publishedAt : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
   };
 }
@@ -253,14 +261,29 @@ export async function recalculateInvoices(
       lastEmailKind: existing?.lastEmailKind,
       firstInvoiceSentAt: existing?.firstInvoiceSentAt,
       updatedAt: now,
+      publishedToApp: false,
+      publishedAt: undefined,
     };
 
+    const billingSame = !!existing && invoiceBillingUnchanged(existing, invoice);
+    const keepPublished = keepPublishedToAppAfterRecalc(existing, billingSame);
+    invoice.publishedToApp = keepPublished;
+    invoice.publishedAt = keepPublished ? existing?.publishedAt : undefined;
+
     invoices.push(invoice);
-    if (!existing || !invoiceBillingUnchanged(existing, invoice)) {
+    const publishFlagChanged = existing?.publishedToApp !== keepPublished;
+    if (!existing || !billingSame || publishFlagChanged) {
+      const data = withoutUndefined(invoice as unknown as Record<string, unknown>);
+      data.publishedToApp = keepPublished;
+      if (keepPublished) {
+        if (invoice.publishedAt) data.publishedAt = invoice.publishedAt;
+      } else {
+        data.publishedAt = FieldValue.delete();
+      }
       writes.push({
         type: "set",
         ref: invoicesCol(db, month).doc(enrollment.swimmerId),
-        data: withoutUndefined(invoice as unknown as Record<string, unknown>),
+        data,
         merge: true,
       });
     }
@@ -274,8 +297,6 @@ export async function recalculateInvoices(
         status: "computed",
         lastCalculatedAt: now,
         updatedAt: now,
-        approvedAt: FieldValue.delete(),
-        approvedBy: FieldValue.delete(),
       },
     });
     await commitWrites(db, writes);
@@ -310,18 +331,102 @@ export async function approveMonth(
   month: string,
   approvedBy: string
 ): Promise<TuitionV2MonthDoc> {
+  const published = await publishInvoicesToApp(db, month, { actor: approvedBy });
+  return published.month;
+}
+
+export type PublishInvoicesToAppOptions = {
+  actor: string;
+  swimmerIds?: string[];
+  levels?: string[];
+};
+
+export async function publishInvoicesToApp(
+  db: Firestore,
+  month: string,
+  options: PublishInvoicesToAppOptions
+): Promise<{
+  month: TuitionV2MonthDoc;
+  invoices: TuitionV2Invoice[];
+  publishedCount: number;
+  publishedSwimmerIds: string[];
+}> {
+  const invoices = await loadInvoices(db, month);
+  const targets = invoicesNeedingAppPublish(invoices, {
+    swimmerIds: options.swimmerIds,
+    levels: options.levels,
+  });
+  const monthRef = db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month);
+  const monthSnap = await monthRef.get();
+  const monthDoc = normalizeMonthDoc(month, monthSnap.data());
+  if (targets.length === 0) {
+    return { month: monthDoc, invoices, publishedCount: 0, publishedSwimmerIds: [] };
+  }
+
   const now = new Date().toISOString();
-  await db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).set(
-    {
-      status: "approved",
-      approvedAt: now,
-      approvedBy,
-      updatedAt: now,
-    },
-    { merge: true }
-  );
-  const snap = await db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).get();
-  return normalizeMonthDoc(month, snap.data());
+  const writes: Parameters<typeof commitWrites>[1] = targets.map((inv) => ({
+    type: "set",
+    ref: invoicesCol(db, month).doc(inv.swimmerId),
+    data: { publishedToApp: true, publishedAt: now, updatedAt: now },
+    merge: true,
+  }));
+  await commitWrites(db, writes);
+
+  const publishedIds = new Set(targets.map((t) => t.swimmerId));
+  return {
+    month: monthDoc,
+    invoices: invoices.map((inv) =>
+      publishedIds.has(inv.swimmerId)
+        ? { ...inv, publishedToApp: true, publishedAt: now, updatedAt: now }
+        : inv
+    ),
+    publishedCount: targets.length,
+    publishedSwimmerIds: targets.map((t) => t.swimmerId),
+  };
+}
+
+export async function unpublishInvoicesFromApp(
+  db: Firestore,
+  month: string,
+  options: PublishInvoicesToAppOptions
+): Promise<{
+  month: TuitionV2MonthDoc;
+  invoices: TuitionV2Invoice[];
+  unpublishedCount: number;
+  unpublishedSwimmerIds: string[];
+}> {
+  const invoices = await loadInvoices(db, month);
+  const targets = invoicesPublishedToApp(invoices, {
+    swimmerIds: options.swimmerIds,
+    levels: options.levels,
+  });
+  const monthRef = db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month);
+  const monthSnap = await monthRef.get();
+  const monthDoc = normalizeMonthDoc(month, monthSnap.data());
+  if (targets.length === 0) {
+    return { month: monthDoc, invoices, unpublishedCount: 0, unpublishedSwimmerIds: [] };
+  }
+
+  const now = new Date().toISOString();
+  const writes: Parameters<typeof commitWrites>[1] = targets.map((inv) => ({
+    type: "set",
+    ref: invoicesCol(db, month).doc(inv.swimmerId),
+    data: { publishedToApp: false, publishedAt: FieldValue.delete(), updatedAt: now },
+    merge: true,
+  }));
+  await commitWrites(db, writes);
+
+  const unpublishedIds = new Set(targets.map((t) => t.swimmerId));
+  return {
+    month: monthDoc,
+    invoices: invoices.map((inv) =>
+      unpublishedIds.has(inv.swimmerId)
+        ? { ...inv, publishedToApp: false, publishedAt: undefined, updatedAt: now }
+        : inv
+    ),
+    unpublishedCount: targets.length,
+    unpublishedSwimmerIds: targets.map((t) => t.swimmerId),
+  };
 }
 
 export async function updateInvoice(
@@ -360,29 +465,18 @@ export async function updateInvoice(
     next.amount = patch.amount;
   }
 
-  await ref.set(withoutUndefined(next as unknown as Record<string, unknown>), { merge: true });
-
-  const emailOnly =
-    patch.dueDate !== undefined ||
-    patch.afterFeeNote !== undefined ||
-    patch.months !== undefined ||
-    patch.parentEmail !== undefined ||
-    patch.parentName !== undefined ||
-    patch.paid !== undefined;
-
   const affectsTuition = patch.amount !== undefined || patch.manualOverride !== undefined;
-
-  if (affectsTuition && !emailOnly) {
-    await db.collection(TUITION_V2_MONTHS_COLLECTION).doc(month).set(
-      {
-        status: "computed",
-        approvedAt: FieldValue.delete(),
-        approvedBy: FieldValue.delete(),
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+  if (affectsTuition) {
+    next.publishedToApp = false;
+    next.publishedAt = undefined;
   }
 
+  const data = withoutUndefined(next as unknown as Record<string, unknown>);
+  if (affectsTuition) {
+    data.publishedToApp = false;
+    data.publishedAt = FieldValue.delete();
+  }
+
+  await ref.set(data, { merge: true });
   return next;
 }

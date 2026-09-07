@@ -101,19 +101,10 @@ function siblingGroupMeetsMinDays(
   rowsById: Map<string, SiblingDiscountRow>,
   trainingEligibilityById: Map<string, SwimmerTrainingEligibility>
 ): boolean {
-  for (const swimmerId of component) {
-    const eligibility = getTrainingEligibility(
-      swimmerId,
-      rowsById,
-      trainingEligibilityById
-    );
+  for (const id of component) {
+    const eligibility = getTrainingEligibility(id, rowsById, trainingEligibilityById);
     if (!eligibility) return false;
-    if (
-      !swimmerMeetsMinDaysPerWeek(
-        eligibility.trainingWeekdays,
-        eligibility.minDaysPerWeek
-      )
-    ) {
+    if (!swimmerMeetsMinDaysPerWeek(eligibility.trainingWeekdays, eligibility.minDaysPerWeek)) {
       return false;
     }
   }

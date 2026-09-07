@@ -31,3 +31,17 @@ export type TrainingRosterDoc = {
 };
 
 export const TRAINING_ROSTERS_COLLECTION = "training_rosters";
+
+/** Drop levels (and time slots) that nobody attends. */
+export function omitEmptyRosterLevels(slots: TrainingRosterSlot[]): TrainingRosterSlot[] {
+  return slots
+    .map((slot) => {
+      const levels = (slot.levels ?? []).filter((l) => l.count > 0);
+      return {
+        ...slot,
+        levels,
+        totalCount: levels.reduce((sum, l) => sum + l.count, 0),
+      };
+    })
+    .filter((slot) => slot.levels.length > 0);
+}

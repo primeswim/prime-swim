@@ -31,6 +31,7 @@ import {
   diffInDays,
   RENEWAL_WINDOW_DAYS,
 } from "@/lib/membership"
+import type { ParentTuitionView } from "@/lib/tuition-v2/parent-tuition"
 
 type SwimmerWithMakeup = Swimmer & {
   nextMakeupText?: string
@@ -47,6 +48,7 @@ type SwimmerWithMakeup = Swimmer & {
   membershipPaused?: boolean
   membershipPausedAt?: string | FBTimestamp
   paymentStatus?: string    // ✅ 读取 swimmers.paymentStatus：'pending' | 'paid' | null/undefined
+  tuition?: ParentTuitionView | null
 }
 
 type RSVPStatus = "yes" | "no" | "none"
@@ -653,6 +655,44 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 mb-3">
                         <div className="text-sm text-yellow-800">
                           <span className="font-medium">Payment pending </span> – waiting for admin confirmation.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tuition: one current period; amount only after website publish/send */}
+                    {swimmer.tuition && (
+                      <div className="mt-3 p-3 rounded-lg border bg-white">
+                        <div className="text-sm text-slate-600">
+                          <div className="flex items-center justify-between gap-3">
+                            <span>Tuition · {swimmer.tuition.monthLabel}</span>
+                            {swimmer.tuition.status === "calculating" ? (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                                {swimmer.tuition.statusLabel}
+                              </span>
+                            ) : (
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  swimmer.tuition.paid
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {swimmer.tuition.statusLabel}
+                              </span>
+                            )}
+                          </div>
+                          {swimmer.tuition.status === "calculating" ? (
+                            <p className="text-xs text-slate-500 mt-1">Amount will appear after the academy finalizes this month.</p>
+                          ) : (
+                            <div className="mt-1">
+                              <b className="text-slate-800">
+                                ${swimmer.tuition.amount}
+                              </b>
+                              {swimmer.tuition.dueDate && (
+                                <span className="text-slate-500 text-xs ml-2">Due {swimmer.tuition.dueDate}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

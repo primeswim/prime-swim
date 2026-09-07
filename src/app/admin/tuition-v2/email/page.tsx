@@ -271,7 +271,10 @@ function TuitionV2EmailContent() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Tuition V2 — Email</h1>
-            <p className="text-sm text-muted-foreground">Email fields and sending only. Amounts come from Review.</p>
+            <p className="text-sm text-muted-foreground">
+              Email fields and sending only. Amounts come from Review. Sending publishes that
+              swimmer to the app. A later tuition change unpublishes only that swimmer.
+            </p>
           </div>
           <Input
             type="month"

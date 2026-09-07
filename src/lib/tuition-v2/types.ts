@@ -145,6 +145,9 @@ export type TuitionV2Invoice = {
   lastSentAt?: string;
   lastEmailKind?: string;
   firstInvoiceSentAt?: string;
+  /** Parent/app can see this amount only after an explicit publish (or send). */
+  publishedToApp?: boolean;
+  publishedAt?: string;
   updatedAt?: string;
 };
 

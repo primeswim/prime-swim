@@ -13,6 +13,7 @@ import {
 import { loadSwimmerResponses } from "@/lib/tuition-v2/swimmer-response-service";
 import {
   TRAINING_ROSTERS_COLLECTION,
+  omitEmptyRosterLevels,
   type TrainingRosterAttendee,
   type TrainingRosterDoc,
   type TrainingRosterLevelGroup,
@@ -25,7 +26,7 @@ export type {
   TrainingRosterLevelGroup,
   TrainingRosterSlot,
 } from "@/lib/training-roster-types";
-export { TRAINING_ROSTERS_COLLECTION } from "@/lib/training-roster-types";
+export { TRAINING_ROSTERS_COLLECTION, omitEmptyRosterLevels } from "@/lib/training-roster-types";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -115,7 +116,7 @@ export async function computeTrainingRoster(
   for (const [sessionId, attendees] of attendeesBySession) {
     const meta = sessionMeta.get(sessionId);
     if (!meta) continue;
-    // Include sessions even with 0 attendees so coaches see empty slots
+    if (attendees.length === 0) continue;
     sessionCount += 1;
     const key = slotKey(meta.date, meta.timeSlot, meta.location);
     let slot = slotMap.get(key);
@@ -150,6 +151,7 @@ export async function computeTrainingRoster(
           count: attendees.length,
           attendees: attendees.sort((a, b) => a.swimmerName.localeCompare(b.swimmerName)),
         }))
+        .filter((l) => l.count > 0)
         .sort((a, b) => a.level.localeCompare(b.level));
       const totalCount = levels.reduce((sum, l) => sum + l.count, 0);
       return {
@@ -162,6 +164,7 @@ export async function computeTrainingRoster(
         totalCount,
       };
     })
+    .filter((slot) => slot.levels.length > 0)
     .sort((a, b) => {
       const byDate = a.date.localeCompare(b.date);
       if (byDate !== 0) return byDate;
@@ -194,7 +197,7 @@ export async function loadTrainingRoster(
     sessionCount: typeof raw.sessionCount === "number" ? raw.sessionCount : 0,
     slotCount: typeof raw.slotCount === "number" ? raw.slotCount : raw.slots.length,
     uniqueSwimmerCount: typeof raw.uniqueSwimmerCount === "number" ? raw.uniqueSwimmerCount : 0,
-    slots: raw.slots,
+    slots: omitEmptyRosterLevels(Array.isArray(raw.slots) ? raw.slots : []),
   };
 }
 
