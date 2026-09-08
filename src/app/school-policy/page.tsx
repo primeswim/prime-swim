@@ -16,6 +16,7 @@ import {
   Mail,
   ChevronRight,
   ArrowUp,
+  RefreshCw,
 } from "lucide-react"
 
 const policies = [
@@ -26,8 +27,21 @@ const policies = [
     content: [
       "Before any group lesson practice begins, each family must: (1) create a parent account, (2) add the child as a swimmer, and (3) finish registration (including required forms/waivers, emergency contacts, etc).",
       "Completion of registration activates insurance coverage for practices and program activities. For safety and liability reasons, swimmers who have not finished registration may not participate in group practices.",
-      "Returning families must keep all information up to date (medical/emergency contacts, waivers, and payment details) and complete renewals as required by the club/LSC.",
+      "Returning families — families who stay with Prime Swim Academy from season to season and did not leave for another team — must keep all information up to date (medical/emergency contacts, waivers, and payment details) and complete renewals as required by the club/LSC.",
+      "Returned swimmers who previously trained here, later joined another team, and then come back are not a simple returning-family renewal. They follow the Returned Swimmer Re-Enrollment policy below.",
       "Coaches and staff may verify a swimmer’s registration status at check-in; proof of registration may be requested.",
+    ],
+  },
+  {
+    id: "returned-swimmer",
+    title: "Returned Swimmer Re-Enrollment",
+    icon: RefreshCw,
+    content: [
+      "This policy applies to returned swimmers: athletes who previously trained with Prime Swim Academy, later joined another team, and then request to come back.",
+      "A returned swimmer must complete an evaluation or tryout before re-joining. The evaluation/tryout fee is $100.",
+      "When the swimmer resumes practice with Prime Swim Academy, a $150 re-enrollment fee is required. This fee covers the re-enrollment process, including reviewing the swimmer’s current development, determining the appropriate training group, securing the spot, and updating the placement within the program.",
+      "The $100 evaluation/tryout fee and the $150 re-enrollment fee are non-refundable.",
+      "Regular team tuition is billed month by month. A returned swimmer’s first tuition payment must prepay three (3) months of tuition. After that first prepaid period, tuition continues on the regular month-by-month schedule. This three-month commitment is intended to provide consistency for the swimmer, the coaching staff, and the training group. It also allows the coaching staff sufficient time to monitor the swimmer’s progress, establish training goals, and support meaningful development within the Prime program.",
     ],
   },
   // NEW: Attendance & Spot Reservation policy per request
