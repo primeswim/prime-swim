@@ -109,7 +109,7 @@ function testNewInvoiceStaysUnpublishedUntilExplicitPublish() {
 function testParentViewHidesDraftAmount() {
   const hidden = toParentTuitionView("2026-10", "computed", invoice({ amount: 999 }));
   assert(hidden.status === "calculating", "status calculating");
-  assert(hidden.statusLabel === "核算中", "label 核算中");
+  assert(hidden.statusLabel === "Calculating", "label Calculating");
   assert(hidden.amount === null, "amount stripped");
 
   const ready = toParentTuitionView(

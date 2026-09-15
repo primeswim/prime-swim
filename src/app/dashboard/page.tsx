@@ -7,12 +7,11 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { Swimmer } from "@/types"
 import Footer from "@/components/footer"
-import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2, TrendingUp, Calendar, CheckCircle2, XCircle } from "lucide-react"
+import { User, Users, Plus, LogOut, Settings, Waves, MoreHorizontal, Trash2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,9 +28,10 @@ import {
   getEffectiveNowForMembership,
   fmt,
   diffInDays,
-  RENEWAL_WINDOW_DAYS,
 } from "@/lib/membership"
 import type { ParentTuitionView } from "@/lib/tuition-v2/parent-tuition"
+import type { ParentMeetCard } from "@/lib/meets/parent-view"
+import { PnsMeetLink } from "@/components/pns-meet-link"
 
 type SwimmerWithMakeup = Swimmer & {
   nextMakeupText?: string
@@ -49,15 +49,7 @@ type SwimmerWithMakeup = Swimmer & {
   membershipPausedAt?: string | FBTimestamp
   paymentStatus?: string    // ✅ 读取 swimmers.paymentStatus：'pending' | 'paid' | null/undefined
   tuition?: ParentTuitionView | null
-}
-
-type RSVPStatus = "yes" | "no" | "none"
-
-type EventLite = {
-  id: string
-  text?: string
-  startsAt?: string | null // ISO
-  active?: boolean
+  usaSwimmingId?: string
 }
 
 // ---------------- Firestore Timestamp 兼容 ----------------
@@ -70,10 +62,6 @@ function tsToDate(v: FBTimestamp): Date | undefined {
 }
 
 // ---------------- 日期 & 字符串工具 ----------------
-function startOfTodayLocal() {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
-}
 function parseIsoSafe(s?: string | null): Date | null {
   if (!s) return null
   const t = Date.parse(s)
@@ -103,56 +91,22 @@ function formatRegisteredOn(value: unknown): string | null {
   }
   return null
 }
-function isUpcomingOrToday(evDate: Date) {
-  const eventDay = new Date(evDate.getFullYear(), evDate.getMonth(), evDate.getDate())
-  return eventDay.getTime() >= startOfTodayLocal().getTime()
-}
-function isLocked1h(evDate: Date) {
-  const now = Date.now()
-  const diffMs = evDate.getTime() - now
-  return diffMs <= 60 * 60 * 1000
-}
-function formatStartsAt(d?: Date | null) {
-  if (!d) return ""
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  })
-}
-function normalizeId(s?: string | null) {
-  return (s || "").trim()
-}
-
-// 将 /api/makeup/events 结果做成索引
-type EventIndexEntry = {
-  startsAt?: string | null
-  isUpcoming: boolean
-  isLocked: boolean
-  text?: string
-}
-
 export default function DashboardPage() {
   const router = useRouter()
   const [parentEmail, setParentEmail] = useState<string>("")
   const [swimmers, setSwimmers] = useState<SwimmerWithMakeup[]>([])
   const [loading, setLoading] = useState(true)
 
-  // RSVP
-  const [rsvpMap, setRsvpMap] = useState<Record<string, RSVPStatus>>({})
-  const [busy, setBusy] = useState<Record<string, boolean>>({})
-
   // Renew busy
   const [renewBusyMap] = useState<Record<string, boolean>>({})
 
-  // 事件索引 + 加载状态
-  const [eventsIndex, setEventsIndex] = useState<Record<string, EventIndexEntry>>({})
-  const [eventsLoaded, setEventsLoaded] = useState(false)
-
   // 每个 swimmer 是否存在未完成付款（payments.status = 'pending'）
   const [pendingMap, setPendingMap] = useState<Record<string, { paymentId: string }>>({})
+  const [meetsBySwimmer, setMeetsBySwimmer] = useState<Record<string, ParentMeetCard[]>>({})
+  const [meetPayments, setMeetPayments] = useState<ParentMeetCard[]>([])
+  const [omrUrl, setOmrUrl] = useState("")
+  const [usaIdDraft, setUsaIdDraft] = useState<Record<string, string>>({})
+  const [meetBusy, setMeetBusy] = useState("")
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
@@ -200,8 +154,23 @@ export default function DashboardPage() {
         })
         const data = await res.json()
         if (!res.ok || !data?.ok) throw new Error(data?.error || "Load swimmers failed")
-        setSwimmers((data.swimmers || []) as SwimmerWithMakeup[])
+        const loaded = (data.swimmers || []) as SwimmerWithMakeup[]
+        setSwimmers(loaded)
+        setUsaIdDraft(Object.fromEntries(loaded.map((s) => [s.id, s.usaSwimmingId || ""])))
         setPendingMap((data.pendingMap || {}) as Record<string, { paymentId: string }>)
+        try {
+          const meetRes = await fetch("/api/meets/dashboard", {
+            headers: { Authorization: `Bearer ${idToken}` },
+          })
+          const meetJson = await meetRes.json()
+          if (meetRes.ok && meetJson?.ok) {
+            setMeetsBySwimmer(meetJson.meetsBySwimmer || {})
+            setMeetPayments(meetJson.payments || [])
+            setOmrUrl(meetJson.settings?.usaSwimmingOmrUrl || "")
+          }
+        } catch (meetErr) {
+          console.error("Load dashboard meets failed:", meetErr)
+        }
       } catch (e) {
         console.error("Load dashboard swimmers failed:", e)
       } finally {
@@ -214,87 +183,56 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // 拉取 events 索引
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const u = auth.currentUser
-        if (!u) return
-        const idToken = await u.getIdToken(true)
-        const res = await fetch("/api/makeup/events", {
-          headers: { Authorization: `Bearer ${idToken}` },
-        })
-        const data = await res.json()
-        if (!res.ok || !data?.ok) throw new Error(data?.error || "Load events failed")
+  const saveUsaSwimmingId = async (swimmerId: string) => {
+    try {
+      setMeetBusy(`usa-${swimmerId}`)
+      const u = auth.currentUser
+      if (!u) throw new Error("Not signed in")
+      const idToken = await u.getIdToken(true)
+      const res = await fetch("/api/meets/usa-swimming-id", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ swimmerId, usaSwimmingId: usaIdDraft[swimmerId] || "" }),
+      })
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error || "Could not save USA Swimming ID")
+      setSwimmers((prev) =>
+        prev.map((s) => (s.id === swimmerId ? { ...s, usaSwimmingId: json.swimmer.usaSwimmingId } : s))
+      )
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not save USA Swimming ID")
+    } finally {
+      setMeetBusy("")
+    }
+  }
 
-        const idx: Record<string, EventIndexEntry> = {}
-        ;(data.events as EventLite[]).forEach((ev) => {
-          const d = parseIsoSafe(ev.startsAt ?? null)
-          if (d) {
-            idx[ev.id] = {
-              startsAt: ev.startsAt,
-              isUpcoming: isUpcomingOrToday(d),
-              isLocked: isLocked1h(d),
-              text: ev.text && ev.text.trim().length ? ev.text : formatStartsAt(d),
-            }
-          } else {
-            idx[ev.id] = {
-              startsAt: null,
-              isUpcoming: ev.active === true,
-              isLocked: false,
-              text: (ev.text || "").trim() || undefined,
-            }
-          }
-        })
-
-        setEventsIndex(idx)
-      } catch (e) {
-        console.error("Load events index failed:", e)
-        setEventsIndex({})
-      } finally {
-        setEventsLoaded(true)
-      }
-    })()
-  }, [])
-
-  // 批量加载 RSVP 回显
-  useEffect(() => {
-    ;(async () => {
-      const pairs = swimmers
-        .filter((s) => s.id && s.nextMakeupId)
-        .map((s) => ({
-          swimmerId: s.id!,
-          makeupId: normalizeId(s.nextMakeupId),
-        }))
-
-      if (!pairs.length) return
-
-      try {
-        const u = auth.currentUser
-        if (!u) return
-        const idToken = await u.getIdToken(true)
-
-        const res = await fetch("/api/makeup/rsvp", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ pairs }),
-        })
-
-        const payload = await res.json()
-        if (!res.ok || !payload?.ok) {
-          throw new Error(payload?.error || `status load failed (${res.status})`)
-        }
-
-        const map: Record<string, RSVPStatus> = payload.map || {}
-        setRsvpMap((prev) => ({ ...prev, ...map }))
-      } catch (err) {
-        console.error("Load RSVP status failed:", err)
-      }
-    })()
-  }, [swimmers])
+  const reportMeetPayment = async (meetId: string, swimmerId: string) => {
+    try {
+      setMeetBusy(`pay-${meetId}-${swimmerId}`)
+      const u = auth.currentUser
+      if (!u) throw new Error("Not signed in")
+      const idToken = await u.getIdToken(true)
+      const res = await fetch(`/api/meets/${meetId}/payment`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ swimmerId }),
+      })
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error || "Could not report payment")
+      const patch = (card: ParentMeetCard) =>
+        card.meetId === meetId && card.swimmerId === swimmerId
+          ? { ...card, paymentStatus: "payment_reported" as const }
+          : card
+      setMeetPayments((prev) => prev.map(patch))
+      setMeetsBySwimmer((prev) =>
+        Object.fromEntries(Object.entries(prev).map(([id, cards]) => [id, cards.map(patch)]))
+      )
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not report payment")
+    } finally {
+      setMeetBusy("")
+    }
+  }
 
   const calculateAge = (dateOfBirth: string) => {
     const today = new Date()
@@ -305,47 +243,6 @@ export default function DashboardPage() {
       age--
     }
     return age
-  }
-
-  // 提交 RSVP
-  const handleRSVP = async (swimmer: SwimmerWithMakeup, status: RSVPStatus) => {
-    if (!swimmer.nextMakeupId) return
-    const makeupId = normalizeId(swimmer.nextMakeupId)
-    const key = `${swimmer.id}_${makeupId}`
-    try {
-      setBusy((b) => ({ ...b, [key]: true }))
-
-      const u = auth.currentUser
-      if (!u) throw new Error("Not signed in")
-      const idToken = await u.getIdToken(true)
-
-      const res = await fetch("/api/makeup/rsvp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          swimmerId: swimmer.id,
-          makeupId,
-          status,
-        }),
-      })
-
-      const ctype = res.headers.get("content-type") || ""
-      const payload = ctype.includes("application/json") ? await res.json() : { ok: false, error: await res.text() }
-
-      if (!res.ok || !payload.ok) {
-        throw new Error(payload.error || `RSVP failed (${res.status})`)
-      }
-
-      setRsvpMap((m) => ({ ...m, [key]: status }))
-    } catch (e) {
-      console.error("RSVP update failed:", e)
-      alert(e instanceof Error ? e.message : "Failed to update RSVP.")
-    } finally {
-      setBusy((b) => ({ ...b, [key]: false }))
-    }
   }
 
   // ✅ Renew：只负责跳转到 renew 页面，不创建 payment
@@ -485,25 +382,6 @@ export default function DashboardPage() {
 
           <div className="grid lg:grid-cols-2 gap-6">
             {swimmers.map((swimmer) => {
-              // —— Make-up —— //
-              const nextText = swimmer.nextMakeupText || ""
-              const rawNextId = swimmer.nextMakeupId || ""
-              const nextId = normalizeId(rawNextId)
-              const rsvpKey = nextId ? `${swimmer.id}_${nextId}` : ""
-              const rsvp = rsvpKey ? (rsvpMap[rsvpKey] || "none") : "none"
-              const isBusy = rsvpKey ? !!busy[rsvpKey] : false
-              const evt = nextId ? eventsIndex[nextId] : undefined
-              const showMakeup =
-                !!nextId && (
-                  !eventsLoaded ||
-                  !evt ||
-                  evt.isUpcoming
-                )
-              const displayText =
-                nextText ||
-                evt?.text ||
-                (evt?.startsAt ? formatStartsAt(parseIsoSafe(evt.startsAt)) : "")
-              const locked = evt?.isLocked ?? false
 
               // —— 会员状态计算 —— //
               const hasPending = !!pendingMap[swimmer.id]
@@ -651,6 +529,41 @@ export default function DashboardPage() {
 
                   <CardContent>
                     {/* Payment pending 提醒（仅当存在未完成付款单且未标记为已付费） */}
+                    <div className="mb-3 p-3 rounded-lg border bg-white">
+                      <div className="text-sm font-medium text-slate-800">USA Swimming ID</div>
+                      {swimmer.usaSwimmingId ? (
+                        <p className="text-sm text-slate-600 mt-1">{swimmer.usaSwimmingId}</p>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          <p className="text-xs text-slate-500">
+                            Required to Attend a meet. Register Premium / year-round with the club link, then save the ID.
+                          </p>
+                          {omrUrl ? (
+                            <a href={omrUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-700 underline">
+                              Open club USA Swimming registration
+                            </a>
+                          ) : (
+                            <p className="text-xs text-amber-700">Club registration link is not set yet. Ask Prime admin.</p>
+                          )}
+                          <div className="flex gap-2">
+                            <input
+                              className="flex-1 border rounded-md px-2 py-1 text-sm"
+                              value={usaIdDraft[swimmer.id] || ""}
+                              onChange={(e) => setUsaIdDraft((prev) => ({ ...prev, [swimmer.id]: e.target.value }))}
+                              placeholder="USA Swimming ID"
+                            />
+                            <Button
+                              size="sm"
+                              disabled={meetBusy === `usa-${swimmer.id}`}
+                              onClick={() => saveUsaSwimmingId(swimmer.id)}
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {hasPendingPayment && (
                       <div className="flex items-center justify-between rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 mb-3">
                         <div className="text-sm text-yellow-800">
@@ -697,20 +610,87 @@ export default function DashboardPage() {
                       </div>
                     )}
 
-                    {/* Membership info + Action */}
-                    <div className="mt-3 p-3 rounded-lg border bg-slate-50">
-                      <div className="text-sm text-slate-600">
-                        <div>
-                          Membership Due: <b>{fmt(nextDue)}</b>{" "}
-                          {typeof daysLeft === "number" && nextDue && (
-                            <em className="text-slate-500">
-                              ({daysLeft >= 0 ? `in ${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`})
-                            </em>
-                          )}
+                    {(meetsBySwimmer[swimmer.id] || [])
+                      .filter((meet) => meet.eventLabel !== "confirmed")
+                      .slice(0, 3)
+                      .map((meet) => (
+                      <div key={meet.meetId} className="mt-3 p-3 rounded-lg border bg-white">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="font-medium text-slate-800">
+                            Upcoming meet · {meet.name}
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                            {meet.eventLabel === "pending_for_review"
+                              ? "Pending for review"
+                              : meet.attendance === "attend"
+                              ? "Attending"
+                              : meet.attendance === "decline"
+                              ? "Declined"
+                              : "No response"}
+                          </span>
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
-                          Renewal window: {RENEWAL_WINDOW_DAYS} days before expiration
+                          {meet.startDate} · Prime deadline {meet.primeCommitmentDeadline || "TBD"}
                         </div>
+                        {meet.eventLabel === "pending_for_review" && meet.estimatedFee != null && (
+                          <div className="mt-1 text-xs text-slate-500">Estimated host fee ${meet.estimatedFee.toFixed(2)} (not confirmed)</div>
+                        )}
+                        <div className="flex flex-wrap gap-3 mt-1">
+                          <Link href={`/meets/${meet.meetId}?swimmerId=${swimmer.id}`} className="text-xs text-blue-700 underline">
+                            {meet.attendance === "no_response" ? "Respond" : "View events"}
+                          </Link>
+                          <PnsMeetLink sourceKey={meet.sourceKey} className="text-xs text-blue-700 underline" />
+                        </div>
+                      </div>
+                    ))}
+
+                    {(meetsBySwimmer[swimmer.id] || [])
+                      .filter((meet) => meet.eventLabel === "confirmed" && (meet.finalFee || 0) > 0)
+                      .map((meet) => (
+                      <div key={`inv-${meet.meetId}`} className="mt-3 p-3 rounded-lg border bg-white">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="font-medium text-slate-800">Meet · {meet.name}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                            {meet.paymentStatus === "paid"
+                              ? "Paid"
+                              : meet.paymentStatus === "payment_reported"
+                              ? "Payment reported"
+                              : "Unpaid"}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">Host entry fees (pass-through) · pay Prime</div>
+                        <div className="mt-1 text-sm"><b>${(meet.finalFee || 0).toFixed(2)}</b></div>
+                        {meet.paymentDueAt && (
+                          <div className="text-xs text-slate-500">Due {meet.paymentDueAt.slice(0, 10)}</div>
+                        )}
+                        <div className="flex gap-3 mt-2">
+                          <Link href={`/meets/${meet.meetId}?swimmerId=${swimmer.id}`} className="text-xs text-blue-700 underline">
+                            View events
+                          </Link>
+                          <PnsMeetLink sourceKey={meet.sourceKey} className="text-xs text-blue-700 underline" />
+                          {meet.paymentStatus === "invoice_ready" && (
+                            <button
+                              className="text-xs text-slate-800 underline"
+                              disabled={meetBusy === `pay-${meet.meetId}-${swimmer.id}`}
+                              onClick={() => reportMeetPayment(meet.meetId, swimmer.id)}
+                            >
+                              I have sent payment
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {(canShowRenew || hasPendingPayment) && (
+                    <div className="mt-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                      <div className="text-sm font-medium text-amber-950">Membership payment</div>
+                      <div className="text-sm text-amber-900 mt-1">
+                        Due <b>{fmt(nextDue)}</b>{" "}
+                        {typeof daysLeft === "number" && nextDue && (
+                          <em className="text-amber-800 not-italic">
+                            ({daysLeft >= 0 ? `in ${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`})
+                          </em>
+                        )}
                       </div>
 
                       <div className="mt-3">
@@ -724,128 +704,58 @@ export default function DashboardPage() {
                           <div className="text-xs text-slate-500">
                             Payment pending / awaiting admin review.
                           </div>
-                        ) : canShowRenew ? (
+                        ) : (
                           <Button
                             onClick={() => handleRenew(swimmer)}
                             disabled={renewBusy}
                             className="bg-slate-800 text-white"
                           >
-                            {renewBusy ? "Processing..." : "Renew"}
+                            {renewBusy ? "Processing..." : "Pay membership"}
                           </Button>
-                        ) : (
-                          <div className="text-xs text-slate-500">
-                            Membership is active. No action needed.
-                          </div>
                         )}
                       </div>
                     </div>
+                    )}
 
-                    {/* Next make-up class + RSVP */}
-                    <div className="mt-4 p-4 rounded-lg border-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-blue-600" />
-                          Make-up Class
-                        </h3>
-                        {rsvp !== "none" && (
-                          <Badge
-                            className={
-                              rsvp === "yes"
-                                ? "bg-green-100 text-green-700 border-green-200"
-                                : "bg-red-100 text-red-700 border-red-200"
-                            }
-                          >
-                            {rsvp === "yes" ? "✅ Going" : "❌ Not going"}
-                          </Badge>
-                        )}
-                      </div>
-                      {showMakeup && displayText ? (
-                        <>
-                          <div className="font-medium text-slate-800 mb-4 text-base leading-relaxed">{displayText}</div>
-                          <div className="flex gap-2">
-                            <Button
-                              disabled={!nextId || isBusy || locked}
-                              onClick={() => handleRSVP(swimmer, "yes")}
-                              className={`flex-1 rounded-lg transition-all ${
-                                rsvp === "yes"
-                                  ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
-                                  : "bg-white hover:bg-green-50 text-green-600 border-2 border-green-200 hover:border-green-300"
-                              }`}
-                            >
-                              {isBusy && rsvp !== "yes" ? (
-                                "Saving..."
-                              ) : rsvp === "yes" ? (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                                  Going
-                                </>
-                              ) : (
-                                "I'm going"
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              disabled={!nextId || isBusy || locked}
-                              onClick={() => handleRSVP(swimmer, "no")}
-                              className={`flex-1 rounded-lg transition-all ${
-                                rsvp === "no"
-                                  ? "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md"
-                                  : "bg-white hover:bg-red-50 text-red-600 border-2 border-red-200 hover:border-red-300"
-                              }`}
-                            >
-                              {isBusy && rsvp !== "no" ? (
-                                "Saving..."
-                              ) : rsvp === "no" ? (
-                                <>
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Not going
-                                </>
-                              ) : (
-                                "Not going"
-                              )}
-                            </Button>
-                          </div>
-                          {locked ? (
-                            <div className="text-xs text-slate-500 mt-3 bg-yellow-50 border border-yellow-200 rounded p-2">
-                              ⚠️ Changes are locked within 1 hour of class.
-                            </div>
-                          ) : rsvp !== "none" ? (
-                            <div className="text-xs text-slate-600 mt-3">
-                              ✓ Your selection has been recorded.
-                            </div>
-                          ) : (
-                            <div className="text-xs text-slate-500 mt-3">
-                              Please let us know if you&apos;ll be attending.
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="text-slate-500 text-sm text-center py-2">No make-up class announced yet.</div>
-                      )}
-                    </div>
-
-                    {/* Evaluation History */}
-                    <div className="mt-4 p-3 rounded-lg border bg-gradient-to-br from-blue-50 to-indigo-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-blue-600" />
-                          <span className="text-sm font-medium text-slate-800">Evaluation History</span>
-                        </div>
-                        <Link href={`/evaluations/${swimmer.id}`}>
-                          <Button variant="outline" size="sm" className="rounded-full">
-                            View Progress
-                          </Button>
-                        </Link>
-                      </div>
-                      <p className="text-xs text-slate-600 mt-2">
-                        Track your child&apos;s swimming skills and progress over time
-                      </p>
-                    </div>
                   </CardContent>
                 </Card>
               )
             })}
           </div>
+
+          {meetPayments.length > 0 && (
+            <Card className="mt-8 border-0 shadow-lg bg-white">
+              <CardHeader>
+                <CardTitle>Payments to Prime · Meet fees</CardTitle>
+                <CardDescription>Separate from tuition. These are pass-through host entry fees.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {meetPayments.map((p) => (
+                  <div key={`${p.meetId}-${p.swimmerId}`} className="flex items-center justify-between gap-3 text-sm border rounded-md px-3 py-2">
+                    <div>
+                      <div className="font-medium">{p.name}</div>
+                      <div className="text-xs text-slate-500">
+                        Host entry fees · {p.paymentStatus === "paid" ? "Paid" : p.paymentStatus === "payment_reported" ? "Waiting for confirmation" : "Unpaid"}
+                        {p.paymentDueAt ? ` · due ${p.paymentDueAt.slice(0, 10)}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">${(p.finalFee || 0).toFixed(2)}</div>
+                      {p.paymentStatus === "invoice_ready" && p.swimmerId && (
+                        <button
+                          className="text-xs text-blue-700 underline"
+                          disabled={meetBusy === `pay-${p.meetId}-${p.swimmerId}`}
+                          onClick={() => reportMeetPayment(p.meetId, p.swimmerId!)}
+                        >
+                          I have sent payment
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Empty State */}
           {swimmers.length === 0 && (

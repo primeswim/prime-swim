@@ -25,6 +25,7 @@ type SwimmerOut = {
   isFrozen?: boolean;
   membershipPaused?: boolean;
   membershipPausedAt?: unknown;
+  usaSwimmingId?: string;
   tuition?: ParentTuitionView | null;
 };
 
@@ -102,6 +103,7 @@ export async function GET(req: Request) {
         isFrozen: !!data.isFrozen,
         membershipPaused: !!data.membershipPaused,
         membershipPausedAt: toIsoOrNull(data.membershipPausedAt),
+        usaSwimmingId: data.usaSwimmingId || "",
         tuition: tuitionBundle.bySwimmerId[d.id] ?? null,
       };
     });

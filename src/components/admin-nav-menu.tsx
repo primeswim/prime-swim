@@ -64,6 +64,8 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
           <MobileLink href="/admin/clinic/registrations" nested>Clinic Registrations</MobileLink>
         </MobileSection>
         <MobileSection title="Events & Evaluations">
+          <MobileLink href="/admin/meets">Meets</MobileLink>
+          <MobileLink href="/admin/meets/payments" nested>Meet payments</MobileLink>
           <MobileLink href="/admin/events">Events</MobileLink>
           <MobileLink href="/admin/events/new" nested>New Event</MobileLink>
           <MobileLink href="/admin/evaluations">Evaluations</MobileLink>
@@ -160,6 +162,12 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
 
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Events & Evaluations</DropdownMenuLabel>
+      <DropdownMenuItem asChild>
+        <Link href="/admin/meets">Meets</Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/admin/meets/payments">Meet payments</Link>
+      </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/admin/events">Events</Link>
       </DropdownMenuItem>

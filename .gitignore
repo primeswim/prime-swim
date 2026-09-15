@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local e2e account bootstrap (contains passwords)
+scripts/create-meet-e2e-accounts.ts
+scripts/inspect-elena.ts
+scripts/_tmp-seed-*.ts
+
 # vercel
 .vercel
 

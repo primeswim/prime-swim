@@ -59,6 +59,7 @@ export default function RegisterPage() {
     childLastName: "",
     childDateOfBirth: "",
     childGender: "",
+    usaSwimmingId: "",
 
     // Parent Info
     parentFirstName: "",
@@ -260,6 +261,18 @@ export default function RegisterPage() {
                     </div>
                   </RadioGroup>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="usaSwimmingId">USA Swimming ID (optional)</Label>
+                <Input
+                  id="usaSwimmingId"
+                  value={formData.usaSwimmingId}
+                  onChange={(e) => handleInputChange("usaSwimmingId", e.target.value)}
+                  placeholder="Required later to Attend a meet"
+                />
+                <p className="text-xs text-slate-500">
+                  You can add this later from Dashboard or Meets. Without an ID the swimmer cannot Attend a published meet.
+                </p>
               </div>
             </CardContent>
           </Card>
