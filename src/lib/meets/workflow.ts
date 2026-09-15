@@ -43,6 +43,10 @@ export function canParentEditCommitment(status: MeetStatus, nowIso: string, dead
   return !isPrimeDeadlinePassed(deadline, nowIso);
 }
 
+export function canReopenRsvp(status: MeetStatus): boolean {
+  return status === "commitment_closed";
+}
+
 export function shouldAutoCloseRsvp(meet: Pick<Meet, "status" | "primeCommitmentDeadline">, nowIso: string): boolean {
   return meet.status === "commitment_open" && isPrimeDeadlinePassed(meet.primeCommitmentDeadline, nowIso);
 }
@@ -108,6 +112,10 @@ export function isPrePublishStatus(status: MeetStatus): boolean {
   return status === "draft" || status === "admin_review" || status === "invitation_pending" || status === "ready_to_publish";
 }
 
+export function canExportHostPacket(status: MeetStatus): boolean {
+  return !isPrePublishStatus(status) && status !== "commitment_open" && status !== "cancelled";
+}
+
 export function adminMeetGuide(
   meet: Pick<Meet, "status" | "meetType" | "invitationStatus" | "primeCommitmentDeadline">
 ): AdminMeetGuide {
@@ -171,13 +179,13 @@ export function adminMeetGuide(
       "Wait for the Prime Deadline, or close early if the meet fills. Upload the Event File here if the host sent it. The entry email stays hidden until RSVP closes.";
   } else if (current === "send_entries") {
     nextTitle = "Email the entry list to the host";
-    nextDetail = "RSVP is closed. This letter lists the athletes who Attended. It is not the invitation request.";
+    nextDetail = "RSVP is closed. Download the host file at the top of this page, then email it. If you closed too early, reopen RSVP so families can change Attend / Decline.";
   } else if (current === "host_reply") {
     nextTitle = "Record the host reply";
     nextDetail = "After they confirm or cut events, save a short note. Then you can uncheck cut events.";
   } else if (current === "confirm_families") {
     nextTitle = "Uncheck cut events, then show families the confirmed list";
-    nextDetail = "This does not reopen Attend / Decline. It only replaces Pending for review with the final events and fees.";
+    nextDetail = "This does not reopen Attend / Decline. It only replaces the current family event list with the final events and fees.";
   } else {
     nextDetail = "Families see the confirmed events and fees.";
   }

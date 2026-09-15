@@ -49,12 +49,15 @@ export interface PendingSourcePatch {
   startDate?: string;
   endDate?: string;
   location?: string;
+  hostClub?: string;
   pnsPublishedDeadline?: string;
   announcementUrl?: string;
   announcementText?: string;
   hostEntryEmail?: string;
   eventFileUrl?: string;
   sourceFiles?: PnsSourceFile[];
+  surcharge?: number;
+  individualEventFee?: number;
 }
 
 export interface MeetEvent {

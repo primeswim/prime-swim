@@ -19,6 +19,7 @@ type ActionBody =
   | { action: "acceptUpdate"; banner?: string }
   | { action: "dismissUpdate" }
   | { action: "close" }
+  | { action: "reopen" }
   | { action: "submit" }
   | { action: "composeEntryEmail" }
   | { action: "composeInvitationEmail" }
@@ -65,6 +66,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         return NextResponse.json({ ok: true, meet: await service.dismissSourceUpdate(id) });
       case "close":
         return NextResponse.json({ ok: true, meet: await service.closeCommitments(id) });
+      case "reopen":
+        return NextResponse.json({ ok: true, meet: await service.reopenCommitments(id) });
       case "submit":
         return NextResponse.json({
           ok: true,

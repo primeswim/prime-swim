@@ -12,9 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { ClubMeetSettings, Meet } from "@/lib/meets/types";
-import { adminMeetGuide } from "@/lib/meets/workflow";
+import type { MeetPaymentRow } from "@/lib/meets/entries";
+import { adminMeetGuide, canExportHostPacket } from "@/lib/meets/workflow";
 import { countAdminMeetList, filterAdminMeetList, type AdminMeetListFilter } from "@/lib/meets/list-filter";
 import { PnsMeetLink } from "@/components/pns-meet-link";
+import { MeetDateStamp } from "@/components/meet-date-stamp";
+import { displayMeetName } from "@/lib/meets/display-name";
+import { meetDateStamp } from "@/lib/meets/sessions";
 
 async function token() {
   const user = auth.currentUser;
@@ -26,6 +30,7 @@ export default function AdminMeetsPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [meets, setMeets] = useState<Meet[]>([]);
+  const [reportedPayments, setReportedPayments] = useState<MeetPaymentRow[]>([]);
   const [settings, setSettings] = useState<ClubMeetSettings | null>(null);
   const [omrUrl, setOmrUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -58,11 +63,33 @@ export default function AdminMeetsPage() {
     ]);
     const meetJson = await meetRes.json();
     const setJson = await setRes.json();
-    if (meetJson.ok) setMeets(meetJson.meets || []);
+    if (meetJson.ok) {
+      setMeets(meetJson.meets || []);
+      setReportedPayments(meetJson.reportedPayments || []);
+    }
     if (setJson.ok) {
       setSettings(setJson.settings);
       setOmrUrl(setJson.settings.usaSwimmingOmrUrl || "");
     }
+  }
+
+  async function downloadHostPacket(meetId: string, format: "csv" | "txt" | "sd3") {
+    const idToken = await token();
+    const res = await fetch(`/api/admin/meets/${meetId}/entries?format=${format}`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error || "Could not export entries");
+    }
+    const blob = await res.blob();
+    const fromHeader = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "")?.[1];
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fromHeader || `prime-entries.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async function run(label: string, fn: () => Promise<void>) {
@@ -89,7 +116,7 @@ export default function AdminMeetsPage() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
         <Header />
         <div className="container mx-auto px-4 py-10 text-slate-500">Checking admin access…</div>
       </div>
@@ -97,7 +124,7 @@ export default function AdminMeetsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       <Header />
       <main className="container mx-auto px-4 py-8 space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -106,7 +133,7 @@ export default function AdminMeetsPage() {
             <p className="text-sm text-slate-600 mt-1">
               Separate from the public Events calendar. [TEST] fixtures never appear for real parents.
             </p>
-            <Link href="/admin/meets/payments" className="text-sm text-blue-700 underline mt-2 inline-block">
+            <Link href="/admin/meets/payments" className="text-sm text-slate-700 underline underline-offset-2 mt-2 inline-block">
               Meet payments
             </Link>
           </div>
@@ -138,7 +165,7 @@ export default function AdminMeetsPage() {
               {busy === "live" ? "Checking…" : "Check PNS for Updates"}
             </Button>
             <Button
-              className="bg-blue-700 hover:bg-blue-800"
+              className="bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-md"
               disabled={!!busy}
               onClick={() =>
                 run("mock", async () => {
@@ -158,6 +185,32 @@ export default function AdminMeetsPage() {
             </Button>
           </div>
         </div>
+
+        {reportedPayments.length > 0 && (
+          <Card className="border-2 border-amber-400 bg-amber-50 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg text-amber-950">Families reported meet payment</CardTitle>
+              <CardDescription className="text-amber-900">
+                This is not paid until you confirm the money arrived. {reportedPayments.length} waiting.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ul className="text-sm text-amber-950 list-disc pl-5">
+                {reportedPayments.map((row) => (
+                  <li key={`${row.meetId}-${row.swimmerId}`}>
+                    {row.swimmerName} · {displayMeetName(row.meetName)} · ${row.finalFee.toFixed(2)}
+                    {row.paymentReportedAt ? ` · reported ${row.paymentReportedAt.slice(0, 10)}` : ""}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/admin/meets/payments" className="inline-block">
+                <Button className="bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-md">
+                  Review reported payments
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-0 shadow-md">
           <CardHeader>
@@ -222,7 +275,7 @@ export default function AdminMeetsPage() {
                   key={id}
                   size="sm"
                   variant={listFilter === id ? "default" : "outline"}
-                  className={listFilter === id ? "bg-blue-700 hover:bg-blue-800" : ""}
+                  className={listFilter === id ? "bg-slate-800 hover:bg-slate-700 text-white rounded-full" : "rounded-full border-slate-200"}
                   onClick={() => setListFilter(id)}
                 >
                   {label} ({count})
@@ -246,22 +299,27 @@ export default function AdminMeetsPage() {
               </p>
             )}
             {visibleMeets.map((meet) => (
-              <div key={meet.id} className="rounded-xl border bg-white p-4 hover:border-blue-200 hover:shadow-sm">
+              <div key={meet.id} className="relative rounded-xl bg-white p-4 shadow-sm hover:shadow-xl transition-all duration-300">
+                <Link href={`/admin/meets/${meet.id}`} className="absolute inset-0 z-0" aria-label={`Open ${displayMeetName(meet.name)}`} />
+                <div className="relative z-10 flex items-start gap-4 pointer-events-none">
+                  <MeetDateStamp startDate={meet.startDate} endDate={meet.endDate} />
+                  <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <Link href={`/admin/meets/${meet.id}`} className="font-semibold text-slate-800 hover:underline">
-                      {meet.name}
-                    </Link>
-                    <div className="text-xs text-slate-500 mt-1">
-                      {meet.startDate} · {meet.hostClub} · {meet.meetType}
+                    <div className="font-semibold text-slate-800">
+                      {displayMeetName(meet.name)}
                     </div>
-                    <div className="text-xs text-blue-700 mt-1">Next: {adminMeetGuide(meet).nextTitle}</div>
+                    <div className="text-xs font-medium text-slate-700 mt-1">{meetDateStamp(meet.startDate, meet.endDate).rangeLabel}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {meet.hostClub} · {meet.meetType}
+                    </div>
+                    <div className="text-xs text-slate-700 mt-1">Next: {adminMeetGuide(meet).nextTitle}</div>
                     {meet.pendingSourceReview && (meet.pendingSourceDiffs || []).length > 0 && (
                       <div className="text-xs text-orange-800 mt-1">
                         Update: {(meet.pendingSourceDiffs || []).slice(0, 3).join(" · ")}
                       </div>
                     )}
-                    <PnsMeetLink sourceKey={meet.sourceKey} className="text-xs text-blue-700 underline mt-1 inline-block" />
+                    <PnsMeetLink sourceKey={meet.sourceKey} className="pointer-events-auto text-xs text-slate-700 underline underline-offset-2 mt-1 inline-block" />
                   </div>
                   <div className="flex flex-wrap gap-2 justify-end">
                     {meet.isTestData && <Badge className="bg-amber-100 text-amber-800">TEST DATA</Badge>}
@@ -279,6 +337,28 @@ export default function AdminMeetsPage() {
                     >
                       {meet.status.replace(/_/g, " ")}
                     </Badge>
+                    {canExportHostPacket(meet.status) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="pointer-events-auto rounded-full"
+                        disabled={Boolean(busy)}
+                        onClick={() =>
+                          run(`export-${meet.id}`, async () => {
+                            await downloadHostPacket(meet.id, meet.events.length > 0 ? "sd3" : "csv");
+                            setMessage(
+                              meet.events.length > 0
+                                ? "SD3 downloaded. Email this to the host for Meet Manager Import → Entries."
+                                : "Roster downloaded. Do not send CSV as official entries until the Event File is in."
+                            );
+                          })
+                        }
+                      >
+                        {meet.events.length > 0 ? "Download SD3" : "Download roster"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
                   </div>
                 </div>
               </div>

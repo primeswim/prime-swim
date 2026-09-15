@@ -1,16 +1,21 @@
 import { ageOnDate, detectInvitationRequired, eventMatchesSwimmer, extractEligibilityNotes, inferInvitationStatus, eventsForSwimmer } from "./eligibility";
 import { effectiveHostDeadline, isMeetPaymentOverdue, isPrimeDeadlinePassed, meetPaymentDueAt, addCalendarDays, suggestPrimeDeadline } from "./deadlines";
-import { computeHostFee, exceedsEventLimits, extractFeeHints } from "./fees";
+import { computeHostFee, computeMeetEntryFee, exceedsEventLimits, extractFeeHints, typicalIndividualEventFee } from "./fees";
 import { loadComHalloweenHyv, loadMexicoSprintEv3, loadTestTacHyv, mockDraftMeets, TAC_ANNOUNCEMENT_TEXT, TEST_OMR_URL } from "./fixtures";
-import { applyPendingSourcePatch, applyTeamUnifyDetail, calendarItemToDraftMeet, inferHostClubFromTitle, mapTeamUnifyListRow, mergePnsUpdates, parsePnsCalendarHtml } from "./pns-calendar";
+import { applyPendingSourcePatch, applyTeamUnifyDetail, calendarItemToDraftMeet, inferHostClubFromTitle, mapTeamUnifyListRow, mergePnsUpdates, parentBannerForDayReselection, parentBannerForPnsDiffs, parsePnsCalendarHtml } from "./pns-calendar";
+import { enrichCalendarItemWithAnnouncementFees, extractTextFromPdfBytes, sampleEntryFeeAnnouncementPdf } from "./announcement-pdf";
 import { pnsEventPageUrl } from "./pns-url";
-import { eventLabel, parseHytekEventFile } from "./hytek-events";
+import { meetDayOptions, keepValidMeetDayIds, attendingNeedsNewDays, meetDateStamp, sessionNameForMeetDay } from "./sessions";
+import { parentAttendanceLabel, parentRsvpNotice, swimmerMeetActionClass, listParentMeetCards, listUpcomingSwimmerMeets, isSwimmerUpcomingMeetCard } from "./parent-view";
+import { eventLabel, eventName, ageGroupLabel, parseHytekEventFile, shortEventLabel } from "./hytek-events";
 import { canViewerSeeMeet, isTestEmail, isTestNamed, markTestName } from "./test-data";
 import { isOmrWelcomeUrl, isValidUsaSwimmingId, usaSwimmingAttendGate } from "./usa-swimming";
 import { parseAnnouncementBlocks } from "./announcement-format";
-import { adminMeetGuide, canParentEditCommitment, canPublishToFamilies, displayedEventIds, finalSwimEventIds, isMeetLineupFinalized, parentEventLabel, shouldAutoCloseRsvp, statusAfterApprove } from "./workflow";
-import { serializeMeetEntry } from "./entries";
-import { PRIME_SWIM_OMR_URL, resolveClubMeetSettings, type Meet, type MeetCommitment, type MeetEvent } from "./types";
+import { displayMeetName } from "./display-name";
+import { adminMeetGuide, canExportHostPacket, canParentEditCommitment, canPublishToFamilies, canReopenRsvp, displayedEventIds, finalSwimEventIds, isMeetLineupFinalized, parentEventLabel, shouldAutoCloseRsvp, statusAfterApprove } from "./workflow";
+import { hostEntryCsv, hostEntryReportText, hostPacketFilename, serializeMeetEntry, canBuildHostSd3 } from "./entries";
+import { hostEntrySd3 } from "./sd3";
+import { PRIME_SWIM_OMR_URL, resolveClubMeetSettings, type Meet, type MeetCommitment, type MeetEvent, type MeetSwimmer } from "./types";
 import { classifyAdminMeetList, countAdminMeetList, filterAdminMeetList } from "./list-filter";
 import { composePnsAdminAlert, pnsScanNeedsAdminAlert } from "./pns-notify";
 
@@ -65,13 +70,34 @@ function testDeadlinesAndFees() {
   assert(isPrimeDeadlinePassed("2026-09-08T23:59:00", "2026-09-09T00:00:00") === true, "closes the next Pacific day");
   assert(canParentEditCommitment("commitment_open", "2026-09-08T12:00:00", "2026-09-08T23:59:00") === true, "edit on deadline day");
   assert(canParentEditCommitment("commitment_open", "2026-09-09T00:05:00", "2026-09-08T23:59:00") === false, "no edit next day");
+  assert(canParentEditCommitment("commitment_closed", "2026-09-08T12:00:00", "2026-09-08T23:59:00") === false, "closed RSVP cannot edit");
+  assert(canReopenRsvp("commitment_closed") === true, "closed RSVP can reopen");
+  assert(canReopenRsvp("commitment_open") === false, "open RSVP does not need reopen");
+  assert(canReopenRsvp("submitted") === false, "do not reopen after sending to host");
   assert(shouldAutoCloseRsvp({ status: "commitment_open", primeCommitmentDeadline: "2026-09-08T23:59:00" }, "2026-09-09T08:00:00"), "auto-close next day");
   assert(!shouldAutoCloseRsvp({ status: "commitment_open", primeCommitmentDeadline: "2026-09-08T23:59:00" }, "2026-09-08T20:00:00"), "not yet on deadline day");
   const hints = extractFeeHints(TAC_ANNOUNCEMENT_TEXT);
   assert(hints.surcharge === 25 && hints.individualEventFee === 4.5, "TAC fees from announcement");
+  const spaced = extractFeeHints("ENTRY FEES: Surcharge: $ 25.00 Individual event: $ 4.50");
+  assert(spaced.surcharge === 25 && spaced.individualEventFee === 4.5, "fees still parse with a space after $");
+  const pascPdf = extractFeeHints("ENTRY FEES: • Surcharge: $ 25.00 • Individual event: $ 4.50");
+  assert(pascPdf.surcharge === 25 && pascPdf.individualEventFee === 4.5, "PASC announcement PDF ENTRY FEES");
   assert(hints.maxEventsMeet === 8 && hints.maxEventsBySession?.Saturday === 5, "TAC limits from announcement");
   const fee = computeHostFee({ surcharge: 25, individualEventFee: 4.5, eventCount: 5 });
   assert(fee.total === 47.5, "25 + 4.50×5");
+  const byEvent = computeMeetEntryFee({
+    surcharge: 15,
+    individualEventFee: 6,
+    events: [{ eventFee: 8 }, { eventFee: 8 }],
+  });
+  assert(byEvent.total === 31, "Event File fees win over the meet rate");
+  const fallback = computeMeetEntryFee({
+    surcharge: 25,
+    individualEventFee: 4.5,
+    events: [{}, {}],
+  });
+  assert(fallback.total === 34, "blank Event File fees use the meet rate");
+  assert(typicalIndividualEventFee([{ eventFee: 8 }, { eventFee: 8 }, { eventFee: 16, isRelay: true }]) === 8, "typical fee ignores relays");
   assert(exceedsEventLimits({ selectedCount: 9, maxEventsMeet: 8, sessionCounts: {} }).ok === false, "meet cap");
   assert(
     exceedsEventLimits({
@@ -120,6 +146,17 @@ function testWorkflow() {
   assert(parentEventLabel("submitted") === "pending_for_review", "submitted is still pending");
   assert(parentEventLabel("host_reply_received") === "pending_for_review", "cuts not visible yet");
   assert(parentEventLabel("entries_confirmed") === "confirmed", "publish confirmed unlocks");
+  assert(parentAttendanceLabel("no_response", "pending_for_review") === "Open", "families do not see pending for review");
+  assert(parentAttendanceLabel("attend", "pending_for_review") === "Attending", "attend stays attending until confirmed");
+  assert(parentAttendanceLabel("incomplete", "pending_for_review") === "Attending", "incomplete days still read as attending");
+  assert(parentAttendanceLabel("decline", "pending_for_review") === "Declined", "decline is declined");
+  assert(swimmerMeetActionClass("attend").includes("amber-500"), "attending uses homepage gold");
+  assert(swimmerMeetActionClass("decline").includes("red-600"), "declined uses homepage red");
+  assert(swimmerMeetActionClass("no_response").includes("slate-800"), "open RSVP stays slate");
+  assert(parentAttendanceLabel("attend", "confirmed") === "Confirmed", "confirmed lineup");
+  assert(parentRsvpNotice("commitment_open") === undefined, "open RSVP has no closed notice");
+  assert(/closed/i.test(parentRsvpNotice("commitment_closed") || ""), "closed RSVP tells families it is closed");
+  assert(/cancelled/i.test(parentRsvpNotice("cancelled") || ""), "cancelled meet tells families it is cancelled");
   assert(
     displayedEventIds({
       status: "submitted",
@@ -301,6 +338,23 @@ function testAnnouncementReadability() {
   assert(blocks.some((b) => b.kind === "deadline"), "deadline callout");
   assert(blocks.some((b) => b.kind === "warning" && /invitational/i.test(b.text)), "invitational warning");
   assert(blocks.some((b) => b.kind === "fees" && /25/.test(b.text)), "fee callout");
+  const staff = parseAnnouncementBlocks(`
+MEET DIRECTOR:
+Keely Ridle
+MEET REFEREE:
+Shellie Hunter
+ADMINISTRATIVE OFFICIAL:
+Jennifer Hapoff
+****************************************
+9/8/26 Meet announcement posted
+`);
+  assert(staff.filter((b) => b.kind === "contact").length === 3, "PNS staff lines become contact cards");
+  assert(staff.some((b) => b.kind === "contact" && b.name === "Keely Ridle"), "director name");
+  assert(staff.some((b) => b.kind === "update" && /announcement posted/i.test(b.text)), "PNS posted line is an update");
+  assert(!staff.some((b) => "text" in b && /^\*+$/.test(b.text)), "asterisk separators are dropped");
+  assert(displayMeetName("2026 PASC Riptide’s Seasonal Open Approval #2609-SP02") === "2026 PASC Riptide’s Seasonal Open", "strips Approval #");
+  assert(displayMeetName("2026 PN TAC Fall Pentathlon and Distance Open – Approval #2609-SP05").includes("Pentathlon"), "keeps title");
+  assert(!/#/.test(displayMeetName("2026 PN OCA John Walker Invitational - Sanction #2610-SP09")), "strips Sanction #");
 }
 
 function testHyvImport() {
@@ -332,6 +386,8 @@ function testLiveEventFiles() {
   assert(ev3.events.length >= 80, "Mexico EV3 event count");
   const ev1 = ev3.events.find((e) => e.eventNumber === 1);
   assert(Boolean(ev1 && ev1.gender === "female" && ev1.distance === 200 && ev1.stroke === "im" && ev1.minAge === 13 && ev1.maxAge >= 109), "EV3 event 1 is girls 13&O 200 IM");
+  assert(eventLabel(ev1!) === "#1 Girls 13 & Over 200 IM", "EV3 label is USA Swimming style");
+  assert(eventName(ev3.events.find((e) => e.eventNumber === 3)!) === "Girls 8 & Under 50 Free", "0-8 becomes 8 & Under");
   assert(ev3.events.some((e) => e.eventNumber === 3 && e.distance === 50 && e.stroke === "free" && e.maxAge === 8), "EV3 event 3 is 8&U 50 free");
   assert(ev3.events.every((e) => e.eventFee === 7), "Mexico EV3 individual fee is $7");
 
@@ -446,8 +502,43 @@ function testPnsUpdateMerge() {
   const accepted = applyPendingSourcePatch({ ...publishedMerge.next, pendingSourceReview: true, pendingSourceDiffs: publishedMerge.diffs });
   assert(accepted.announcementUrl === incoming.announcementUrl, "Accept writes the new announcement");
   assert(!accepted.pendingSourceReview, "Accept clears the review flag");
+  const dateMove = mergePnsUpdates(
+    { ...published, startDate: "2026-09-26", endDate: "2026-09-27", location: "Fidalgo Pool", hostClub: "TAC" },
+    { ...incoming, startDate: "2026-10-03", endDate: "2026-10-04", location: "King County Aquatics", hostClub: "BC" }
+  );
+  assert(dateMove.next.startDate === "2026-09-26", "published dates stay until Accept");
+  assert(dateMove.next.pendingSourcePatch?.startDate === "2026-10-03", "new startDate is stashed");
+  assert(dateMove.diffs.some((d) => /location/i.test(d)), "location change is listed");
+  assert(dateMove.diffs.some((d) => /host /i.test(d)), "host club change is listed");
+  assert(parentBannerForPnsDiffs(["announcement PDF changed"]) === undefined, "PDF-only change does not ask parents to re-pick days");
+  assert(parentBannerForPnsDiffs(dateMove.diffs) === parentBannerForDayReselection(), "date change copy asks them to tap Attend again");
+  assert(attendingNeedsNewDays({ startDate: "2026-10-03", endDate: "2026-10-04" }, { attendance: "attend", availableSessionIds: ["2026-09-26", "2026-09-27"] }) === true, "old days need a new choice");
+  assert(attendingNeedsNewDays({ startDate: "2026-09-26", endDate: "2026-09-27" }, { attendance: "attend", availableSessionIds: ["2026-09-26", "2026-09-27"] }) === false, "same days do not need a new choice");
+  assert(attendingNeedsNewDays({ startDate: "2026-10-03", endDate: "2026-10-04" }, { attendance: "attend", availableSessionIds: [] }) === true, "Attend with no remaining days must re-pick");
+  const stale = keepValidMeetDayIds({ startDate: "2026-10-03", endDate: "2026-10-04" }, ["2026-09-26", "2026-10-03"]);
+  assert(stale.join(",") === "2026-10-03", "old selected days drop after the meet moves");
   assert(pnsScanNeedsAdminAlert({ created: 0, updated: 0 }) === false, "quiet day does not email admin");
   assert(pnsScanNeedsAdminAlert({ created: 1, updated: 0 }) === true, "new draft emails admin");
+  const filled = mergePnsUpdates(draft, { ...incoming, surcharge: 25, individualEventFee: 4.5 });
+  assert(filled.next.surcharge === 25 && filled.next.individualEventFee === 4.5, "empty draft fills announcement fees immediately");
+  const adminCorrected = mergePnsUpdates(
+    { ...draft, surcharge: 20, individualEventFee: 4.5, status: "admin_review" },
+    { ...incoming, surcharge: 25, individualEventFee: 4.5 }
+  );
+  assert(adminCorrected.next.surcharge === 20, "admin Host fees correction is kept");
+  assert(adminCorrected.next.pendingSourcePatch?.surcharge === 25, "PDF surcharge is stashed for review");
+  const publishedFees = mergePnsUpdates(
+    { ...published, surcharge: 25, individualEventFee: 4.5 },
+    { ...incoming, surcharge: 30, individualEventFee: 5 }
+  );
+  assert(publishedFees.next.surcharge === 25 && publishedFees.next.individualEventFee === 4.5, "published invoices keep current rates until Accept");
+  assert(publishedFees.next.pendingSourcePatch?.surcharge === 30, "new surcharge is stashed");
+  const acceptedFees = applyPendingSourcePatch({
+    ...publishedFees.next,
+    pendingSourceReview: true,
+    pendingSourceDiffs: publishedFees.diffs,
+  });
+  assert(acceptedFees.surcharge === 30 && acceptedFees.individualEventFee === 5, "Accept applies announcement fee changes");
   const alert = composePnsAdminAlert(
     {
       count: 2,
@@ -464,22 +555,247 @@ function testPnsUpdateMerge() {
   assert(/announcement PDF changed/.test(alert.text), "alert lists announcement updates");
 }
 
-function run() {
+function testMeetDaysFromCalendarNotWeekendOnly() {
+  const midweek = meetDayOptions({ startDate: "2026-10-16", endDate: "2026-10-18", sessions: [], events: [] });
+  assert(midweek.length === 3, "three-day meet shows Friday, Saturday, and Sunday");
+  assert(midweek[0].label.startsWith("Friday") && midweek[2].label.startsWith("Sunday"), "labels follow the calendar");
+  const evenWithSessions = meetDayOptions({
+    startDate: "2026-10-16",
+    endDate: "2026-10-18",
+    sessions: [
+      { id: "saturday", name: "Saturday" },
+      { id: "sunday", name: "Sunday" },
+    ],
+    events: [],
+  });
+  assert(evenWithSessions.length === 3, "calendar days win so a 3-day meet is not collapsed to two Hy-Tek sessions");
+  const stamp = meetDateStamp("2026-10-17", "2026-10-18");
+  assert(stamp.month === "Oct" && stamp.day === "17" && stamp.endDay === "18", "date stamp uses start day with range");
+  assert(stamp.rangeLabel === "Oct 17–18, 2026", "readable range sits next to the stamp");
+  const one = meetDateStamp("2026-11-01", "2026-11-01");
+  assert(one.day === "01" && !one.endDay && one.rangeLabel === "Nov 1, 2026", "single-day stamp has no end day");
+  const span = meetDateStamp("2026-09-30", "2026-10-02");
+  assert(span.rangeLabel === "Sep 30 – Oct 2, 2026", "cross-month range stays readable");
+  assert(sessionNameForMeetDay(1, "2026-10-17", "2026-10-18") === "Saturday", "EV3 session 1 is Saturday");
+  assert(sessionNameForMeetDay(2, "2026-10-17", "2026-10-18") === "Sunday", "EV3 session 2 is Sunday");
+  assert(ageGroupLabel(0, 10) === "10 & Under", "Hy-Tek 0-10 is 10 & Under");
+  assert(ageGroupLabel(11, 12) === "11-12", "closed age group stays 11-12");
+  assert(ageGroupLabel(13, 109) === "13 & Over", "109 is Open/Over");
+  assert(ageGroupLabel(0, 109) === "Open", "0-109 is Open");
+}
+
+function testHostPacketAndParentEvents() {
+  assert(canExportHostPacket("commitment_closed") === true, "closed RSVP can export");
+  assert(canExportHostPacket("submitted") === true, "submitted can export");
+  assert(canExportHostPacket("host_reply_received") === true, "host reply can export");
+  assert(canExportHostPacket("entries_confirmed") === true, "confirmed can export");
+  assert(canExportHostPacket("commitment_open") === false, "open RSVP cannot export");
+  assert(canExportHostPacket("draft") === false, "draft cannot export");
+  assert(shortEventLabel({ distance: 50, stroke: "fly" }) === "50 Fly", "short fly label");
+  assert(shortEventLabel({ distance: 50, stroke: "free" }) === "50 Free", "short free label");
+  const meet = {
+    id: "m-host",
+    name: "[TEST] Autumn Open",
+    hostClub: "Host",
+    meetType: "open",
+    course: "scy",
+    startDate: "2026-10-17",
+    endDate: "2026-10-18",
+    location: "Pool",
+    eligibilityStatus: "likely_eligible",
+    invitationStatus: "not_required",
+    eligibilityNotes: [],
+    deadlineTimezone: "America/Los_Angeles",
+    status: "commitment_open",
+    sessions: [],
+    events: [
+      ev({ id: "e-fly", eventNumber: 3, minAge: 8, maxAge: 18, stroke: "fly" }),
+      ev({ id: "e-free", eventNumber: 5, minAge: 8, maxAge: 18, stroke: "free" }),
+    ],
+    isTestData: true,
+  } as Meet;
+  const attending = {
+    id: "c-attend",
+    meetId: "m-host",
+    swimmerId: "s1",
+    parentUID: "p1",
+    attendance: "attend",
+    availableSessionIds: ["2026-10-17"],
+    selectedEventIds: ["e-fly", "e-free"],
+    parentNotes: "lane 4 if possible",
+    isTestData: true,
+  } as MeetCommitment;
+  const declined = {
+    ...attending,
+    id: "c-decline",
+    swimmerId: "s2",
+    attendance: "decline",
+    selectedEventIds: ["e-fly"],
+  } as MeetCommitment;
+  const cards = listParentMeetCards({
+    meets: [meet],
+    commitments: [attending, declined],
+    viewerIsTestAccount: true,
+  });
+  assert(cards[0].selectedEvents.map((event) => event.label).join(",") === "50 Fly,50 Free", "stored events stay on the card payload");
+  assert(cards[0].swimmerResponses.find((r) => r.swimmerId === "s1")?.events.map((event) => event.label).join(",") === "50 Fly,50 Free", "attending swimmer lists events");
+  assert((cards[0].swimmerResponses.find((r) => r.swimmerId === "s2")?.events || []).length === 0, "declined swimmer hides events");
+  const confirmedCards = listParentMeetCards({
+    meets: [{ ...meet, status: "entries_confirmed" }],
+    commitments: [{ ...attending, confirmedEventIds: ["e-fly"], hostCutNote: "Host cut 50 Free" }],
+    viewerIsTestAccount: true,
+    swimmerId: "s1",
+  });
+  assert(isSwimmerUpcomingMeetCard(confirmedCards[0], "2026-09-15") === true, "confirmed Attend stays on the swimmer card");
+  assert(confirmedCards[0].selectedEvents.map((event) => event.label).join(",") === "50 Fly", "confirmed card keeps remaining events");
+  assert(confirmedCards[0].cutEvents.map((event) => event.label).join(",") === "50 Free", "cut events are listed for families");
+  assert(confirmedCards[0].hostCutNote === "Host cut 50 Free", "host cut note is on the card");
+  const upcoming = listUpcomingSwimmerMeets({
+    meets: [meet, { ...meet, id: "m-past", startDate: "2026-08-01", endDate: "2026-08-02" }],
+    commitments: [attending, declined, { ...attending, id: "c-past", meetId: "m-past" }],
+    swimmers: [
+      { id: "s1", childFirstName: "Elena", childLastName: "Chen", childDateOfBirth: "2015-03-12", parentUID: "p1" } as MeetSwimmer,
+      { id: "s2", childFirstName: "Leo", childLastName: "Chen", childDateOfBirth: "2018-06-20", parentUID: "p1" } as MeetSwimmer,
+    ],
+    viewerIsTestAccount: true,
+    todayYmd: "2026-09-15",
+  });
+  assert(upcoming.length === 1 && upcoming[0].swimmerId === "s1", "upcoming API is Attend only and skips past meets");
+  assert(upcoming[0].events.map((event) => event.label).join(",") === "50 Fly,50 Free", "upcoming API returns selected events");
+  const oneKid = listUpcomingSwimmerMeets({
+    meets: [meet],
+    commitments: [attending, declined],
+    swimmers: [
+      { id: "s1", childFirstName: "Elena", childLastName: "Chen", childDateOfBirth: "2015-03-12", parentUID: "p1" } as MeetSwimmer,
+      { id: "s2", childFirstName: "Leo", childLastName: "Chen", childDateOfBirth: "2018-06-20", parentUID: "p1" } as MeetSwimmer,
+    ],
+    viewerIsTestAccount: true,
+    todayYmd: "2026-09-15",
+    swimmerIds: ["s1"],
+  });
+  assert(oneKid.length === 1 && oneKid[0].swimmerId === "s1", "swimmerId query returns only that child");
+  const otherKid = listUpcomingSwimmerMeets({
+    meets: [meet],
+    commitments: [attending, declined],
+    swimmers: [
+      { id: "s1", childFirstName: "Elena", childLastName: "Chen", childDateOfBirth: "2015-03-12", parentUID: "p1" } as MeetSwimmer,
+      { id: "s2", childFirstName: "Leo", childLastName: "Chen", childDateOfBirth: "2018-06-20", parentUID: "p1" } as MeetSwimmer,
+    ],
+    viewerIsTestAccount: true,
+    todayYmd: "2026-09-15",
+    swimmerIds: ["s2"],
+  });
+  assert(otherKid.length === 0, "child who declined has no upcoming row");
+  const bothKids = listUpcomingSwimmerMeets({
+    meets: [meet],
+    commitments: [attending, declined],
+    swimmers: [
+      { id: "s1", childFirstName: "Elena", childLastName: "Chen", childDateOfBirth: "2015-03-12", parentUID: "p1" } as MeetSwimmer,
+      { id: "s2", childFirstName: "Leo", childLastName: "Chen", childDateOfBirth: "2018-06-20", parentUID: "p1" } as MeetSwimmer,
+    ],
+    viewerIsTestAccount: true,
+    todayYmd: "2026-09-15",
+    swimmerIds: ["s1", "s2"],
+  });
+  assert(bothKids.length === 1 && bothKids[0].swimmerId === "s1", "one call with two IDs still skips Decline");
+  const payload = {
+    meet: {
+      id: meet.id,
+      name: meet.name,
+      hostClub: meet.hostClub,
+      meetType: meet.meetType,
+      startDate: meet.startDate,
+      endDate: meet.endDate,
+      location: meet.location,
+      course: meet.course,
+      status: "commitment_closed" as const,
+      isTestData: true,
+    },
+    catalog: [],
+    entries: [
+      serializeMeetEntry({ ...meet, status: "commitment_closed" }, attending, {
+        id: "s1",
+        childFirstName: "Elena",
+        childLastName: "Test",
+        childDateOfBirth: "2015-03-12",
+        parentUID: "p1",
+      }),
+      serializeMeetEntry({ ...meet, status: "commitment_closed" }, declined, {
+        id: "s2",
+        childFirstName: "Leo",
+        childLastName: "Test",
+        childDateOfBirth: "2018-06-20",
+        parentUID: "p1",
+      }),
+    ],
+  };
+  const csv = hostEntryCsv(payload);
+  assert(csv.includes("First name"), "csv has header");
+  assert(/Elena/.test(csv) && !/Leo/.test(csv), "csv is attending swimmers only");
+  assert(/50/.test(csv) && /Fly/.test(csv), "csv includes selected events");
+  const txt = hostEntryReportText(payload);
+  assert(/PRIME SWIM ACADEMY/.test(txt), "report title");
+  assert(/Elena Test/.test(txt) && !/Leo Test/.test(txt), "report is attending only");
+  assert(hostPacketFilename({ name: meet.name, startDate: meet.startDate }, "csv") === "prime-entries-2026-10-17-autumn-open.csv", "csv filename");
+  assert(canBuildHostSd3(payload) === true, "SD3 is ready when Attend swimmers have official events");
+  const sd3 = hostEntrySd3(payload);
+  assert(sd3.startsWith("A0"), "SD3 starts with file description");
+  assert(/\r\nB1/.test(sd3) && /\r\nC1/.test(sd3) && /\r\nD0/.test(sd3) && /\r\nZ0/.test(sd3), "SD3 has meet, team, splash, and terminator records");
+  assert(/CHEN, ELENA|TEST, ELENA|ELENA/i.test(sd3), "SD3 names the attending swimmer");
+  assert(!/LEO/i.test(sd3), "SD3 omits declined swimmers");
+  assert(sd3.split("\r\n").filter((line) => line.startsWith("D0")).length === 2, "one D0 per selected event");
+}
+
+async function testAnnouncementPdfFees() {
+  const bytes = sampleEntryFeeAnnouncementPdf();
+  const text = await extractTextFromPdfBytes(bytes);
+  const fromPdf = extractFeeHints(text);
+  assert(fromPdf.surcharge === 25 && fromPdf.individualEventFee === 4.5, "unpdf reads ENTRY FEES from a sample announcement PDF");
+  const skipped = await enrichCalendarItemWithAnnouncementFees({
+    announcementUrl: "https://example.test/announce.pdf",
+    announcementText: "no fees here",
+    surcharge: undefined as number | undefined,
+    individualEventFee: undefined as number | undefined,
+  });
+  assert(skipped.surcharge == null && skipped.individualEventFee == null, "does not fetch fake example.test PDFs");
+  const fromItem = calendarItemToDraftMeet(
+    {
+      sourceId: "pns-pasc",
+      name: "2026 PN PASC Korman",
+      hostClub: "PASC",
+      startDate: "2026-10-17",
+      endDate: "2026-10-18",
+      location: "King County Aquatics",
+      surcharge: 25,
+      individualEventFee: 4.5,
+    },
+    { isTestData: true }
+  );
+  assert(fromItem.surcharge === 25 && fromItem.individualEventFee === 4.5, "draft keeps PDF-extracted fees");
+}
+
+async function run() {
   testEligibility();
   testDeadlinesAndFees();
   testUsaSwimmingAndIsolation();
   testWorkflow();
   testFinalEntriesAndPaymentDue();
+  testHostPacketAndParentEvents();
   testAdminGuide();
   testAdminMeetListFilter();
   testPnsHtmlParse();
   testPnsTeamUnifyMap();
   testPnsUpdateMerge();
+  await testAnnouncementPdfFees();
   testMeetIdsAreGuids();
   testAnnouncementReadability();
   testHyvImport();
   testLiveEventFiles();
+  testMeetDaysFromCalendarNotWeekendOnly();
   console.log("meets.unit.test.ts passed");
 }
 
-run();
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

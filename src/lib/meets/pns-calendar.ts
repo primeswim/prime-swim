@@ -1,6 +1,7 @@
 import { inferEligibilityStatus, inferInvitationStatus, extractEligibilityNotes } from "./eligibility";
 import { effectiveHostDeadline, pacificYmd, suggestPrimeDeadline } from "./deadlines";
 import { extractFeeHints } from "./fees";
+import { enrichCalendarItemWithAnnouncementFees } from "./announcement-pdf";
 import { markTestName } from "./test-data";
 import { isPrePublishStatus } from "./workflow";
 import { newMeetId, type Meet, type PendingSourcePatch, type PnsSourceFile } from "./types";
@@ -22,6 +23,8 @@ export interface PnsCalendarItem {
   sanctionNumber?: string;
   sourceFiles?: PnsSourceFile[];
   eventFileUrl?: string;
+  surcharge?: number;
+  individualEventFee?: number;
 }
 
 const TITLE_RE = /<h[23][^>]*>([^<]+)<\/h[23]>/gi;
@@ -200,6 +203,7 @@ export function calendarItemToDraftMeet(item: PnsCalendarItem, opts: { isTestDat
   const invitationStatus = inferInvitationStatus(announcementText);
   const hostDeadline = item.registrationDeadline;
   const name = opts.isTestData ? markTestName(item.name) : item.name;
+  const hints = extractFeeHints(item.announcementText || "");
   return {
     id: newMeetId(),
     sourceKey: item.sourceId,
@@ -225,7 +229,10 @@ export function calendarItemToDraftMeet(item: PnsCalendarItem, opts: { isTestDat
     primeCommitmentDeadline: suggestPrimeDeadline(hostDeadline),
     deadlineTimezone: "America/Los_Angeles",
     hostEntryEmail: item.hostEntryEmail,
-    ...extractFeeHints(item.announcementText || ""),
+    surcharge: item.surcharge ?? hints.surcharge,
+    individualEventFee: item.individualEventFee ?? hints.individualEventFee,
+    maxEventsMeet: hints.maxEventsMeet,
+    maxEventsBySession: hints.maxEventsBySession,
     status: invitationStatus === "not_required" ? "admin_review" : "invitation_pending",
     sessions: [],
     events: [],
@@ -269,13 +276,15 @@ export async function fetchLivePnsCalendar(opts?: { todayYmd?: string }): Promis
     });
   return mapPool(listed, 6, async (item) => {
     const id = item.sourceId.replace(/^pns-/, "");
-    if (!/^\d+$/.test(id)) return item;
-    try {
-      const detail = await pnsJson<Record<string, unknown>>(`https://www.pns.org/rest/ondeck/v2/meet/getInstance/${id}`);
-      return applyTeamUnifyDetail(item, detail);
-    } catch {
-      return item;
+    if (/^\d+$/.test(id)) {
+      try {
+        const detail = await pnsJson<Record<string, unknown>>(`https://www.pns.org/rest/ondeck/v2/meet/getInstance/${id}`);
+        item = applyTeamUnifyDetail(item, detail);
+      } catch {
+        // Keep the calendar row if the per-meet detail call fails.
+      }
     }
+    return enrichCalendarItemWithAnnouncementFees(item);
   });
 }
 
@@ -300,6 +309,32 @@ function applyOrStash<K extends keyof PendingSourcePatch>(
   }
 }
 
+function mergeAnnouncementFee(
+  existing: Meet,
+  incoming: PnsCalendarItem,
+  next: Meet,
+  patch: PendingSourcePatch,
+  diffs: string[],
+  field: "surcharge" | "individualEventFee",
+  label: string
+) {
+  const incomingVal = incoming[field];
+  if (incomingVal == null || !Number.isFinite(incomingVal)) return;
+  const existingVal = Number(existing[field]);
+  if (!(existingVal > 0)) {
+    next[field] = incomingVal;
+    diffs.push(`${label} from announcement: $${incomingVal}`);
+    delete patch[field];
+    return;
+  }
+  if (existingVal !== incomingVal) {
+    diffs.push(`${label} $${existingVal} → $${incomingVal}`);
+    applyOrStash(false, next, patch, field, incomingVal);
+    return;
+  }
+  delete patch[field];
+}
+
 export function mergePnsUpdates(existing: Meet, incoming: PnsCalendarItem): { changed: boolean; next: Meet; diffs: string[] } {
   const diffs: string[] = [];
   const next = { ...existing };
@@ -317,6 +352,10 @@ export function mergePnsUpdates(existing: Meet, incoming: PnsCalendarItem): { ch
   if (incoming.location && incoming.location !== existing.location) {
     diffs.push("location changed");
     applyOrStash(applyNow, next, patch, "location", incoming.location);
+  }
+  if (incoming.hostClub && incoming.hostClub !== existing.hostClub) {
+    diffs.push(`host ${existing.hostClub || "unknown"} → ${incoming.hostClub}`);
+    applyOrStash(applyNow, next, patch, "hostClub", incoming.hostClub);
   }
   if (incoming.registrationDeadline && incoming.registrationDeadline !== existing.pnsPublishedDeadline) {
     diffs.push(`pns deadline ${existing.pnsPublishedDeadline || "none"} → ${incoming.registrationDeadline}`);
@@ -346,8 +385,35 @@ export function mergePnsUpdates(existing: Meet, incoming: PnsCalendarItem): { ch
     applyOrStash(applyNow, next, patch, "sourceFiles", incoming.sourceFiles);
   }
 
-  next.pendingSourcePatch = applyNow || !Object.keys(patch).length ? undefined : patch;
+  mergeAnnouncementFee(existing, incoming, next, patch, diffs, "surcharge", "surcharge");
+  mergeAnnouncementFee(existing, incoming, next, patch, diffs, "individualEventFee", "individual event fee");
+
+  if (applyNow) {
+    const feePatch: PendingSourcePatch = {};
+    if (patch.surcharge != null) feePatch.surcharge = patch.surcharge;
+    if (patch.individualEventFee != null) feePatch.individualEventFee = patch.individualEventFee;
+    next.pendingSourcePatch = Object.keys(feePatch).length ? feePatch : undefined;
+  } else {
+    next.pendingSourcePatch = Object.keys(patch).length ? patch : undefined;
+  }
   return { changed: diffs.length > 0, next, diffs };
+}
+
+export function pnsDiffsChangeFamilySchedule(diffs: string[]): boolean {
+  return diffs.some((d) => /startDate|endDate|location|host /i.test(d));
+}
+
+export function pnsDatesChanged(diffs: string[]): boolean {
+  return diffs.some((d) => /startDate|endDate/i.test(d));
+}
+
+export function parentBannerForDayReselection(): string {
+  return "The host changed this meet’s dates. Choose the days you can attend, then tap Attend again.";
+}
+
+export function parentBannerForPnsDiffs(diffs: string[]): string | undefined {
+  if (!pnsDatesChanged(diffs)) return undefined;
+  return parentBannerForDayReselection();
 }
 
 export function applyPendingSourcePatch(meet: Meet): Meet {
@@ -358,12 +424,15 @@ export function applyPendingSourcePatch(meet: Meet): Meet {
     startDate: patch.startDate || meet.startDate,
     endDate: patch.endDate || meet.endDate,
     location: patch.location || meet.location,
+    hostClub: patch.hostClub || meet.hostClub,
     pnsPublishedDeadline: patch.pnsPublishedDeadline || meet.pnsPublishedDeadline,
     announcementUrl: patch.announcementUrl || meet.announcementUrl,
     announcementText: patch.announcementText || meet.announcementText,
     hostEntryEmail: patch.hostEntryEmail || meet.hostEntryEmail,
     eventFileUrl: patch.eventFileUrl || meet.eventFileUrl,
     sourceFiles: patch.sourceFiles || meet.sourceFiles,
+    surcharge: patch.surcharge != null ? patch.surcharge : meet.surcharge,
+    individualEventFee: patch.individualEventFee != null ? patch.individualEventFee : meet.individualEventFee,
     pendingSourceReview: false,
     pendingSourceDiffs: [],
     pendingSourcePatch: undefined,

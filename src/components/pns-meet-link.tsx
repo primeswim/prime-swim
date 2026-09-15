@@ -4,7 +4,7 @@ import { pnsEventNumericId, pnsEventPageUrl } from "@/lib/meets/pns-url";
 
 export function PnsMeetLink({
   sourceKey,
-  className = "text-sm text-blue-700 underline",
+  className = "text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900",
 }: {
   sourceKey?: string;
   className?: string;

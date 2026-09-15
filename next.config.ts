@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   /* config options here */
+  serverExternalPackages: ["unpdf"],
   images: {
     domains: ['i.imgur.com', 'imgur.com', 'www.primeswimacademy.com', 'primeswimacademy.com'],
     remotePatterns: [

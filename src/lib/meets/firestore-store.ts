@@ -191,7 +191,7 @@ function asMeet(id: string, data: FirebaseFirestore.DocumentData): Meet {
     entryEmailSentAt: data.entryEmailSentAt,
     invitationEmailTo: data.invitationEmailTo,
     invitationEmailSentAt: data.invitationEmailSentAt,
-    commitmentClosedAt: data.commitmentClosedAt,
+    commitmentClosedAt: data.commitmentClosedAt || undefined,
     hostReplyAt: data.hostReplyAt,
     entriesConfirmedAt: data.entriesConfirmedAt,
   };

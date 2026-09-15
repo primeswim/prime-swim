@@ -1,11 +1,12 @@
 import { extractEligibilityNotes, inferInvitationStatus } from "./eligibility";
-import { effectiveHostDeadline, isPrimeDeadlinePassed, meetPaymentDueAt, suggestPrimeDeadline } from "./deadlines";
-import { exceedsEventLimits, computeHostFee } from "./fees";
+import { effectiveHostDeadline, isPrimeDeadlinePassed, meetPaymentDueAt, pacificYmd, suggestPrimeDeadline } from "./deadlines";
+import { exceedsEventLimits, feeForMeetEvents, resolveMeetFeeRates, typicalIndividualEventFee } from "./fees";
 import { eventLabel, parseHytekEventFile } from "./hytek-events";
 import { mailtoHref } from "./mailto";
 import { serializeMeetEntries, serializeMeetPayments, type MeetEntriesPayload, type MeetPaymentRow } from "./entries";
-import { applyPendingSourcePatch, calendarItemToDraftMeet, fetchLivePnsCalendar, mergePnsUpdates, type PnsCalendarItem } from "./pns-calendar";
-import { buildParentMeetDetail, householdMeetPayments, listParentMeetCards, type ParentMeetDetail } from "./parent-view";
+import { applyPendingSourcePatch, calendarItemToDraftMeet, fetchLivePnsCalendar, mergePnsUpdates, parentBannerForDayReselection, pnsDatesChanged, type PnsCalendarItem } from "./pns-calendar";
+import { attendingNeedsNewDays, keepValidMeetDayIds } from "./sessions";
+import { buildParentMeetDetail, householdMeetPayments, listParentMeetCards, listUpcomingSwimmerMeets, type ParentMeetDetail } from "./parent-view";
 import { commitmentId, type MeetStore } from "./store";
 import { canViewerSeeMeet, isTestEmail, isTestRecord, isTestSwimmer, markTestName } from "./test-data";
 import type {
@@ -17,7 +18,7 @@ import type {
 } from "./types";
 import { DEFAULT_FEE_POLICY_VERSION, resolveClubMeetSettings } from "./types";
 import { isOmrWelcomeUrl, isValidUsaSwimmingId, normalizeUsaSwimmingId, usaSwimmingAttendGate } from "./usa-swimming";
-import { canPublishToFamilies, isPrePublishStatus, parentEventLabel, shouldAutoCloseRsvp, statusAfterApprove } from "./workflow";
+import { canPublishToFamilies, finalSwimEventIds, isPrePublishStatus, parentEventLabel, shouldAutoCloseRsvp, statusAfterApprove } from "./workflow";
 
 export class MeetServiceError extends Error {
   constructor(message: string, readonly code = "INVALID") {
@@ -153,12 +154,31 @@ export class MeetService {
 
   async acceptSourceUpdate(meetId: string, banner?: string): Promise<Meet> {
     const meet = await this.requireMeet(meetId);
+    const diffs = meet.pendingSourceDiffs || [];
+    const datesChanged = pnsDatesChanged(diffs);
+    const feesInPatch =
+      Boolean(meet.pendingSourcePatch) &&
+      ("surcharge" in (meet.pendingSourcePatch || {}) || "individualEventFee" in (meet.pendingSourcePatch || {}));
     const next = applyPendingSourcePatch(meet);
-    if (banner) next.parentUpdateBanner = banner;
+    const commits = await this.store.listCommitments({ meetId });
+    const needsReselect =
+      datesChanged && commits.some((commitment) => attendingNeedsNewDays(next, commitment));
+    const note = (banner || "").trim() || (needsReselect ? parentBannerForDayReselection() : undefined);
+    next.parentUpdateBanner = note || undefined;
     if (next.pnsPublishedDeadline) {
       next.effectiveHostDeadline = effectiveHostDeadline(next);
     }
-    return this.store.saveMeet(next);
+    const saved = await this.store.saveMeet(next);
+    if (datesChanged) {
+      for (const commitment of commits) {
+        const nextDays = keepValidMeetDayIds(saved, commitment.availableSessionIds || []);
+        if (nextDays.join(",") !== (commitment.availableSessionIds || []).join(",")) {
+          await this.store.saveCommitment({ ...commitment, availableSessionIds: nextDays });
+        }
+      }
+    }
+    if (feesInPatch) await this.recalculateConfirmedInvoices(saved);
+    return saved;
   }
 
   async dismissSourceUpdate(meetId: string): Promise<Meet> {
@@ -185,7 +205,12 @@ export class MeetService {
       next.status = "commitment_open";
       next.commitmentClosedAt = undefined;
     }
-    return this.store.saveMeet(next);
+    const feesInPatch = "surcharge" in patch || "individualEventFee" in patch;
+    if ("surcharge" in patch) next.surcharge = Number(patch.surcharge) || 0;
+    if ("individualEventFee" in patch) next.individualEventFee = Number(patch.individualEventFee) || 0;
+    const saved = await this.store.saveMeet(next);
+    if (feesInPatch) await this.recalculateConfirmedInvoices(saved);
+    return saved;
   }
 
   async setInvitationStatus(meetId: string, invitationStatus: InvitationStatus): Promise<Meet> {
@@ -241,6 +266,10 @@ export class MeetService {
       name,
     }));
     if (parsed.course !== "unknown") meet.course = parsed.course;
+    if (!(Number(meet.individualEventFee) > 0)) {
+      const typical = typicalIndividualEventFee(parsed.events);
+      if (typical != null) meet.individualEventFee = typical;
+    }
     if (opts?.accept !== false) {
       meet.eventFileAcceptedAt = nowIso();
       meet.pendingSourceReview = false;
@@ -248,13 +277,29 @@ export class MeetService {
       meet.pendingSourceReview = true;
       meet.pendingSourceDiffs = [`Imported ${parsed.events.length} events from event file`];
     }
-    return this.store.saveMeet(meet);
+    const saved = await this.store.saveMeet(meet);
+    await this.recalculateConfirmedInvoices(saved);
+    return saved;
   }
 
   async closeCommitments(meetId: string): Promise<Meet> {
     const meet = await this.requireMeet(meetId);
     if (meet.status !== "commitment_open") throw new MeetServiceError("Meet is not open for commitments.");
     meet.status = "commitment_closed";
+    meet.commitmentClosedAt = nowIso();
+    return this.store.saveMeet(meet);
+  }
+
+  async reopenCommitments(meetId: string, now = nowIso()): Promise<Meet> {
+    const meet = await this.requireMeet(meetId);
+    if (meet.status !== "commitment_closed") {
+      throw new MeetServiceError("Only a closed RSVP can be reopened. After entries are sent to the host, do not reopen.");
+    }
+    if (isPrimeDeadlinePassed(meet.primeCommitmentDeadline, now)) {
+      throw new MeetServiceError("Prime Deadline has already passed. Save a later Prime Deadline, then reopen RSVP.");
+    }
+    meet.status = "commitment_open";
+    meet.commitmentClosedAt = "";
     return this.store.saveMeet(meet);
   }
 
@@ -307,17 +352,18 @@ export class MeetService {
     }
     const confirmedAt = nowIso();
     const dueAt = meetPaymentDueAt(confirmedAt);
+    const withFees = await this.fillMissingFeeRates(meet);
     const commits = await this.store.listCommitments({ meetId });
     for (const c of commits) {
       if (c.attendance !== "attend") continue;
       const confirmed = c.confirmedEventIds?.length ? c.confirmedEventIds : c.selectedEventIds;
       c.confirmedEventIds = confirmed;
-      this.applyFinalInvoice(meet, c, confirmed, dueAt);
+      this.applyFinalInvoice(withFees, c, confirmed, dueAt);
       await this.store.saveCommitment(c);
     }
-    meet.status = "entries_confirmed";
-    meet.entriesConfirmedAt = confirmedAt;
-    return this.store.saveMeet(meet);
+    withFees.status = "entries_confirmed";
+    withFees.entriesConfirmedAt = confirmedAt;
+    return this.store.saveMeet(withFees);
   }
 
   async reportPayment(opts: { meetId: string; swimmerId: string; parentUID: string }): Promise<MeetCommitment> {
@@ -413,11 +459,7 @@ export class MeetService {
           commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || nowIso())
         );
       } else {
-        const fee = computeHostFee({
-          surcharge: meet.surcharge,
-          individualEventFee: meet.individualEventFee,
-          eventCount: working.length,
-        });
+        const fee = feeForMeetEvents(meet, working);
         commitment.estimatedFee = fee.total;
         if (meet.status === "host_reply_received") commitment.confirmedEventIds = working;
       }
@@ -426,11 +468,7 @@ export class MeetService {
   }
 
   private applyFinalInvoice(meet: Meet, commitment: MeetCommitment, eventIds: string[], dueAt?: string) {
-    const fee = computeHostFee({
-      surcharge: meet.surcharge,
-      individualEventFee: meet.individualEventFee,
-      eventCount: eventIds.length,
-    });
+    const fee = feeForMeetEvents(meet, eventIds);
     commitment.confirmedEventIds = eventIds;
     commitment.finalFee = fee.total;
     commitment.paymentDueAt = dueAt;
@@ -440,6 +478,57 @@ export class MeetService {
     }
     if (commitment.paymentStatus !== "paid" && commitment.paymentStatus !== "payment_reported") {
       commitment.paymentStatus = "invoice_ready";
+    }
+  }
+
+  private invoiceEventIds(meet: Meet, commitment: MeetCommitment): string[] {
+    return finalSwimEventIds({
+      attendance: commitment.attendance,
+      status: meet.status,
+      selectedEventIds: commitment.selectedEventIds || [],
+      confirmedEventIds: commitment.confirmedEventIds,
+    });
+  }
+
+  private invoiceNeedsRepair(meet: Meet, commitment: MeetCommitment): boolean {
+    if (parentEventLabel(meet.status) !== "confirmed") return false;
+    if (commitment.attendance !== "attend") return false;
+    const fee = feeForMeetEvents(meet, this.invoiceEventIds(meet, commitment));
+    const stored = Number(commitment.finalFee) || 0;
+    if (stored !== fee.total) return true;
+    return fee.total > 0 && (commitment.paymentStatus === "none" || !commitment.paymentStatus);
+  }
+
+  private async fillMissingFeeRates(meet: Meet): Promise<Meet> {
+    const rates = resolveMeetFeeRates(meet);
+    let changed = false;
+    if (!(Number(meet.surcharge) > 0) && rates.surcharge != null) {
+      meet.surcharge = rates.surcharge;
+      changed = true;
+    }
+    if (!(Number(meet.individualEventFee) > 0) && rates.individualEventFee != null) {
+      meet.individualEventFee = rates.individualEventFee;
+      changed = true;
+    }
+    return changed ? this.store.saveMeet(meet) : meet;
+  }
+
+  private async persistInvoiceIfStale(meet: Meet, commitment: MeetCommitment): Promise<MeetCommitment> {
+    if (!this.invoiceNeedsRepair(meet, commitment)) return commitment;
+    this.applyFinalInvoice(
+      meet,
+      commitment,
+      this.invoiceEventIds(meet, commitment),
+      commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || nowIso())
+    );
+    return this.store.saveCommitment(commitment);
+  }
+
+  private async recalculateConfirmedInvoices(meet: Meet): Promise<void> {
+    if (parentEventLabel(meet.status) !== "confirmed") return;
+    const commits = await this.store.listCommitments({ meetId: meet.id });
+    for (const commitment of commits) {
+      await this.persistInvoiceIfStale(meet, commitment);
     }
   }
 
@@ -455,6 +544,7 @@ export class MeetService {
     const rows: MeetPaymentRow[] = [];
     for (const meet of meets) {
       if (parentEventLabel(meet.status) !== "confirmed") continue;
+      await this.recalculateConfirmedInvoices(meet);
       const commitments = await this.store.listCommitments({ meetId: meet.id });
       const swimmers = await this.listSwimmersByIds([...new Set(commitments.map((c) => c.swimmerId))]);
       rows.push(...serializeMeetPayments({ meet, commitments, swimmers, nowIso: now }));
@@ -502,6 +592,8 @@ export class MeetService {
       throw new MeetServiceError("Select at least one day to Attend.");
     }
 
+    const prev = await this.store.getCommitment(opts.meetId, opts.swimmerId);
+    const notes = (opts.parentNotes ?? prev?.parentNotes ?? "").trim();
     const hasFile = Boolean(meet.eventFileAcceptedAt && meet.events.length);
     if (opts.attendance === "attend" && hasFile && opts.selectedEventIds.length === 0) {
       // Allowed as incomplete if they only picked days; we persist incomplete
@@ -521,14 +613,12 @@ export class MeetService {
     } else if (opts.selectedEventIds.length) {
       throw new MeetServiceError("Event selection is not open until the Event File is available.");
     }
-
-    const prev = await this.store.getCommitment(opts.meetId, opts.swimmerId);
-    const notes = opts.parentNotes ?? prev?.parentNotes ?? "";
-    const fee = computeHostFee({
-      surcharge: meet.surcharge,
-      individualEventFee: meet.individualEventFee,
-      eventCount: opts.selectedEventIds.length,
-    });
+    if (opts.attendance === "attend" && !hasFile && notes.length < 8) {
+      throw new MeetServiceError(
+        "The host Event File is not posted yet. Write the events they want in Notes — for example: Saturday 50 Fly, 50 Free."
+      );
+    }
+    const fee = feeForMeetEvents(meet, opts.selectedEventIds);
     const incomplete =
       opts.attendance === "attend" && (opts.availableSessionIds.length === 0 || (hasFile && opts.selectedEventIds.length === 0));
 
@@ -550,7 +640,16 @@ export class MeetService {
       paymentStatus: opts.attendance === "attend" ? "estimated" : "none",
       isTestData: meet.isTestData,
     };
-    return this.store.saveCommitment(commitment);
+    const saved = await this.store.saveCommitment(commitment);
+    if (meetNow.parentUpdateBanner) {
+      const all = await this.store.listCommitments({ meetId: opts.meetId });
+      const stillNeed = all.some((row) => attendingNeedsNewDays(meetNow, row));
+      if (!stillNeed) {
+        meetNow.parentUpdateBanner = undefined;
+        await this.store.saveMeet(meetNow);
+      }
+    }
+    return saved;
   }
 
   async saveUsaSwimmingId(opts: { swimmerId: string; parentUID: string; usaSwimmingId: string }): Promise<MeetSwimmer> {
@@ -583,7 +682,10 @@ export class MeetService {
   async getAdminMeet(id: string, now = nowIso()): Promise<Meet | null> {
     const meet = await this.store.getMeet(id);
     if (!meet) return null;
-    return this.applyDeadlineClose(meet, now);
+    const closed = await this.applyDeadlineClose(meet, now);
+    const withFees = await this.fillMissingFeeRates(closed);
+    await this.recalculateConfirmedInvoices(withFees);
+    return withFees;
   }
 
   async listMeetCommitments(meetId: string) {
@@ -603,9 +705,14 @@ export class MeetService {
     const viewerIsTestAccount = await this.viewerIsTestAccount(parentUID, email);
     const [rawMeets, commitments] = await Promise.all([this.store.listMeets(), this.store.listCommitments({ parentUID })]);
     const meets = await Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet)));
+    const repaired: MeetCommitment[] = [];
+    for (const commitment of commitments) {
+      const meet = meets.find((row) => row.id === commitment.meetId);
+      repaired.push(meet ? await this.persistInvoiceIfStale(meet, commitment) : commitment);
+    }
     return listParentMeetCards({
       meets,
-      commitments: swimmerId ? commitments.filter((c) => c.swimmerId === swimmerId) : commitments,
+      commitments: swimmerId ? repaired.filter((c) => c.swimmerId === swimmerId) : repaired,
       viewerIsTestAccount,
       swimmerId,
     });
@@ -621,7 +728,30 @@ export class MeetService {
       householdMeetPayments(cards).map((card) => ({ ...card, swimmerId }))
     );
     const settings = await this.getSettings();
-    return { swimmers, meetsBySwimmer: bySwimmer, payments, settings };
+    const upcoming = await this.listUpcomingSwimmerMeets(parentUID, email);
+    return { swimmers, meetsBySwimmer: bySwimmer, payments, settings, upcoming };
+  }
+
+  async listUpcomingSwimmerMeets(parentUID: string, email?: string | null, opts?: { nowIso?: string; swimmerIds?: string[] }) {
+    const viewerIsTestAccount = await this.viewerIsTestAccount(parentUID, email);
+    const [rawMeets, commitments, swimmers] = await Promise.all([
+      this.store.listMeets(),
+      this.store.listCommitments({ parentUID }),
+      this.listParentSwimmers(parentUID),
+    ]);
+    const wanted = [...new Set((opts?.swimmerIds || []).filter(Boolean))];
+    if (wanted.some((id) => !swimmers.some((swimmer) => swimmer.id === id))) {
+      throw new MeetServiceError("Swimmer not found.");
+    }
+    const meets = await Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet, opts?.nowIso)));
+    return listUpcomingSwimmerMeets({
+      meets,
+      commitments,
+      swimmers,
+      viewerIsTestAccount,
+      todayYmd: pacificYmd(opts?.nowIso),
+      swimmerIds: wanted.length ? wanted : undefined,
+    });
   }
 
   async getParentDetail(opts: {
@@ -635,7 +765,8 @@ export class MeetService {
     const swimmer = await this.requireSwimmer(opts.swimmerId);
     if (swimmer.parentUID !== opts.parentUID) throw new MeetServiceError("Swimmer does not belong to this parent.");
     const viewerIsTestAccount = await this.viewerIsTestAccount(opts.parentUID, opts.email);
-    const commitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
+    const rawCommitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
+    const commitment = rawCommitment ? await this.persistInvoiceIfStale(meet, rawCommitment) : rawCommitment;
     const settings = await this.getSettings();
     const detail = buildParentMeetDetail({
       meet,
@@ -736,7 +867,7 @@ export class MeetService {
         const event = meet.events.find((e) => e.id === id);
         if (!event) continue;
         const list = bySession.get(event.sessionName) || [];
-        list.push(`#${event.eventNumber} ${eventLabel(event)}`);
+        list.push(eventLabel(event));
         bySession.set(event.sessionName, list);
       }
       const eventLines = [...bySession.entries()]
@@ -744,20 +875,33 @@ export class MeetService {
         .join("\n");
       const days = c.availableSessionIds.map(prettySessionName).join(", ");
       const dayLine = !eventLines && days ? `    Available: ${days}` : "";
-      const details = [eventLines, dayLine].filter(Boolean).join("\n");
+      const noteLine = c.parentNotes ? `    Requested / notes: ${c.parentNotes}` : "";
+      const details = [eventLines, dayLine, noteLine].filter(Boolean).join("\n");
       return details ? `${name} (${usa})\n${details}` : `${name} (${usa})`;
     });
     const eventCount = commits.reduce((n, c) => n + c.selectedEventIds.length, 0);
     const to = hostInbox(meet);
     const cleanName = meet.name.replace(/^\[TEST\]\s*/, "");
-    const subject = `Prime Swim Academy entries — ${cleanName}`;
+    const hasFile = Boolean(meet.eventFileAcceptedAt && meet.events.length);
+    const subject = hasFile
+      ? `Prime Swim Academy entries (SD3 attached) — ${cleanName}`
+      : `Prime Swim Academy athlete list — event file not posted yet — ${cleanName}`;
     const athleteSection = athleteBlocks.length
       ? athleteBlocks.join("\n\n")
       : "No Prime swimmers have Attended yet. I will send an updated list as soon as families finish RSVP.";
+    const fileParagraph = hasFile
+      ? [
+          "Please import the attached Standard SD3 in Hy-Tek Meet Manager: File → Import → Entries.",
+          "This is the same file TeamUnify/SportsEngine clubs send. Please do not retype these from a spreadsheet.",
+        ]
+      : [
+          "The host Event File (.ev3 / .hyv) is not posted yet, so we cannot send an importable Hy-Tek entry file.",
+          "Below is an athlete list only: who intends to attend, and the events families wrote in notes. After you post the Event File we will send a Standard SD3 that Meet Manager can import.",
+        ];
     const body = [
       `Hello ${meet.hostClub || "Meet Director"},`,
       "",
-      "I hope you are well. Prime Swim Academy is submitting entries for:",
+      "I hope you are well. Prime Swim Academy is writing about:",
       "",
       `Meet: ${cleanName}`,
       meet.hostClub ? `Host club: ${meet.hostClub}` : "",
@@ -765,15 +909,17 @@ export class MeetService {
       meet.location ? `Location: ${meet.location}` : "",
       meet.sanctionNumber ? `Approval / sanction: ${meet.sanctionNumber}` : "",
       "",
-      "Please accept the following Prime Swim Academy athletes and events:",
+      ...fileParagraph,
       "",
       athleteSection,
       "",
       athleteBlocks.length
-        ? `Total: ${commits.length} swimmer${commits.length === 1 ? "" : "s"}, ${eventCount} individual event${eventCount === 1 ? "" : "s"}.`
+        ? `Total: ${commits.length} swimmer${commits.length === 1 ? "" : "s"}${hasFile ? `, ${eventCount} individual event${eventCount === 1 ? "" : "s"}` : ""}.`
         : "",
       "",
-      "Please reply to this email to confirm the entries, or list any cuts we should remove. If you need a Hy-Tek / SD3 file, we can send that in a follow-up.",
+      hasFile
+        ? "Please reply to confirm the imported entries, or list any cuts we should remove."
+        : "Please send the Event File when it is ready. We will follow with the SD3.",
       "",
       "Thank you,",
       "Prime Swim Academy",

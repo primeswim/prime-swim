@@ -1,9 +1,9 @@
-import { computeHostFee } from "./fees";
+import { feeForMeetEvents } from "./fees";
 import { eventsForSwimmer, swimmerEligibilitySummary } from "./eligibility";
-import { eventLabel } from "./hytek-events";
+import { eventLabel, shortEventLabel } from "./hytek-events";
 import { canViewerSeeMeet } from "./test-data";
 import type { ClubMeetSettings, Meet, MeetCommitment, MeetEvent, MeetSwimmer } from "./types";
-import { DEFAULT_CLUB_MEET_SETTINGS, PARENT_VISIBLE_STATUSES } from "./types";
+import { DEFAULT_CLUB_MEET_SETTINGS } from "./types";
 import { usaSwimmingAttendGate } from "./usa-swimming";
 import { canParentEditCommitment, finalSwimEventIds, isParentVisibleStatus, parentEventLabel } from "./workflow";
 import { meetPaymentDueAt } from "./deadlines";
@@ -12,6 +12,32 @@ export interface ParentRequestedEvent {
   id: string;
   label: string;
   sessionName: string;
+}
+
+/** Selected (or confirmed) events for one swimmer at one meet. */
+export interface ParentSelectedEvent {
+  id: string;
+  eventNumber: number;
+  sessionName: string;
+  distance: number;
+  stroke: MeetEvent["stroke"];
+  label: string;
+}
+
+export interface UpcomingSwimmerMeet {
+  swimmerId: string;
+  swimmerFirstName: string;
+  swimmerLastName: string;
+  meetId: string;
+  name: string;
+  hostClub: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  status: Meet["status"];
+  attendance: Extract<MeetCommitment["attendance"], "attend" | "incomplete">;
+  sourceKey?: string;
+  events: ParentSelectedEvent[];
 }
 
 export interface ParentMeetCard {
@@ -30,6 +56,16 @@ export interface ParentMeetCard {
   sourceKey?: string;
   parentUpdateBanner?: string;
   attendance: MeetCommitment["attendance"] | "no_response";
+  swimmerResponses: Array<{
+    swimmerId: string;
+    attendance: MeetCommitment["attendance"];
+    events: ParentSelectedEvent[];
+  }>;
+  selectedEvents: ParentSelectedEvent[];
+  cutEvents: ParentSelectedEvent[];
+  hostCutNote?: string;
+  rsvpOpen: boolean;
+  rsvpNotice?: string;
   estimatedFee?: number;
   finalFee?: number;
   paymentStatus?: MeetCommitment["paymentStatus"];
@@ -43,6 +79,7 @@ export interface ParentMeetDetail {
   eventLabel: ReturnType<typeof parentEventLabel>;
   canEdit: boolean;
   canRespond: boolean;
+  rsvpNotice?: string;
   usaGate: ReturnType<typeof usaSwimmingAttendGate>;
   eligibility: ReturnType<typeof swimmerEligibilitySummary>;
   eligibleEvents: Array<MeetEvent & { label: string }>;
@@ -62,7 +99,7 @@ export function listParentMeetCards(opts: {
   swimmerId?: string;
 }): ParentMeetCard[] {
   return opts.meets
-    .filter((meet) => isParentVisibleStatus(meet.status))
+    .filter((meet) => isParentVisibleStatus(meet.status) || Boolean(meet.status === "cancelled" && meet.publishedToFamiliesAt))
     .filter((meet) => canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: opts.viewerIsTestAccount }))
     .map((meet) => {
       const commitment = opts.commitments.find(
@@ -85,6 +122,18 @@ export function listParentMeetCards(opts: {
         sourceKey: meet.sourceKey,
         parentUpdateBanner: meet.parentUpdateBanner,
         attendance: commitment?.attendance || "no_response",
+        selectedEvents: commitmentSelectedEvents(meet, commitment),
+        cutEvents: commitmentCutEvents(meet, commitment),
+        hostCutNote: commitment?.hostCutNote,
+        rsvpOpen: meet.status === "commitment_open",
+        rsvpNotice: parentRsvpNotice(meet.status),
+        swimmerResponses: opts.commitments
+          .filter((c) => c.meetId === meet.id)
+          .map((c) => ({
+            swimmerId: c.swimmerId,
+            attendance: c.attendance,
+            events: commitmentSelectedEvents(meet, c),
+          })),
         estimatedFee: commitment?.estimatedFee,
         finalFee: label === "confirmed" ? commitment?.finalFee : undefined,
         paymentStatus: label === "confirmed" ? commitment?.paymentStatus : commitment?.attendance === "attend" ? "estimated" : "none",
@@ -105,10 +154,8 @@ export function buildParentMeetDetail(opts: {
   if (!canViewerSeeMeet({ meetIsTestData: opts.meet.isTestData, viewerIsTestAccount: opts.viewerIsTestAccount })) {
     return { error: "Meet not found." };
   }
-  if (!isParentVisibleStatus(opts.meet.status) && !PARENT_VISIBLE_STATUSES.includes(opts.meet.status)) {
-    return { error: "Meet is not open to families yet." };
-  }
-  if (!isParentVisibleStatus(opts.meet.status)) {
+  const cancelledAfterPublish = opts.meet.status === "cancelled" && Boolean(opts.meet.publishedToFamiliesAt);
+  if (!isParentVisibleStatus(opts.meet.status) && !cancelledAfterPublish) {
     return { error: "Meet is not open to families yet." };
   }
 
@@ -136,18 +183,17 @@ export function buildParentMeetDetail(opts: {
       .filter((e): e is MeetEvent => Boolean(e))
       .map((event) => ({ id: event.id, label: eventLabel(event), sessionName: event.sessionName }));
 
-  const feeEventCount = opts.commitment?.attendance === "decline" ? 0 : selected.length;
-  const fee = computeHostFee({
-    surcharge: opts.meet.surcharge,
-    individualEventFee: opts.meet.individualEventFee,
-    eventCount: feeEventCount,
-  });
+  const fee =
+    opts.commitment?.attendance === "decline"
+      ? { surcharge: 0, events: 0, total: 0 }
+      : feeForMeetEvents(opts.meet, selected);
 
   return {
     meet: opts.meet,
     swimmer: opts.swimmer,
     eventLabel: label,
     canRespond: canParentEditCommitment(opts.meet.status, opts.nowIso, opts.meet.primeCommitmentDeadline),
+    rsvpNotice: parentRsvpNotice(opts.meet.status),
     canEdit: canParentEditCommitment(opts.meet.status, opts.nowIso, opts.meet.primeCommitmentDeadline) && usaGate.canAttend,
     usaGate,
     eligibility,
@@ -164,4 +210,151 @@ export function buildParentMeetDetail(opts: {
 
 export function householdMeetPayments(cards: ParentMeetCard[]): ParentMeetCard[] {
   return cards.filter((card) => card.eventLabel === "confirmed" && (card.finalFee || 0) > 0);
+}
+
+export function isSwimmerUpcomingMeetCard(card: ParentMeetCard, todayYmd: string): boolean {
+  if (card.attendance !== "attend" && card.attendance !== "incomplete") return false;
+  const end = (card.endDate || card.startDate || "").slice(0, 10);
+  if (end && end < todayYmd) return false;
+  return true;
+}
+
+export function parentRsvpNotice(status: Meet["status"]): string | undefined {
+  if (status === "commitment_open") return undefined;
+  if (status === "cancelled") return "This meet was cancelled. Attend / Decline is closed.";
+  if (status === "completed") return "This meet is over. Attend / Decline is closed.";
+  return "RSVP is closed. You can still view this meet, but Attend / Decline can no longer be changed.";
+}
+
+function toParentSelectedEvents(meet: Meet, ids: string[]): ParentSelectedEvent[] {
+  return ids
+    .map((id) => meet.events.find((event) => event.id === id))
+    .filter((event): event is MeetEvent => Boolean(event))
+    .map((event) => ({
+      id: event.id,
+      eventNumber: event.eventNumber,
+      sessionName: event.sessionName,
+      distance: event.distance,
+      stroke: event.stroke,
+      label: shortEventLabel(event),
+    }));
+}
+
+function commitmentSelectedEvents(meet: Meet, commitment?: MeetCommitment | null): ParentSelectedEvent[] {
+  if (!commitment || commitment.attendance === "decline" || commitment.attendance === "no_response") return [];
+  return toParentSelectedEvents(
+    meet,
+    finalSwimEventIds({
+      attendance: commitment.attendance,
+      status: meet.status,
+      selectedEventIds: commitment.selectedEventIds || [],
+      confirmedEventIds: commitment.confirmedEventIds,
+    })
+  );
+}
+
+function commitmentCutEvents(meet: Meet, commitment?: MeetCommitment | null): ParentSelectedEvent[] {
+  if (!commitment || parentEventLabel(meet.status) !== "confirmed") return [];
+  if (commitment.attendance === "decline" || commitment.attendance === "no_response") return [];
+  const kept = new Set(
+    finalSwimEventIds({
+      attendance: commitment.attendance,
+      status: meet.status,
+      selectedEventIds: commitment.selectedEventIds || [],
+      confirmedEventIds: commitment.confirmedEventIds,
+    })
+  );
+  return toParentSelectedEvents(
+    meet,
+    (commitment.selectedEventIds || []).filter((id) => !kept.has(id))
+  );
+}
+
+export function listUpcomingSwimmerMeets(opts: {
+  meets: Meet[];
+  commitments: MeetCommitment[];
+  swimmers: MeetSwimmer[];
+  viewerIsTestAccount: boolean;
+  todayYmd: string;
+  swimmerIds?: string[];
+}): UpcomingSwimmerMeet[] {
+  const wanted = opts.swimmerIds?.length ? new Set(opts.swimmerIds) : null;
+  const swimmers = wanted ? opts.swimmers.filter((swimmer) => wanted.has(swimmer.id)) : opts.swimmers;
+  const visible = opts.meets.filter(
+    (meet) =>
+      isParentVisibleStatus(meet.status) &&
+      canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: opts.viewerIsTestAccount }) &&
+      (meet.endDate || meet.startDate).slice(0, 10) >= opts.todayYmd
+  );
+  const byId = new Map(swimmers.map((swimmer) => [swimmer.id, swimmer]));
+  const rows: UpcomingSwimmerMeet[] = [];
+  for (const meet of visible) {
+    for (const commitment of opts.commitments) {
+      if (commitment.meetId !== meet.id) continue;
+      if (wanted && !wanted.has(commitment.swimmerId)) continue;
+      if (commitment.attendance !== "attend" && commitment.attendance !== "incomplete") continue;
+      const swimmer = byId.get(commitment.swimmerId);
+      if (!swimmer) continue;
+      rows.push({
+        swimmerId: swimmer.id,
+        swimmerFirstName: displaySwimmerFirstName(swimmer.childFirstName),
+        swimmerLastName: swimmer.childLastName.replace(/^\[TEST\]\s*/, ""),
+        meetId: meet.id,
+        name: meet.name,
+        hostClub: meet.hostClub,
+        startDate: meet.startDate,
+        endDate: meet.endDate,
+        location: meet.location,
+        status: meet.status,
+        attendance: commitment.attendance,
+        sourceKey: meet.sourceKey,
+        events: commitmentSelectedEvents(meet, commitment),
+      });
+    }
+  }
+  rows.sort((a, b) => `${a.startDate}${a.swimmerLastName}${a.meetId}`.localeCompare(`${b.startDate}${b.swimmerLastName}${b.meetId}`));
+  return rows;
+}
+
+export function displaySwimmerFirstName(name: string): string {
+  return name.replace(/^\[TEST\]\s*/, "").trim() || name;
+}
+
+/** What families see. Internal pending_for_review is never shown as a badge. */
+export function parentAttendanceLabel(
+  attendance: ParentMeetCard["attendance"],
+  eventLabel: ParentMeetCard["eventLabel"]
+): string {
+  if (attendance === "decline") return "Declined";
+  if (eventLabel === "confirmed") return "Confirmed";
+  if (attendance === "attend" || attendance === "incomplete") return "Attending";
+  return "Open";
+}
+
+export function swimmerMeetActionLabel(firstName: string, attendance: ParentMeetCard["attendance"]): string {
+  const name = displaySwimmerFirstName(firstName);
+  if (attendance === "attend" || attendance === "incomplete") return `${name}: Attending`;
+  if (attendance === "decline") return `${name}: Declined`;
+  return `${name}: Attend / Decline`;
+}
+
+/** Homepage tones: slate = not yet, amber = attending, red = declined. */
+export function swimmerMeetActionClass(attendance: ParentMeetCard["attendance"]): string {
+  if (attendance === "attend" || attendance === "incomplete") {
+    return "bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-md";
+  }
+  if (attendance === "decline") {
+    return "bg-red-600 hover:bg-red-700 text-white rounded-full shadow-md";
+  }
+  return "bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-md";
+}
+
+export function parentAttendanceBadgeClass(
+  attendance: ParentMeetCard["attendance"],
+  eventLabel: ParentMeetCard["eventLabel"]
+): string {
+  if (attendance === "decline") return "bg-red-600 text-white border-0";
+  if (eventLabel === "confirmed") return "bg-yellow-500 text-white border-0";
+  if (attendance === "attend" || attendance === "incomplete") return "bg-amber-500 text-white border-0";
+  return "bg-slate-800 text-white border-0";
 }

@@ -1,4 +1,5 @@
 import type { MeetCourse, MeetEvent, MeetGender, MeetStroke } from "./types";
+import { inferSessionName, sessionNameForMeetDay } from "./sessions";
 
 const STROKE_MAP: Record<string, MeetStroke> = {
   A: "free",
@@ -112,7 +113,7 @@ function parseEv3EventFile(lines: string[]): ParsedHytekMeet {
     events.push({
       id: `e${eventCode}`,
       eventNumber,
-      sessionName: Number.isFinite(sessionNum) && sessionNum > 1 ? `Session ${sessionNum}` : inferSessionName(eventNumber, endDate, startDate),
+      sessionName: sessionNameForMeetDay(sessionNum, startDate, endDate),
       gender,
       minAge,
       maxAge: maxAge < minAge ? 109 : maxAge,
@@ -174,15 +175,47 @@ export function parseHytekEventFile(content: string): ParsedHytekMeet {
   return { meetName, startDate, endDate, course, location, events };
 }
 
-function inferSessionName(eventNumber: number, endDate: string, startDate: string): string {
-  if (endDate && endDate !== startDate && eventNumber >= 26) return "Sunday";
-  if (endDate && endDate !== startDate) return "Saturday";
-  return "Session 1";
+export function strokeLabel(stroke: MeetStroke | string): string {
+  if (stroke === "im") return "IM";
+  if (stroke === "unknown" || !stroke) return "Stroke";
+  return stroke[0].toUpperCase() + stroke.slice(1);
 }
 
+export function genderLabel(gender: MeetGender | string): string {
+  if (gender === "female") return "Girls";
+  if (gender === "male") return "Boys";
+  return "Mixed";
+}
+
+/** Hy-Tek stores 0 / 109 as open ends. Show USA Swimming age groups, not "0-10". */
+export function ageGroupLabel(minAge: number, maxAge: number): string {
+  const noMin = !Number.isFinite(minAge) || minAge <= 0;
+  const noMax = !Number.isFinite(maxAge) || maxAge >= 99;
+  if (noMin && noMax) return "Open";
+  if (noMin) return `${maxAge} & Under`;
+  if (noMax) return `${minAge} & Over`;
+  if (minAge === maxAge) return `${minAge}`;
+  return `${minAge}-${maxAge}`;
+}
+
+/** Event without the number, for tables that already have a # column. */
+export function eventName(event: Pick<MeetEvent, "gender" | "minAge" | "maxAge" | "distance" | "stroke" | "isRelay">): string {
+  const parts = [
+    genderLabel(event.gender),
+    ageGroupLabel(event.minAge, event.maxAge),
+    String(event.distance),
+    strokeLabel(event.stroke),
+  ];
+  if (event.isRelay) parts.push("Relay");
+  return parts.join(" ");
+}
+
+/** Full label, e.g. "#1 Girls 10 & Under 100 Back". */
 export function eventLabel(event: MeetEvent): string {
-  const stroke =
-    event.stroke === "im" ? "IM" : event.stroke === "unknown" ? "Stroke" : event.stroke[0].toUpperCase() + event.stroke.slice(1);
-  const ages = event.minAge === 0 && event.maxAge >= 109 ? "Open" : `${event.minAge}-${event.maxAge}`;
-  return `${event.eventNumber} · ${ages} ${event.distance} ${stroke}`;
+  return `#${event.eventNumber} ${eventName(event)}`;
+}
+
+/** Compact label for parent cards, e.g. "50 Fly". */
+export function shortEventLabel(event: Pick<MeetEvent, "distance" | "stroke">): string {
+  return `${event.distance} ${strokeLabel(event.stroke)}`;
 }

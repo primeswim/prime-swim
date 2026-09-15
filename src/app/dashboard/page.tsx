@@ -31,7 +31,11 @@ import {
 } from "@/lib/membership"
 import type { ParentTuitionView } from "@/lib/tuition-v2/parent-tuition"
 import type { ParentMeetCard } from "@/lib/meets/parent-view"
+import { isSwimmerUpcomingMeetCard } from "@/lib/meets/parent-view"
 import { PnsMeetLink } from "@/components/pns-meet-link"
+import { MeetDateStamp } from "@/components/meet-date-stamp"
+import { MeetPayPrimeButton, MeetPaymentStatusNote } from "@/components/meet-pay-button"
+import { displayMeetName } from "@/lib/meets/display-name"
 
 type SwimmerWithMakeup = Swimmer & {
   nextMakeupText?: string
@@ -103,7 +107,6 @@ export default function DashboardPage() {
   // 每个 swimmer 是否存在未完成付款（payments.status = 'pending'）
   const [pendingMap, setPendingMap] = useState<Record<string, { paymentId: string }>>({})
   const [meetsBySwimmer, setMeetsBySwimmer] = useState<Record<string, ParentMeetCard[]>>({})
-  const [meetPayments, setMeetPayments] = useState<ParentMeetCard[]>([])
   const [omrUrl, setOmrUrl] = useState("")
   const [usaIdDraft, setUsaIdDraft] = useState<Record<string, string>>({})
   const [meetBusy, setMeetBusy] = useState("")
@@ -165,7 +168,6 @@ export default function DashboardPage() {
           const meetJson = await meetRes.json()
           if (meetRes.ok && meetJson?.ok) {
             setMeetsBySwimmer(meetJson.meetsBySwimmer || {})
-            setMeetPayments(meetJson.payments || [])
             setOmrUrl(meetJson.settings?.usaSwimmingOmrUrl || "")
           }
         } catch (meetErr) {
@@ -223,7 +225,6 @@ export default function DashboardPage() {
         card.meetId === meetId && card.swimmerId === swimmerId
           ? { ...card, paymentStatus: "payment_reported" as const }
           : card
-      setMeetPayments((prev) => prev.map(patch))
       setMeetsBySwimmer((prev) =>
         Object.fromEntries(Object.entries(prev).map(([id, cards]) => [id, cards.map(patch)]))
       )
@@ -611,75 +612,78 @@ export default function DashboardPage() {
                     )}
 
                     {(meetsBySwimmer[swimmer.id] || [])
-                      .filter((meet) => meet.eventLabel !== "confirmed")
+                      .filter((meet) =>
+                        isSwimmerUpcomingMeetCard(
+                          meet,
+                          new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" })
+                        )
+                      )
                       .slice(0, 3)
-                      .map((meet) => (
-                      <div key={meet.meetId} className="mt-3 p-3 rounded-lg border bg-white">
+                      .map((meet) => {
+                        const confirmed = meet.eventLabel === "confirmed";
+                        const fee = confirmed ? meet.finalFee : meet.estimatedFee;
+                        return (
+                      <div key={meet.meetId} className="relative mt-3 p-3 rounded-lg border bg-white hover:shadow-md transition-shadow">
+                        <Link
+                          href={`/meets/${meet.meetId}?swimmerId=${swimmer.id}`}
+                          className="absolute inset-0 z-0"
+                          aria-label={`Open ${displayMeetName(meet.name)}`}
+                        />
+                        <div className="relative z-10 flex items-start gap-3 pointer-events-none">
+                          <MeetDateStamp startDate={meet.startDate} endDate={meet.endDate} />
+                          <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3 text-sm">
                           <span className="font-medium text-slate-800">
-                            Upcoming meet · {meet.name}
+                            Upcoming meet · {displayMeetName(meet.name)}
                           </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
-                            {meet.eventLabel === "pending_for_review"
-                              ? "Pending for review"
-                              : meet.attendance === "attend"
-                              ? "Attending"
-                              : meet.attendance === "decline"
-                              ? "Declined"
-                              : "No response"}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${confirmed ? "bg-yellow-500 text-white" : "bg-amber-500 text-white"}`}>
+                            {confirmed ? "Confirmed" : "Attending"}
                           </span>
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
                           {meet.startDate} · Prime deadline {meet.primeCommitmentDeadline || "TBD"}
                         </div>
-                        {meet.eventLabel === "pending_for_review" && meet.estimatedFee != null && (
-                          <div className="mt-1 text-xs text-slate-500">Estimated host fee ${meet.estimatedFee.toFixed(2)} (not confirmed)</div>
+                        {meet.selectedEvents?.length > 0 && (
+                          <div className="mt-1 text-xs text-slate-600">
+                            {meet.selectedEvents.map((event) => event.label).join(" · ")}
+                          </div>
+                        )}
+                        {meet.cutEvents?.length > 0 && (
+                          <div className="mt-1 text-xs text-slate-500 line-through">
+                            Cut: {meet.cutEvents.map((event) => event.label).join(" · ")}
+                          </div>
+                        )}
+                        {meet.hostCutNote && (
+                          <div className="mt-1 text-xs text-slate-600">{meet.hostCutNote}</div>
+                        )}
+                        {fee != null && !confirmed && (
+                          <div className="mt-1 text-xs text-slate-500">Estimated host fee ${fee.toFixed(2)}</div>
+                        )}
+                        {confirmed && (meet.finalFee || 0) > 0 && (
+                          <div className="mt-2 space-y-2">
+                            <div className="text-sm font-semibold text-slate-800">
+                              Host fee ${meet.finalFee?.toFixed(2)} · pay Prime
+                            </div>
+                            {meet.paymentStatus === "invoice_ready" && (
+                              <MeetPayPrimeButton
+                                busy={meetBusy === `pay-${meet.meetId}-${swimmer.id}`}
+                                onClick={() => reportMeetPayment(meet.meetId, swimmer.id)}
+                              />
+                            )}
+                            <MeetPaymentStatusNote status={meet.paymentStatus} />
+                          </div>
+                        )}
+                        {meet.parentUpdateBanner && (
+                          <div className="text-xs text-amber-900 bg-amber-50 rounded-lg px-2 py-1.5 mt-2">{meet.parentUpdateBanner}</div>
                         )}
                         <div className="flex flex-wrap gap-3 mt-1">
-                          <Link href={`/meets/${meet.meetId}?swimmerId=${swimmer.id}`} className="text-xs text-blue-700 underline">
-                            {meet.attendance === "no_response" ? "Respond" : "View events"}
-                          </Link>
-                          <PnsMeetLink sourceKey={meet.sourceKey} className="text-xs text-blue-700 underline" />
+                          <PnsMeetLink sourceKey={meet.sourceKey} className="pointer-events-auto text-xs text-slate-700 underline underline-offset-2" />
+                        </div>
+                          </div>
                         </div>
                       </div>
-                    ))}
-
-                    {(meetsBySwimmer[swimmer.id] || [])
-                      .filter((meet) => meet.eventLabel === "confirmed" && (meet.finalFee || 0) > 0)
-                      .map((meet) => (
-                      <div key={`inv-${meet.meetId}`} className="mt-3 p-3 rounded-lg border bg-white">
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className="font-medium text-slate-800">Meet · {meet.name}</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-                            {meet.paymentStatus === "paid"
-                              ? "Paid"
-                              : meet.paymentStatus === "payment_reported"
-                              ? "Payment reported"
-                              : "Unpaid"}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1">Host entry fees (pass-through) · pay Prime</div>
-                        <div className="mt-1 text-sm"><b>${(meet.finalFee || 0).toFixed(2)}</b></div>
-                        {meet.paymentDueAt && (
-                          <div className="text-xs text-slate-500">Due {meet.paymentDueAt.slice(0, 10)}</div>
-                        )}
-                        <div className="flex gap-3 mt-2">
-                          <Link href={`/meets/${meet.meetId}?swimmerId=${swimmer.id}`} className="text-xs text-blue-700 underline">
-                            View events
-                          </Link>
-                          <PnsMeetLink sourceKey={meet.sourceKey} className="text-xs text-blue-700 underline" />
-                          {meet.paymentStatus === "invoice_ready" && (
-                            <button
-                              className="text-xs text-slate-800 underline"
-                              disabled={meetBusy === `pay-${meet.meetId}-${swimmer.id}`}
-                              onClick={() => reportMeetPayment(meet.meetId, swimmer.id)}
-                            >
-                              I have sent payment
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
 
                     {(canShowRenew || hasPendingPayment) && (
                     <div className="mt-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
@@ -722,40 +726,6 @@ export default function DashboardPage() {
               )
             })}
           </div>
-
-          {meetPayments.length > 0 && (
-            <Card className="mt-8 border-0 shadow-lg bg-white">
-              <CardHeader>
-                <CardTitle>Payments to Prime · Meet fees</CardTitle>
-                <CardDescription>Separate from tuition. These are pass-through host entry fees.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {meetPayments.map((p) => (
-                  <div key={`${p.meetId}-${p.swimmerId}`} className="flex items-center justify-between gap-3 text-sm border rounded-md px-3 py-2">
-                    <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-slate-500">
-                        Host entry fees · {p.paymentStatus === "paid" ? "Paid" : p.paymentStatus === "payment_reported" ? "Waiting for confirmation" : "Unpaid"}
-                        {p.paymentDueAt ? ` · due ${p.paymentDueAt.slice(0, 10)}` : ""}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">${(p.finalFee || 0).toFixed(2)}</div>
-                      {p.paymentStatus === "invoice_ready" && p.swimmerId && (
-                        <button
-                          className="text-xs text-blue-700 underline"
-                          disabled={meetBusy === `pay-${p.meetId}-${p.swimmerId}`}
-                          onClick={() => reportMeetPayment(p.meetId, p.swimmerId!)}
-                        >
-                          I have sent payment
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Empty State */}
           {swimmers.length === 0 && (

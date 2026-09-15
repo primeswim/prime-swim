@@ -12,13 +12,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Check, ChevronDown, ChevronRight, Lock, MapPin, Upload, Users } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Download, Lock, MapPin, Upload, Users } from "lucide-react";
 import { MeetAnnouncementText } from "@/components/meet-announcement-text";
 import { PnsMeetLink } from "@/components/pns-meet-link";
-import { eventLabel } from "@/lib/meets/hytek-events";
+import { eventLabel, eventName } from "@/lib/meets/hytek-events";
 import type { Meet, MeetCommitment, MeetSwimmer } from "@/lib/meets/types";
 import { mailtoHref } from "@/lib/meets/mailto";
-import { adminMeetGuide, canPublishToFamilies, parentEventLabel, type AdminMeetStepId } from "@/lib/meets/workflow";
+import { meetDayOptions, meetDateStamp } from "@/lib/meets/sessions";
+import { displayMeetName } from "@/lib/meets/display-name";
+import { MeetDateStamp } from "@/components/meet-date-stamp";
+import { adminMeetGuide, canExportHostPacket, canPublishToFamilies, canReopenRsvp, parentEventLabel, type AdminMeetStepId } from "@/lib/meets/workflow";
+import { meetHasInvoiceRates } from "@/lib/meets/fees";
+import { applyPendingSourcePatch, parentBannerForDayReselection, pnsDatesChanged } from "@/lib/meets/pns-calendar";
+import { attendingNeedsNewDays } from "@/lib/meets/sessions";
 
 async function token() {
   const user = auth.currentUser;
@@ -57,6 +63,8 @@ export default function AdminMeetDetailPage() {
   const [commitments, setCommitments] = useState<MeetCommitment[]>([]);
   const [swimmers, setSwimmers] = useState<MeetSwimmer[]>([]);
   const [deadline, setDeadline] = useState("");
+  const [surcharge, setSurcharge] = useState("");
+  const [eventFee, setEventFee] = useState("");
   const [hostReply, setHostReply] = useState("");
   const [banner, setBanner] = useState("");
   const [message, setMessage] = useState("");
@@ -98,7 +106,16 @@ export default function AdminMeetDetailPage() {
     setCommitments(json.commitments || []);
     setSwimmers(json.swimmers || []);
     setDeadline(json.meet.primeCommitmentDeadline || "");
+    setSurcharge(json.meet.surcharge != null ? String(json.meet.surcharge) : "");
+    setEventFee(json.meet.individualEventFee != null ? String(json.meet.individualEventFee) : "");
     setHostReply(json.meet.hostReplySummary || "");
+    setBanner(
+      json.meet.pendingSourceReview &&
+        pnsDatesChanged(json.meet.pendingSourceDiffs || []) &&
+        (json.commitments || []).some((row: MeetCommitment) => attendingNeedsNewDays(applyPendingSourcePatch(json.meet), row))
+        ? parentBannerForDayReselection()
+        : ""
+    );
     if (json.invitationEmail) {
       setInviteTo(json.invitationEmail.to || "");
       setInviteSubject(json.invitationEmail.subject || "");
@@ -108,6 +125,40 @@ export default function AdminMeetDetailPage() {
       setEmailTo(json.email.to || "");
       setEmailSubject(json.email.subject || "");
       setEmailBody(json.email.body || "");
+    }
+  }
+
+  async function downloadHostPacket(format: "csv" | "txt" | "sd3") {
+    try {
+      setBusy(true);
+      setError("");
+      const idToken = await token();
+      const res = await fetch(`/api/admin/meets/${id}/entries?format=${format}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Could not export entries");
+      }
+      const blob = await res.blob();
+      const fromHeader = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "")?.[1];
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fromHeader || `prime-entries.${format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(
+        format === "sd3"
+          ? "SD3 downloaded. Email this to the host — they import it in Meet Manager under File → Import → Entries."
+          : format === "csv"
+            ? "Readable roster downloaded. Do not send this as the official entry — hosts import SD3, not CSV."
+            : "Readable report downloaded. Attach SD3 as the official file once events are checked."
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -148,7 +199,7 @@ export default function AdminMeetDetailPage() {
 
   if (!ready || !meet) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
         <Header />
         <div className="container mx-auto px-4 py-10 text-slate-500">Loading meet…</div>
       </div>
@@ -242,7 +293,7 @@ export default function AdminMeetDetailPage() {
           {(meet.invitationStatus === "requested" || meet.invitationStatus === "not_requested") && (
             <div className="flex flex-wrap gap-2 pt-1">
               <Button
-                className="bg-blue-700 hover:bg-blue-800"
+                className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
                 disabled={busy}
                 onClick={() => act({ action: "invite", invitationStatus: "invited" }, "Host invited Prime. Next: set the Prime Deadline and publish.")}
               >
@@ -309,7 +360,7 @@ export default function AdminMeetDetailPage() {
             }}
           />
           <Button
-            className="bg-blue-700 hover:bg-blue-800"
+            className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
             disabled={busy || !canClickPublish}
             onClick={async () => {
               const idToken = await token();
@@ -351,11 +402,11 @@ export default function AdminMeetDetailPage() {
             await act({ action: "importEventFile", content: await file.text(), accept: true }, `Imported ${file.name}. Families can now check events until the Prime Deadline.`);
           }} />
           <div>
-            <p className="text-xs text-slate-500 mb-2">Only if the meet fills before the deadline.</p>
+            <p className="text-xs text-slate-500 mb-2">Closes Attend / Decline now, then you can download the host file on this page.</p>
             <Button
               disabled={busy || meet.status !== "commitment_open"}
               variant="outline"
-              onClick={() => act({ action: "close" }, "RSVP closed early. Next: email the entry list to the host.")}
+              onClick={() => act({ action: "close" }, "RSVP closed. Download the host file in “Download for the host” below.")}
             >
               Close RSVP early
             </Button>
@@ -368,9 +419,24 @@ export default function AdminMeetDetailPage() {
       return (
         <div className="space-y-3 text-sm">
           <p className="rounded-md bg-slate-100 px-3 py-2 text-slate-700">
-            RSVP is closed. Families can no longer Attend or Decline.
+            {meet.events.length > 0
+              ? "RSVP is closed. Use Download for the host above, then send the SD3 from the email draft below."
+              : "RSVP is closed. Use Download for the host above for the attending roster. That is not an importable entry file. Upload the .ev3/.hyv before close next time so families can check official events."}
             {meet.commitmentClosedAt ? ` Closed ${new Date(meet.commitmentClosedAt).toLocaleString()}.` : ""}
           </p>
+          {canReopenRsvp(meet.status) && (
+            <div>
+              <p className="text-xs text-slate-500 mb-2">Closed too early? Families can Attend / Decline again until the Prime Deadline.</p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => act({ action: "reopen" }, "RSVP is open again. Families can Attend or Decline until the Prime Deadline.")}
+              >
+                Reopen RSVP
+              </Button>
+            </div>
+          )}
           {meet.events.length === 0 && (
             <EventFilePanel meet={meet} fileName={fileName} busy={busy} when="after_close" onPick={async (file) => {
               setFileName(file.name);
@@ -397,7 +463,7 @@ export default function AdminMeetDetailPage() {
               Refresh draft
             </Button>
             <Button
-              className="bg-blue-700 hover:bg-blue-800"
+              className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
               disabled={busy || !emailTo}
               onClick={() =>
                 act({ action: "submit" }, `Marked as sent to ${emailTo}. Next: wait for the host reply.`)
@@ -425,7 +491,7 @@ export default function AdminMeetDetailPage() {
           <label className="font-medium text-slate-700">Host reply note</label>
           <Input className="mt-1" placeholder="e.g. Host cut Sunday 500 for timeline" value={hostReply} onChange={(e) => setHostReply(e.target.value)} />
           <Button
-            className="mt-2 bg-blue-700 hover:bg-blue-800"
+            className="mt-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full"
             disabled={busy || !hostReply.trim()}
             onClick={() => act({ action: "recordHostReply", summary: hostReply }, "Host reply recorded. Next: uncheck cut events, then show families the confirmed list.")}
           >
@@ -441,9 +507,14 @@ export default function AdminMeetDetailPage() {
           <p>
             Uncheck or add events in Family responses below, then show families the confirmed list. Admin edits are stored as the final entry.
           </p>
+          {!meetHasInvoiceRates(meet) && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+              Host fees are still $0. Enter the surcharge and per-event fee in Host fees above, then save, so families do not see a $0.00 invoice.
+            </p>
+          )}
           <Button
             disabled={busy}
-            className="bg-blue-700 hover:bg-blue-800"
+            className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
             onClick={() => act({ action: "publishConfirmed" }, "Families now see the confirmed events and fees.")}
           >
             Show families the confirmed events &amp; fees
@@ -456,35 +527,135 @@ export default function AdminMeetDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       <Header />
       <main className="container mx-auto px-4 py-8 space-y-6">
-        <Link href="/admin/meets" className="text-sm text-blue-700 hover:underline">
+        <Link href="/admin/meets" className="text-sm text-slate-600 hover:text-slate-900">
           ← All meets
         </Link>
 
-        <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-6">
+        <div className="rounded-2xl bg-gradient-to-br from-stone-50 via-white to-amber-50/50 p-6 shadow-xl">
+          <div className="flex items-start gap-4">
+            <MeetDateStamp startDate={meet.startDate} endDate={meet.endDate} className="mt-1" />
+            <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             {meet.isTestData && <Badge className="bg-amber-100 text-amber-800 border-amber-200">TEST DATA</Badge>}
             <Badge className={statusTone(meet.status)}>{labelStatus(meet.status)}</Badge>
-            <Badge className={meet.meetType === "invitational" ? "bg-violet-100 text-violet-800" : "bg-sky-100 text-sky-800"}>
+            <Badge className={meet.meetType === "invitational" ? "bg-violet-100 text-violet-800" : "bg-slate-100 text-slate-700"}>
               {meet.meetType === "invitational" ? "Invitational" : "Open meet"}
             </Badge>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800">{meet.name}</h1>
+          <h1 className="text-3xl font-bold text-slate-800">{displayMeetName(meet.name)}</h1>
           <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-600">
+            <span className="font-medium text-slate-800">{meetDateStamp(meet.startDate, meet.endDate).rangeLabel}</span>
             <span className="inline-flex items-center gap-1">
-              <Calendar className="h-4 w-4 text-blue-600" />
-              {meet.startDate} – {meet.endDate}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-4 w-4 text-blue-600" />
+              <MapPin className="h-4 w-4 text-slate-500" />
               {meet.location || "Location TBD"}
             </span>
             <span>Host: {meet.hostClub}</span>
             <PnsMeetLink sourceKey={meet.sourceKey} />
           </div>
+            </div>
+          </div>
         </div>
+
+        {meet.status !== "cancelled" && (
+          <Card className="border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Host fees for family invoices</CardTitle>
+              <CardDescription>
+                We pull these from the announcement PDF when the meet is fetched. Check them during review and save a correction if they are wrong. Final fee = surcharge + each confirmed event. If the Event File lists a fee on an event, that amount is used instead of the per-event rate.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="font-medium text-slate-700">Surcharge</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={surcharge}
+                    onChange={(e) => setSurcharge(e.target.value)}
+                    className="mt-1"
+                    placeholder="25.00"
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-slate-700">Individual event fee</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={eventFee}
+                    onChange={(e) => setEventFee(e.target.value)}
+                    className="mt-1"
+                    placeholder="4.50"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                Saving overwrites the extracted rates and recalculates invoices if families already see the confirmed lineup.
+              </p>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={async () => {
+                  const surchargeN = surcharge.trim() === "" ? 0 : Number(surcharge);
+                  const eventFeeN = eventFee.trim() === "" ? 0 : Number(eventFee);
+                  if (!Number.isFinite(surchargeN) || !Number.isFinite(eventFeeN) || surchargeN < 0 || eventFeeN < 0) {
+                    setError("Enter valid host fees.");
+                    return;
+                  }
+                  setBusy(true);
+                  setError("");
+                  try {
+                    const idToken = await token();
+                    const res = await fetch(`/api/admin/meets/${id}`, {
+                      method: "PATCH",
+                      headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+                      body: JSON.stringify({ surcharge: surchargeN, individualEventFee: eventFeeN }),
+                    });
+                    const json = await res.json();
+                    if (!json.ok) throw new Error(json.error || "Could not save fees");
+                    await reload();
+                    setMessage(
+                      parentEventLabel(meet.status) === "confirmed"
+                        ? "Host fees saved. Family invoices were recalculated."
+                        : "Host fees saved."
+                    );
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Could not save fees");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Save host fees
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {canExportHostPacket(meet.status) && (
+          <Card id="host-download" className="border-2 border-slate-800 shadow-xl bg-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Download for the host
+              </CardTitle>
+              <CardDescription>
+                {meet.events.length > 0
+                  ? "RSVP is closed. Download Standard SD3 — this is the file the host imports in Meet Manager (File → Import → Entries). CSV is only a readable copy."
+                  : "RSVP is closed. There is no Event File yet, so download the attending roster (names + the events parents wrote in Notes). Do not email CSV as official entries. SD3 unlocks after you import the .ev3/.hyv."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <HostAttendPreview meet={meet} commitments={commitments} swimmers={swimmers} />
+              <HostPacketButtons busy={busy} onDownload={downloadHostPacket} hasEventFile={meet.events.length > 0} />
+            </CardContent>
+          </Card>
+        )}
 
         {error && (
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>
@@ -497,7 +668,8 @@ export default function AdminMeetDetailPage() {
             <CardHeader>
               <CardTitle>PNS found updates</CardTitle>
               <CardDescription>
-                This meet is already in our list. Review the changes below. Families still see the current version until you Accept.
+                This meet is already in our list. Families still see the current dates until you Accept.
+                If someone already Attended and the new dates no longer match the days they picked, they will see a prompt to choose days and tap Attend again. Same days stay as they are.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -508,12 +680,16 @@ export default function AdminMeetDetailPage() {
                   <li>PNS calendar data changed.</li>
                 )}
               </ul>
-              <Input placeholder="Note for parents (optional)" value={banner} onChange={(e) => setBanner(e.target.value)} />
+              <Input placeholder="Note for parents (shown after Accept)" value={banner} onChange={(e) => setBanner(e.target.value)} />
               <div className="flex flex-wrap gap-2">
-                <Button disabled={busy} onClick={() => act({ action: "acceptUpdate", banner }, "Update accepted. Parent pages now show the new PNS info.")}>
+                <Button
+                  className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
+                  disabled={busy}
+                  onClick={() => act({ action: "acceptUpdate", banner }, "Update accepted. Parent pages now show the new PNS info.")}
+                >
                   Accept update
                 </Button>
-                <Button variant="outline" disabled={busy} onClick={() => act({ action: "dismissUpdate" }, "PNS update dismissed. Family pages stay as they are.")}>
+                <Button variant="outline" className="rounded-full" disabled={busy} onClick={() => act({ action: "dismissUpdate" }, "PNS update dismissed. Family pages stay as they are.")}>
                   Keep current version
                 </Button>
               </div>
@@ -527,7 +703,7 @@ export default function AdminMeetDetailPage() {
           </div>
         )}
 
-        <Card className="border-0 shadow-md border-l-4 border-l-blue-600">
+        <Card className="border-0 shadow-xl border-l-4 border-l-slate-800">
           <CardHeader className="pb-2">
             <CardDescription>Do this next</CardDescription>
             <CardTitle className="text-xl">{guide.nextTitle}</CardTitle>
@@ -548,7 +724,7 @@ export default function AdminMeetDetailPage() {
               const canOpen = step.state === "done" || step.state === "current";
               const open = canOpen && activeStep === step.id && step.state === "done";
               return (
-                <div key={step.id} className={`rounded-lg border px-3 py-2 ${step.state === "current" ? "border-blue-200 bg-blue-50/70" : "bg-white"}`}>
+                <div key={step.id} className={`rounded-lg border px-3 py-2 ${step.state === "current" ? "border-slate-300 bg-stone-50" : "bg-white"}`}>
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 text-left"
@@ -572,7 +748,7 @@ export default function AdminMeetDetailPage() {
 
         <Card className="border-0 shadow-sm">
           <button type="button" className="flex w-full items-center justify-between px-6 py-4 text-left" onClick={() => setPacketOpen(!packetExpanded)}>
-            <span className="font-medium text-slate-800">Meet packet</span>
+            <span className="font-medium text-slate-800">Announcement / PNS files</span>
             {packetExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
           </button>
           {packetExpanded && (
@@ -584,15 +760,15 @@ export default function AdminMeetDetailPage() {
                   ))}
                 </ul>
               )}
-              <PnsMeetLink sourceKey={meet.sourceKey} className="block text-sm text-blue-700 underline" />
+              <PnsMeetLink sourceKey={meet.sourceKey} className="block text-sm text-slate-700 underline underline-offset-2" />
               {(meet.sourceFiles || []).map((file) => (
-                <a key={file.url} href={file.url} target="_blank" rel="noreferrer" className="block text-sm text-blue-700 underline">
+                <a key={file.url} href={file.url} target="_blank" rel="noreferrer" className="block text-sm text-slate-700 underline underline-offset-2">
                   {file.kind === "event_file" ? "Event file: " : file.kind === "announcement" ? "Announcement: " : "PNS file: "}
                   {file.name}
                 </a>
               ))}
               {meet.announcementUrl && !(meet.sourceFiles || []).some((f) => f.url === meet.announcementUrl) && (
-                <a href={meet.announcementUrl} target="_blank" rel="noreferrer" className="inline-flex text-sm text-blue-700 underline">
+                <a href={meet.announcementUrl} target="_blank" rel="noreferrer" className="inline-flex text-sm text-slate-700 underline underline-offset-2">
                   Open announcement PDF
                 </a>
               )}
@@ -601,7 +777,7 @@ export default function AdminMeetDetailPage() {
               )}
               {meet.announcementText && (
                 <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2">
-                  <MeetAnnouncementText text={meet.announcementText} hostClub={meet.hostClub} />
+                  <MeetAnnouncementText text={meet.announcementText} hostClub={meet.hostClub} meetName={meet.name} />
                 </div>
               )}
             </CardContent>
@@ -612,7 +788,7 @@ export default function AdminMeetDetailPage() {
           <Card className="border-0 shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-600" />
+                <Users className="h-5 w-5 text-slate-600" />
                 Family responses
               </CardTitle>
               <CardDescription>
@@ -645,6 +821,98 @@ export default function AdminMeetDetailPage() {
   );
 }
 
+function HostAttendPreview({
+  meet,
+  commitments,
+  swimmers,
+}: {
+  meet: Meet;
+  commitments: MeetCommitment[];
+  swimmers: MeetSwimmer[];
+}) {
+  const attending = commitments.filter((row) => row.attendance === "attend");
+  const eventById = new Map((meet.events || []).map((event) => [event.id, event]));
+  if (attending.length === 0) {
+    return <p className="text-sm text-slate-600">No Prime swimmer has Attended. The download will be empty until someone marks Attend.</p>;
+  }
+  return (
+    <div className="rounded-xl border bg-slate-50 px-4 py-3 space-y-3">
+      <p className="text-sm font-medium text-slate-800">
+        {attending.length} swimmer{attending.length === 1 ? "" : "s"} Attended — this is what the download contains
+      </p>
+      <ul className="space-y-2">
+        {attending.map((row) => {
+          const swimmer = swimmers.find((s) => s.id === row.swimmerId);
+          const name = swimmer ? `${swimmer.childFirstName} ${swimmer.childLastName}` : row.swimmerId;
+          const events = (row.selectedEventIds || [])
+            .map((id) => eventById.get(id))
+            .filter(Boolean)
+            .map((event) => eventLabel(event!));
+          return (
+            <li key={row.id} className="text-sm text-slate-700">
+              <span className="font-medium text-slate-900">{name}</span>
+              {row.availableSessionIds?.length ? ` · ${row.availableSessionIds.length} day${row.availableSessionIds.length === 1 ? "" : "s"}` : ""}
+              {events.length > 0 ? (
+                <div className="text-xs text-slate-600 mt-0.5">{events.join("; ")}</div>
+              ) : row.parentNotes ? (
+                <div className="text-xs text-slate-600 mt-0.5">Notes: {row.parentNotes}</div>
+              ) : (
+                <div className="text-xs text-amber-800 mt-0.5">No events or notes yet</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function HostPacketButtons({
+  busy,
+  onDownload,
+  hasEventFile,
+}: {
+  busy: boolean;
+  onDownload: (format: "csv" | "txt" | "sd3") => Promise<void>;
+  hasEventFile: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {hasEventFile ? (
+          <>
+            <Button type="button" className="bg-slate-800 hover:bg-slate-700 text-white rounded-full" disabled={busy} onClick={() => onDownload("sd3")}>
+              <Download className="h-4 w-4 mr-1.5" />
+              Download SD3 for host
+            </Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => onDownload("txt")}>
+              Readable report
+            </Button>
+          </>
+        ) : (
+          <Button type="button" className="bg-slate-800 hover:bg-slate-700 text-white rounded-full" disabled={busy} onClick={() => onDownload("txt")}>
+            <Download className="h-4 w-4 mr-1.5" />
+            Download attending roster
+          </Button>
+        )}
+        <Button type="button" variant="outline" disabled={busy} onClick={() => onDownload("csv")}>
+          Readable roster CSV
+        </Button>
+        {!hasEventFile && (
+          <Button type="button" variant="outline" disabled className="rounded-full text-slate-400">
+            SD3 locked — need Event File
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-slate-500">
+        {hasEventFile
+          ? "SD3 is the file hosts import. CSV/report are only for your records — do not send them as the official entry."
+          : "The attending roster lists who is coming and the events they wrote in Notes. Hosts cannot import it into Meet Manager."}
+      </p>
+    </div>
+  );
+}
+
 function StepMark({ index, state }: { index: number; state: "skipped" | "done" | "current" | "locked" }) {
   if (state === "done") {
     return (
@@ -654,7 +922,7 @@ function StepMark({ index, state }: { index: number; state: "skipped" | "done" |
     );
   }
   if (state === "current") {
-    return <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-700 text-[11px] font-semibold text-white">{index}</span>;
+    return <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-[11px] font-semibold text-white">{index}</span>;
   }
   if (state === "skipped") {
     return <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[11px] text-slate-500">–</span>;
@@ -684,8 +952,8 @@ function EventFilePanel({
   return (
     <div className="space-y-3">
       <p className="text-xs text-slate-500">{hint}</p>
-      <label className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-6 py-6 ${busy ? "opacity-60" : "cursor-pointer hover:bg-blue-50"}`}>
-        <Upload className="h-7 w-7 text-blue-600" />
+      <label className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-stone-50 px-6 py-6 ${busy ? "opacity-60" : "cursor-pointer hover:bg-stone-100"}`}>
+        <Upload className="h-7 w-7 text-slate-600" />
         <span className="text-sm font-medium text-slate-800">{fileName || "Click to choose a .hyv or .ev3 file"}</span>
         <input
           type="file"
@@ -711,6 +979,7 @@ function EventFilePanel({
                 <th className="px-3 py-2">#</th>
                 <th className="px-3 py-2">Session</th>
                 <th className="px-3 py-2">Event</th>
+                <th className="px-3 py-2">Fee</th>
               </tr>
             </thead>
             <tbody>
@@ -718,7 +987,8 @@ function EventFilePanel({
                 <tr key={event.id} className="border-t">
                   <td className="px-3 py-1.5">{event.eventNumber}</td>
                   <td className="px-3 py-1.5">{event.sessionName}</td>
-                  <td className="px-3 py-1.5">{eventLabel(event)}</td>
+                  <td className="px-3 py-1.5">{eventName(event)}</td>
+                  <td className="px-3 py-1.5">{Number(event.eventFee) > 0 ? `$${Number(event.eventFee).toFixed(2)}` : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -748,7 +1018,7 @@ function AdminCommitmentEditor({
     hostCutNote: string;
   }) => void;
 }) {
-  const sessionIds = meet.sessions.length ? meet.sessions.map((s) => s.id) : ["saturday", "sunday"];
+  const sessionOptions = meetDayOptions(meet);
   const finalized = parentEventLabel(meet.status) === "confirmed" || meet.status === "host_reply_received";
   const [attendance, setAttendance] = useState<"attend" | "decline">(commitment.attendance === "decline" ? "decline" : "attend");
   const [days, setDays] = useState(commitment.availableSessionIds);
@@ -784,14 +1054,14 @@ function AdminCommitmentEditor({
       </div>
       <div>
         <div className="text-xs font-medium text-slate-600 mb-1">Days</div>
-        {sessionIds.map((day) => (
-          <label key={day} className="mr-3 inline-flex items-center gap-1 capitalize">
+        {sessionOptions.map((day) => (
+          <label key={day.id} className="mr-3 inline-flex items-center gap-1">
             <input
               type="checkbox"
-              checked={days.includes(day)}
-              onChange={(e) => setDays((prev) => (e.target.checked ? [...prev, day] : prev.filter((d) => d !== day)))}
+              checked={days.includes(day.id)}
+              onChange={(e) => setDays((prev) => (e.target.checked ? [...prev, day.id] : prev.filter((d) => d !== day.id)))}
             />
-            {day}
+            {day.label}
           </label>
         ))}
       </div>

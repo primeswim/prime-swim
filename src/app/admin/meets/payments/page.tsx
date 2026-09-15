@@ -93,12 +93,22 @@ export default function AdminMeetPaymentsPage() {
       list.push(row);
       map.set(row.meetId, list);
     }
+    const rank = (status: MeetPaymentRow["paymentStatus"]) =>
+      status === "payment_reported" ? 0 : status === "invoice_ready" ? 1 : status === "paid" ? 3 : 2;
+    for (const rows of map.values()) {
+      rows.sort((a, b) => rank(a.paymentStatus) - rank(b.paymentStatus) || a.swimmerName.localeCompare(b.swimmerName));
+    }
     return [...map.entries()].sort((a, b) => {
+      const aReported = a[1].some((row) => row.paymentStatus === "payment_reported") ? 0 : 1;
+      const bReported = b[1].some((row) => row.paymentStatus === "payment_reported") ? 0 : 1;
+      if (aReported !== bReported) return aReported - bReported;
       const da = a[1][0]?.startDate || "";
       const db = b[1][0]?.startDate || "";
       return db.localeCompare(da);
     });
   }, [filtered]);
+
+  const reported = invoices.filter((row) => row.paymentStatus === "payment_reported");
 
   if (!ready) {
     return (
@@ -118,9 +128,10 @@ export default function AdminMeetPaymentsPage() {
             <h1 className="text-3xl font-bold text-slate-800">Meet payments</h1>
             <p className="text-sm text-slate-600 mt-1">
               Host entry fees billed to families after the lineup is confirmed. Due date is one week after that confirmation.
+              Families tap “I have sent payment”; you mark paid when the money is in.
             </p>
           </div>
-          <Link href="/admin/meets" className="text-sm text-blue-700 underline">
+          <Link href="/admin/meets" className="text-sm text-slate-700 underline underline-offset-2">
             Meet workflow
           </Link>
         </div>
@@ -141,6 +152,40 @@ export default function AdminMeetPaymentsPage() {
           </CardContent>
         </Card>
 
+        {reported.length > 0 && (
+          <Card className="border-2 border-amber-400 bg-amber-50 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg text-amber-950">Needs confirmation · {reported.length}</CardTitle>
+              <CardDescription className="text-amber-900">
+                These families tapped “I have sent payment”. They are still unpaid until you mark paid.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {reported.map((row) => (
+                <div key={`alert-${row.meetId}-${row.swimmerId}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm">
+                  <div>
+                    <div className="font-medium text-amber-950">
+                      {row.swimmerName} · {row.meetName}
+                    </div>
+                    <div className="text-xs text-amber-800">
+                      ${row.finalFee.toFixed(2)}
+                      {row.paymentReportedAt ? ` · reported ${row.paymentReportedAt.slice(0, 16).replace("T", " ")}` : ""}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
+                    disabled={!!busy}
+                    onClick={() => mark(row.meetId, row.swimmerId, "markPaid")}
+                  >
+                    Mark paid
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {message && <p className="text-sm text-rose-700">{message}</p>}
 
         {grouped.length === 0 && (
@@ -151,7 +196,8 @@ export default function AdminMeetPaymentsPage() {
 
         {grouped.map(([meetId, rows]) => {
           const first = rows[0];
-          const unpaidCount = rows.filter((r) => r.paymentStatus !== "paid").length;
+          const reportedCount = rows.filter((r) => r.paymentStatus === "payment_reported").length;
+          const unpaidCount = rows.filter((r) => r.paymentStatus === "invoice_ready").length;
           return (
             <Card key={meetId} className="border-0 shadow-md">
               <CardHeader>
@@ -160,7 +206,8 @@ export default function AdminMeetPaymentsPage() {
                     {first.meetName}
                   </Link>
                   {first.isTestData && <Badge className="bg-amber-100 text-amber-800">TEST DATA</Badge>}
-                  <Badge variant="outline">{unpaidCount} unpaid</Badge>
+                  {reportedCount > 0 && <Badge className="bg-amber-500 text-white border-0">{reportedCount} reported</Badge>}
+                  {unpaidCount > 0 && <Badge variant="outline">{unpaidCount} unpaid</Badge>}
                 </CardTitle>
                 <CardDescription>
                   {first.startDate} – {first.endDate} · {first.hostClub}
@@ -168,7 +215,12 @@ export default function AdminMeetPaymentsPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {rows.map((row) => (
-                  <div key={`${row.meetId}-${row.swimmerId}`} className="rounded-lg border bg-white p-3 text-sm">
+                  <div
+                    key={`${row.meetId}-${row.swimmerId}`}
+                    className={`rounded-lg border p-3 text-sm ${
+                      row.paymentStatus === "payment_reported" ? "border-amber-300 bg-amber-50" : "bg-white"
+                    }`}
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="font-medium text-slate-800">{row.swimmerName}</div>
@@ -178,6 +230,7 @@ export default function AdminMeetPaymentsPage() {
                         <div className="text-xs text-slate-500 mt-1">
                           Due {row.paymentDueAt ? row.paymentDueAt.slice(0, 10) : "TBD"}
                           {row.overdue ? " · overdue" : ""}
+                          {row.paymentReportedAt ? ` · family reported ${row.paymentReportedAt.slice(0, 10)}` : ""}
                         </div>
                       </div>
                       <div className="text-right space-y-2">
@@ -200,7 +253,7 @@ export default function AdminMeetPaymentsPage() {
                         {row.paymentStatus !== "paid" ? (
                           <Button
                             size="sm"
-                            className="block ml-auto"
+                            className="block ml-auto bg-slate-800 hover:bg-slate-700 text-white rounded-full"
                             disabled={!!busy}
                             onClick={() => mark(row.meetId, row.swimmerId, "markPaid")}
                           >

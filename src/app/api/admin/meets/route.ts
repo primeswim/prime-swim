@@ -10,7 +10,9 @@ export async function GET(req: Request) {
   try {
     await requireMeetAdmin(req);
     const meets = await getMeetService().listAdminMeets();
-    return NextResponse.json({ ok: true, meets });
+    const invoices = await getMeetService().listMeetPayments();
+    const reportedPayments = invoices.filter((row) => row.paymentStatus === "payment_reported");
+    return NextResponse.json({ ok: true, meets, reportedPayments });
   } catch (e) {
     const auth = meetAuthError(e);
     if (auth) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });

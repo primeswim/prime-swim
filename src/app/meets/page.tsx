@@ -7,12 +7,22 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { countAdminMeetList, filterAdminMeetList, type AdminMeetListFilter } from "@/lib/meets/list-filter";
-import type { ParentMeetCard } from "@/lib/meets/parent-view";
+import {
+  swimmerMeetActionClass,
+  swimmerMeetActionLabel,
+  type ParentMeetCard,
+} from "@/lib/meets/parent-view";
 import type { MeetSwimmer } from "@/lib/meets/types";
 import { PnsMeetLink } from "@/components/pns-meet-link";
+import { MeetDateStamp } from "@/components/meet-date-stamp";
+import { displayMeetName } from "@/lib/meets/display-name";
+import { meetDateStamp } from "@/lib/meets/sessions";
+
+const primaryBtn = "bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-md";
+const quietLink = "text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900";
 
 export default function ParentMeetsPage() {
   const router = useRouter();
@@ -49,13 +59,15 @@ export default function ParentMeetsPage() {
   const visibleMeets = useMemo(() => filterAdminMeetList(meets, listFilter), [meets, listFilter]);
 
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       <Header />
-      <main className="container mx-auto px-4 py-8 space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Meets</h1>
-        <p className="text-sm text-slate-600">
-          Signed-in Prime families only. Mark Attend or Decline for each swimmer. Prime submits the events you select.
-        </p>
+      <main className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Meets</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Signed-in Prime families only. Mark Attend or Decline for each swimmer. Prime submits the events you select.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -68,7 +80,7 @@ export default function ParentMeetsPage() {
               key={id}
               size="sm"
               variant={listFilter === id ? "default" : "outline"}
-              className={listFilter === id ? "bg-blue-700 hover:bg-blue-800" : ""}
+              className={listFilter === id ? primaryBtn : "rounded-full border-slate-200 text-slate-700 bg-white hover:bg-slate-50"}
               onClick={() => setListFilter(id)}
             >
               {label} ({count})
@@ -78,12 +90,12 @@ export default function ParentMeetsPage() {
         {error && <p className="text-sm text-rose-600">{error}</p>}
         {loading && <p className="text-sm text-slate-500">Loading meets…</p>}
         {!loading && meets.length === 0 && !error && (
-          <Card>
+          <Card className="border-0 shadow-xl bg-white">
             <CardContent className="py-8 text-sm text-slate-500">No published meets yet.</CardContent>
           </Card>
         )}
         {!loading && meets.length > 0 && visibleMeets.length === 0 && (
-          <Card>
+          <Card className="border-0 shadow-xl bg-white">
             <CardContent className="py-8 text-sm text-slate-500">
               {listFilter === "past"
                 ? "No past meets in the archive."
@@ -93,42 +105,90 @@ export default function ParentMeetsPage() {
             </CardContent>
           </Card>
         )}
-        {visibleMeets.map((meet) => (
-          <Card key={meet.meetId}>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                {meet.name}
-                {meet.isTestData && <Badge className="bg-amber-100 text-amber-800">TEST DATA</Badge>}
-                <Badge variant="outline">{meet.eventLabel === "confirmed" ? "Confirmed" : meet.eventLabel === "pending_for_review" ? "Pending for review" : meet.meetType}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-slate-600">
-              <div>
-                {meet.startDate} – {meet.endDate} · {meet.location}
-              </div>
-              {meet.primeCommitmentDeadline && <div>Prime Deadline: {meet.primeCommitmentDeadline}</div>}
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                <PnsMeetLink sourceKey={meet.sourceKey} className="text-blue-700 underline" />
-                {meet.announcementUrl && (
-                  <a href={meet.announcementUrl} className="text-blue-700 underline" target="_blank" rel="noreferrer">
-                    Announcement / eligibility PDF
-                  </a>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {swimmers.map((s) => (
-                  <Link
-                    key={s.id}
-                    href={`/meets/${meet.meetId}?swimmerId=${s.id}`}
-                    className="text-slate-800 underline"
-                  >
-                    Open for {s.childFirstName}
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {visibleMeets.map((meet) => {
+          const stamp = meetDateStamp(meet.startDate, meet.endDate);
+          return (
+            <Card key={meet.meetId} className="relative border-0 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden bg-white">
+              <Link
+                href={`/meets/${meet.meetId}`}
+                className="absolute inset-0 z-0"
+                aria-label={`Open ${displayMeetName(meet.name)}`}
+              />
+              <CardContent className="relative z-10 p-4 sm:p-5 pointer-events-none">
+                <div className="flex items-start gap-4">
+                  <MeetDateStamp startDate={meet.startDate} endDate={meet.endDate} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="text-lg font-semibold text-slate-800">{displayMeetName(meet.name)}</h2>
+                          {meet.isTestData && <Badge className="bg-amber-100 text-amber-800">TEST DATA</Badge>}
+                          <Badge variant="outline" className="font-normal border-slate-200 text-slate-700">
+                            {meet.status === "cancelled"
+                              ? "Cancelled"
+                              : meet.eventLabel === "confirmed"
+                                ? "Confirmed"
+                                : meet.meetType === "invitational"
+                                  ? "Invitational"
+                                  : "Open meet"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm font-medium text-slate-700">{stamp.rangeLabel}</div>
+                        <div className="text-sm text-slate-500">{meet.location}</div>
+                        {meet.primeCommitmentDeadline && (
+                          <div className="text-xs text-slate-500">Prime Deadline: {meet.primeCommitmentDeadline}</div>
+                        )}
+                        {meet.rsvpNotice && (
+                          <div className="text-xs rounded-xl bg-slate-100 text-slate-700 px-3 py-2 mt-2">{meet.rsvpNotice}</div>
+                        )}
+                        {meet.parentUpdateBanner && (
+                          <div className="text-xs rounded-xl bg-amber-50 text-amber-950 px-3 py-2 mt-2">{meet.parentUpdateBanner}</div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        {meet.rsvpOpen
+                          ? swimmers.map((s) => {
+                              const response = meet.swimmerResponses?.find((r) => r.swimmerId === s.id);
+                              const attendance = response?.attendance || "no_response";
+                              return (
+                                <Button key={s.id} size="sm" className={`${swimmerMeetActionClass(attendance)} pointer-events-auto`} asChild>
+                                  <Link href={`/meets/${meet.meetId}?swimmerId=${s.id}`}>
+                                    {swimmerMeetActionLabel(s.childFirstName, attendance)}
+                                  </Link>
+                                </Button>
+                              );
+                            })
+                          : swimmers
+                              .filter((s) => {
+                                const attendance = meet.swimmerResponses?.find((r) => r.swimmerId === s.id)?.attendance;
+                                return attendance === "attend" || attendance === "incomplete" || attendance === "decline";
+                              })
+                              .map((s) => {
+                                const attendance = meet.swimmerResponses?.find((r) => r.swimmerId === s.id)?.attendance || "no_response";
+                                return (
+                                  <Button key={s.id} size="sm" className={`${swimmerMeetActionClass(attendance)} pointer-events-auto`} asChild>
+                                    <Link href={`/meets/${meet.meetId}?swimmerId=${s.id}`}>
+                                      {swimmerMeetActionLabel(s.childFirstName, attendance)}
+                                    </Link>
+                                  </Button>
+                                );
+                              })}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 pt-3 text-sm">
+                      <PnsMeetLink sourceKey={meet.sourceKey} className={`${quietLink} pointer-events-auto`} />
+                      {meet.announcementUrl && (
+                        <a href={meet.announcementUrl} className={`${quietLink} pointer-events-auto`} target="_blank" rel="noreferrer">
+                          Announcement / eligibility PDF
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </main>
     </div>
   );

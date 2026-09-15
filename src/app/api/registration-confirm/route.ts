@@ -336,7 +336,7 @@ export async function POST(request: Request) {
             <h3>🚀 What Happens Next?</h3>
             <ul>
               <li>Access to our parent portal has be provided</li>
-              <li>Equipment and uniform information coming your way</li>
+              <li>Equipment information coming your way</li>
               <li>Bring swimwear, goggles, towel, and a positive attitude</li>
             </ul>
           </div>
