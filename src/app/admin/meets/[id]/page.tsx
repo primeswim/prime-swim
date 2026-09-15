@@ -168,6 +168,7 @@ export default function AdminMeetDetailPage() {
   };
 
   function stepBody(stepId: AdminMeetStepId) {
+    if (!meet) return null;
     if (stepId === "ask_host") {
       return (
         <div className="space-y-4 text-sm">
