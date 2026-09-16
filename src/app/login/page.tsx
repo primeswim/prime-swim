@@ -71,7 +71,12 @@ export default function LoginPage() {
     
         // 小延迟可选
         setTimeout(() => {
-            router.push("/dashboard")
+            const next = new URLSearchParams(window.location.search).get("next") || "";
+            const safe =
+              (next.startsWith("/meets") || next.startsWith("/events")) && !next.startsWith("//")
+                ? next
+                : "/dashboard";
+            router.push(safe)
         }, 500)
       } catch {
         setError("Invalid email or password.")

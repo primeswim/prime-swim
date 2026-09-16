@@ -33,9 +33,11 @@ import type { ParentTuitionView } from "@/lib/tuition-v2/parent-tuition"
 import type { ParentMeetCard } from "@/lib/meets/parent-view"
 import { isSwimmerUpcomingMeetCard } from "@/lib/meets/parent-view"
 import { PnsMeetLink } from "@/components/pns-meet-link"
+import { MeetAnnouncementLink } from "@/components/meet-announcement-link"
 import { MeetDateStamp } from "@/components/meet-date-stamp"
 import { MeetPayPrimeButton, MeetPaymentStatusNote } from "@/components/meet-pay-button"
 import { displayMeetName } from "@/lib/meets/display-name"
+import { signOutToLogin } from "@/lib/auth-session"
 
 type SwimmerWithMakeup = Swimmer & {
   nextMakeupText?: string
@@ -113,7 +115,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
-      window.location.href = "/login"
+      void signOutToLogin()
     }
   }
 
@@ -144,6 +146,8 @@ export default function DashboardPage() {
 
     unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        setSwimmers([])
+        setMeetsBySwimmer({})
         window.location.href = "/login"
         return
       }
@@ -678,6 +682,7 @@ export default function DashboardPage() {
                         )}
                         <div className="flex flex-wrap gap-3 mt-1">
                           <PnsMeetLink sourceKey={meet.sourceKey} className="pointer-events-auto text-xs text-slate-700 underline underline-offset-2" />
+                          <MeetAnnouncementLink url={meet.announcementUrl} className="pointer-events-auto text-xs text-slate-700 underline underline-offset-2" />
                         </div>
                           </div>
                         </div>

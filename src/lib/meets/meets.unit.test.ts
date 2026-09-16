@@ -4,9 +4,9 @@ import { computeHostFee, computeMeetEntryFee, exceedsEventLimits, extractFeeHint
 import { loadComHalloweenHyv, loadMexicoSprintEv3, loadTestTacHyv, mockDraftMeets, TAC_ANNOUNCEMENT_TEXT, TEST_OMR_URL } from "./fixtures";
 import { applyPendingSourcePatch, applyTeamUnifyDetail, calendarItemToDraftMeet, inferHostClubFromTitle, mapTeamUnifyListRow, mergePnsUpdates, parentBannerForDayReselection, parentBannerForPnsDiffs, parsePnsCalendarHtml } from "./pns-calendar";
 import { enrichCalendarItemWithAnnouncementFees, extractTextFromPdfBytes, sampleEntryFeeAnnouncementPdf } from "./announcement-pdf";
-import { pnsEventPageUrl } from "./pns-url";
+import { pnsEventPageUrl, meetAnnouncementUrl } from "./pns-url";
 import { meetDayOptions, keepValidMeetDayIds, attendingNeedsNewDays, meetDateStamp, sessionNameForMeetDay } from "./sessions";
-import { parentAttendanceLabel, parentRsvpNotice, swimmerMeetActionClass, listParentMeetCards, listUpcomingSwimmerMeets, isSwimmerUpcomingMeetCard } from "./parent-view";
+import { parentAttendanceLabel, parentRsvpNotice, swimmerMeetActionClass, listParentMeetCards, listPublicMeetCards, listUpcomingSwimmerMeets, isSwimmerUpcomingMeetCard, buildPublicMeetDetail } from "./parent-view";
 import { eventLabel, eventName, ageGroupLabel, parseHytekEventFile, shortEventLabel } from "./hytek-events";
 import { canViewerSeeMeet, isTestEmail, isTestNamed, markTestName } from "./test-data";
 import { isOmrWelcomeUrl, isValidUsaSwimmingId, usaSwimmingAttendGate } from "./usa-swimming";
@@ -17,6 +17,7 @@ import { hostEntryCsv, hostEntryReportText, hostPacketFilename, serializeMeetEnt
 import { hostEntrySd3 } from "./sd3";
 import { PRIME_SWIM_OMR_URL, resolveClubMeetSettings, type Meet, type MeetCommitment, type MeetEvent, type MeetSwimmer } from "./types";
 import { classifyAdminMeetList, countAdminMeetList, filterAdminMeetList } from "./list-filter";
+import { classifyCalendarWhen } from "../calendar-when";
 import { composePnsAdminAlert, pnsScanNeedsAdminAlert } from "./pns-notify";
 
 function assert(cond: boolean, msg: string) {
@@ -127,6 +128,34 @@ function testUsaSwimmingAndIsolation() {
   assert(resolveClubMeetSettings({ usaSwimmingOmrUrl: "" }).usaSwimmingOmrUrl === PRIME_SWIM_OMR_URL, "empty setting falls back to club OMR");
   assert(canViewerSeeMeet({ meetIsTestData: true, viewerIsTestAccount: false }) === false, "real parent hidden from test meet");
   assert(canViewerSeeMeet({ meetIsTestData: false, viewerIsTestAccount: true }) === false, "test parent hidden from prod meet");
+  const livePublic = {
+    id: "live",
+    name: "2026 PN Public Open",
+    hostClub: "Host",
+    meetType: "open",
+    course: "scy",
+    startDate: "2026-10-17",
+    endDate: "2026-10-18",
+    location: "Pool",
+    eligibilityStatus: "likely_eligible",
+    invitationStatus: "not_required",
+    eligibilityNotes: ["USA Swimming + PNS membership required before the first day of the meet."],
+    deadlineTimezone: "America/Los_Angeles",
+    status: "commitment_open",
+    sessions: [],
+    events: [],
+    announcementUrl: "https://example.test/public.pdf",
+    isTestData: false,
+  } as Meet;
+  const publicCards = listPublicMeetCards([
+    livePublic,
+    { ...livePublic, id: "test", name: "[TEST] Hidden", isTestData: true },
+  ]);
+  assert(publicCards.length === 1 && publicCards[0].meetId === "live", "public catalog is production meets only");
+  assert((publicCards[0].swimmerResponses || []).length === 0, "public cards have no family RSVP");
+  const pub = buildPublicMeetDetail(livePublic);
+  assert(!("error" in pub) && pub.announcementUrl === "https://example.test/public.pdf", "public detail keeps the announcement");
+  assert(!("error" in pub) && pub.rsvpOpen === true, "public detail says RSVP is open");
   assert(isTestNamed("[TEST] 2026 PN TAC Fall Pentathlon"), "name prefix");
   assert(markTestName("Open Challenge") === "[TEST] Open Challenge", "auto prefix");
   assert(isTestEmail("parent.withid+meetstest@prime-swim.test"), "test email marker");
@@ -401,6 +430,16 @@ function testLiveEventFiles() {
   assert(hyv.events.filter((e) => e.maxAge >= 109).length === 24, "COM open-age 0;0 becomes Open");
 }
 
+function testCalendarWhen() {
+  const today = "2026-09-15";
+  assert(classifyCalendarWhen("2026-10-17", "2026-10-18", today) === "upcoming", "future meet is upcoming");
+  assert(classifyCalendarWhen("2026-09-15", "2026-09-16", today) === "now", "meet starting today is happening now");
+  assert(classifyCalendarWhen("2026-09-14", "2026-09-15", today) === "now", "meet ending today is happening now");
+  assert(classifyCalendarWhen("2026-09-05", "2026-09-06", today) === "past", "ended meet is past");
+  assert(classifyCalendarWhen("2026-09-15", undefined, today) === "now", "single-day today is happening now");
+  assert(classifyCalendarWhen("2026-12-01", undefined, today) === "upcoming", "single-day future is upcoming");
+}
+
 function testAdminMeetListFilter() {
   const today = "2026-09-14";
   assert(classifyAdminMeetList({ startDate: "2026-10-17", endDate: "2026-10-18", status: "commitment_open" }, today) === "upcoming", "future meet is upcoming");
@@ -467,6 +506,24 @@ function testPnsTeamUnifyMap() {
   assert(detailed.hostEntryEmail === "gminkel@fidalgopool.com", "host email from announcement");
   assert(Boolean(detailed.announcementUrl?.endsWith(".pdf")), "announcement PDF");
   assert((detailed.sourceFiles || []).some((f) => f.kind === "announcement"), "stores PNS files");
+  const fromHtml = applyTeamUnifyDetail(item, {
+    eventTitle: item.name,
+    eventDescription: '<p>See the <a href="/pnws2/__eventform__/announce.pdf">Meet Announcement</a></p>',
+    eventDocuments: [],
+  });
+  assert(Boolean(fromHtml.announcementUrl?.endsWith("announce.pdf")), "PDF href in the PNS description becomes the announcement link");
+  assert(meetAnnouncementUrl({ announcementUrl: "https://example.test/tac.pdf" }) === "https://example.test/tac.pdf", "family PDF link is kept");
+  assert(
+    meetAnnouncementUrl({ announcementUrl: "https://www.pns.org/page/calendar#/team-events/upcoming" }) === undefined,
+    "calendar page is not shown as the announcement"
+  );
+  assert(
+    meetAnnouncementUrl({
+      announcementUrl: "https://www.pns.org/page/calendar#/team-events/upcoming",
+      sourceFiles: [{ name: "announce.pdf", url: "https://www.pns.org/tac.pdf", kind: "announcement" }],
+    }) === "https://www.pns.org/tac.pdf",
+    "source PDF wins over a calendar placeholder"
+  );
 }
 
 function testPnsUpdateMerge() {
@@ -782,6 +839,7 @@ async function run() {
   testFinalEntriesAndPaymentDue();
   testHostPacketAndParentEvents();
   testAdminGuide();
+  testCalendarWhen();
   testAdminMeetListFilter();
   testPnsHtmlParse();
   testPnsTeamUnifyMap();

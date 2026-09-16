@@ -6,7 +6,7 @@ import { mailtoHref } from "./mailto";
 import { serializeMeetEntries, serializeMeetPayments, type MeetEntriesPayload, type MeetPaymentRow } from "./entries";
 import { applyPendingSourcePatch, calendarItemToDraftMeet, fetchLivePnsCalendar, mergePnsUpdates, parentBannerForDayReselection, pnsDatesChanged, type PnsCalendarItem } from "./pns-calendar";
 import { attendingNeedsNewDays, keepValidMeetDayIds } from "./sessions";
-import { buildParentMeetDetail, householdMeetPayments, listParentMeetCards, listUpcomingSwimmerMeets, type ParentMeetDetail } from "./parent-view";
+import { buildParentMeetDetail, buildPublicMeetDetail, householdMeetPayments, listParentMeetCards, listPublicMeetCards, listUpcomingSwimmerMeets, type ParentMeetDetail, type PublicMeetDetail } from "./parent-view";
 import { commitmentId, type MeetStore } from "./store";
 import { canViewerSeeMeet, isTestEmail, isTestRecord, isTestSwimmer, markTestName } from "./test-data";
 import type {
@@ -699,6 +699,21 @@ export class MeetService {
   async listSwimmersByIds(ids: string[]) {
     if (!ids.length) return [];
     return this.store.listSwimmers({ ids });
+  }
+
+  async listPublicMeets(now = nowIso()) {
+    const meets = await Promise.all((await this.store.listMeets()).map((meet) => this.applyDeadlineClose(meet, now)));
+    return listPublicMeetCards(meets);
+  }
+
+  async getPublicMeet(meetId: string, opts?: { viewerIsTestAccount?: boolean; nowIso?: string }): Promise<PublicMeetDetail> {
+    const meet = await this.applyDeadlineClose(await this.requireMeet(meetId), opts?.nowIso || nowIso());
+    if (!canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: opts?.viewerIsTestAccount === true })) {
+      throw new MeetServiceError("Meet not found.");
+    }
+    const detail = buildPublicMeetDetail(meet);
+    if ("error" in detail) throw new MeetServiceError(detail.error);
+    return detail;
   }
 
   async listParentMeets(parentUID: string, email?: string | null, swimmerId?: string) {

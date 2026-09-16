@@ -132,9 +132,6 @@ export default function Header() {
           <Link href="/events" className="hover:text-slate-800 transition-colors">
             Events
           </Link>
-          <Link href="/meets" className="hover:text-slate-800 transition-colors">
-            Meets
-          </Link>
           <Link href="/news" className="hover:text-slate-800 transition-colors">
             News
           </Link>
@@ -204,7 +201,6 @@ export default function Header() {
 
           <Link href="/safesport" className="block">Safe Sport</Link>
           <Link href="/events" className="block">Events</Link>
-          <Link href="/meets" className="block">Meets</Link>
           <Link href="/news" className="block">News</Link>
           <Link href="/dashboard" className="block">Dashboard</Link>
           {isAdmin === true && (

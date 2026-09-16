@@ -7,6 +7,7 @@ import { DEFAULT_CLUB_MEET_SETTINGS } from "./types";
 import { usaSwimmingAttendGate } from "./usa-swimming";
 import { canParentEditCommitment, finalSwimEventIds, isParentVisibleStatus, parentEventLabel } from "./workflow";
 import { meetPaymentDueAt } from "./deadlines";
+import { meetAnnouncementUrl } from "./pns-url";
 
 export interface ParentRequestedEvent {
   id: string;
@@ -73,6 +74,29 @@ export interface ParentMeetCard {
   isTestData: boolean;
 }
 
+export interface PublicMeetDetail {
+  meet: {
+    id: string;
+    name: string;
+    hostClub: string;
+    meetType: Meet["meetType"];
+    startDate: string;
+    endDate: string;
+    location: string;
+    announcementText?: string;
+    sourceKey?: string;
+    eligibilityNotes: string[];
+    primeCommitmentDeadline?: string;
+    status: Meet["status"];
+    isTestData: boolean;
+  };
+  eventLabel: ReturnType<typeof parentEventLabel>;
+  announcementUrl?: string;
+  rsvpOpen: boolean;
+  rsvpNotice?: string;
+  hasEventFile: boolean;
+}
+
 export interface ParentMeetDetail {
   meet: Meet;
   swimmer: MeetSwimmer;
@@ -90,6 +114,43 @@ export interface ParentMeetDetail {
   settings: ClubMeetSettings;
   hasEventFile: boolean;
   announcementUrl?: string;
+}
+
+export function listPublicMeetCards(meets: Meet[]): ParentMeetCard[] {
+  return listParentMeetCards({
+    meets,
+    commitments: [],
+    viewerIsTestAccount: false,
+  });
+}
+
+export function buildPublicMeetDetail(meet: Meet): PublicMeetDetail | { error: string } {
+  const cancelledAfterPublish = meet.status === "cancelled" && Boolean(meet.publishedToFamiliesAt);
+  if (!isParentVisibleStatus(meet.status) && !cancelledAfterPublish) {
+    return { error: "Meet is not open to families yet." };
+  }
+  return {
+    meet: {
+      id: meet.id,
+      name: meet.name,
+      hostClub: meet.hostClub,
+      meetType: meet.meetType,
+      startDate: meet.startDate,
+      endDate: meet.endDate,
+      location: meet.location,
+      announcementText: meet.announcementText,
+      sourceKey: meet.sourceKey,
+      eligibilityNotes: meet.eligibilityNotes,
+      primeCommitmentDeadline: meet.primeCommitmentDeadline,
+      status: meet.status,
+      isTestData: meet.isTestData,
+    },
+    eventLabel: parentEventLabel(meet.status),
+    announcementUrl: meetAnnouncementUrl(meet),
+    rsvpOpen: meet.status === "commitment_open",
+    rsvpNotice: parentRsvpNotice(meet.status),
+    hasEventFile: (meet.events || []).length > 0 && Boolean(meet.eventFileAcceptedAt),
+  };
 }
 
 export function listParentMeetCards(opts: {
@@ -118,7 +179,7 @@ export function listParentMeetCards(opts: {
         status: meet.status,
         eventLabel: label,
         primeCommitmentDeadline: meet.primeCommitmentDeadline,
-        announcementUrl: meet.announcementUrl,
+        announcementUrl: meetAnnouncementUrl(meet),
         sourceKey: meet.sourceKey,
         parentUpdateBanner: meet.parentUpdateBanner,
         attendance: commitment?.attendance || "no_response",
@@ -204,7 +265,7 @@ export function buildParentMeetDetail(opts: {
     fee: { ...fee, isEstimate: label !== "confirmed" },
     settings,
     hasEventFile: (opts.meet.events || []).length > 0 && Boolean(opts.meet.eventFileAcceptedAt),
-    announcementUrl: opts.meet.announcementUrl,
+    announcementUrl: meetAnnouncementUrl(opts.meet),
   };
 }
 

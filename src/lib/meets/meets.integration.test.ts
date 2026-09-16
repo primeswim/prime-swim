@@ -841,6 +841,33 @@ async function testHasUpdatesDateChangeParentRsvp() {
   assert(!cleared?.parentUpdateBanner, "prompt clears after they save new days");
 }
 
+async function testPublicCatalogHidesTestMeets() {
+  const { service } = await seedWorld();
+  const ingested = await service.ingestPns(mockPnsCalendarItems(), { isTestData: true });
+  const testOpen = ingested.find((m) => meetMatchesSource(m, "open-challenge"))!;
+  await service.publishToFamilies(testOpen.id);
+  assert((await service.listPublicMeets()).length === 0, "TEST fixtures stay off the public catalog");
+  try {
+    await service.getPublicMeet(testOpen.id);
+    throw new Error("TEST meet should not be public");
+  } catch (e) {
+    assert(e instanceof MeetServiceError, "anonymous viewers cannot open a TEST meet");
+  }
+  const live = await service.ingestPns(
+    mockPnsCalendarItems()
+      .filter((item) => item.sourceId.includes("open-challenge"))
+      .map((item) => ({ ...item, sourceId: "pns-1747001", name: "2026 PN Public Open Challenge" })),
+    { isTestData: false }
+  );
+  const published = await service.publishToFamilies(live[0].id);
+  const catalog = await service.listPublicMeets();
+  assert(catalog.some((card) => card.meetId === published.id), "published production meet is on the public catalog");
+  assert((catalog.find((card) => card.meetId === published.id)?.swimmerResponses || []).length === 0, "public cards have no child RSVP");
+  const detail = await service.getPublicMeet(published.id);
+  assert(detail.meet.name.includes("Public Open"), "public detail shows the meet title");
+  assert(Boolean(detail.announcementUrl), "public detail keeps the announcement link");
+}
+
 async function run() {
   await testPnsIngestAndMeetTypes();
   await testRejectKeepsMeetOffFamilyList();
@@ -854,6 +881,7 @@ async function run() {
   await testDeclineWithoutUsaIdAndPayment();
   await testDeadlineCloseDrillAutoCloses();
   await testFinalInvoiceUsesEventFeesAndAdminRates();
+  await testPublicCatalogHidesTestMeets();
   console.log("meets.integration.test.ts passed");
 }
 

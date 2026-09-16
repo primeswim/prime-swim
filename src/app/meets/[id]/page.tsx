@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, MapPin } from "lucide-react";
 import { MeetAnnouncementText } from "@/components/meet-announcement-text";
+import { MeetAnnouncementLink } from "@/components/meet-announcement-link";
 import { PnsMeetLink } from "@/components/pns-meet-link";
-import { displaySwimmerFirstName, parentAttendanceBadgeClass, parentAttendanceLabel, type ParentMeetDetail } from "@/lib/meets/parent-view";
+import { displaySwimmerFirstName, parentAttendanceBadgeClass, parentAttendanceLabel, type ParentMeetDetail, type PublicMeetDetail } from "@/lib/meets/parent-view";
 import { displayMeetName } from "@/lib/meets/display-name";
 import { meetDayOptions, keepValidMeetDayIds, meetDateStamp } from "@/lib/meets/sessions";
 import { MeetDateStamp } from "@/components/meet-date-stamp";
@@ -86,6 +87,7 @@ function ParentMeetDetailInner() {
   const router = useRouter();
   const swimmerId = search.get("swimmerId") || "";
   const [detail, setDetail] = useState<ParentMeetDetail | null>(null);
+  const [publicDetail, setPublicDetail] = useState<PublicMeetDetail | null>(null);
   const [error, setError] = useState("");
   const [notes, setNotes] = useState("");
   const [days, setDays] = useState<string[]>([]);
@@ -97,7 +99,19 @@ function ParentMeetDetailInner() {
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
 
-  async function load(sid: string) {
+  async function loadPublic(headers?: HeadersInit) {
+    const res = await fetch(`/api/meets/${id}`, { headers });
+    const json = await res.json();
+    if (!json.ok) {
+      setError(json.error || "Could not load meet");
+      setPublicDetail(null);
+      return;
+    }
+    setPublicDetail(json.detail as PublicMeetDetail);
+    setError("");
+  }
+
+  async function loadRsvp(sid: string) {
     const user = auth.currentUser;
     if (!user) return;
     const idToken = await user.getIdToken();
@@ -111,6 +125,7 @@ function ParentMeetDetailInner() {
     }
     const next = json.detail as ParentMeetDetail;
     setDetail(next);
+    setPublicDetail(null);
     setNotes(next.commitment?.parentNotes || "");
     setDays(keepValidMeetDayIds(next.meet, next.commitment?.availableSessionIds || []));
     setEvents(next.commitment?.selectedEventIds || []);
@@ -121,19 +136,24 @@ function ParentMeetDetailInner() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        router.push("/login");
+        setDetail(null);
+        setNotes("");
+        setDays([]);
+        setEvents([]);
+        await loadPublic();
         return;
       }
+      const idToken = await user.getIdToken();
+      const headers = { Authorization: `Bearer ${idToken}` };
       if (!swimmerId) {
-        const idToken = await user.getIdToken();
-        const res = await fetch("/api/meets", { headers: { Authorization: `Bearer ${idToken}` } });
+        await loadPublic(headers);
+        const res = await fetch("/api/meets", { headers });
         const json = await res.json();
         const first = json.swimmers?.[0]?.id;
         if (first) router.replace(`/meets/${id}?swimmerId=${first}`);
-        else setError("No swimmers on this account.");
         return;
       }
-      await load(swimmerId);
+      await loadRsvp(swimmerId);
     });
     return () => unsub();
   }, [router, id, swimmerId]);
@@ -174,7 +194,7 @@ function ParentMeetDetailInner() {
           ? `Attend saved. ${name} is marked as attending this meet.`
           : `Decline saved. ${name} will not swim this meet.`
       );
-      await load(detail.swimmer.id);
+      await loadRsvp(detail.swimmer.id);
       requestAnimationFrame(() => successRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -198,7 +218,7 @@ function ParentMeetDetailInner() {
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Could not report payment");
-      await load(detail.swimmer.id);
+      await loadRsvp(detail.swimmer.id);
       setSuccess("Payment reported. Prime will confirm after the money is received.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not report payment");
@@ -221,12 +241,95 @@ function ParentMeetDetailInner() {
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Could not save ID");
-      await load(detail.swimmer.id);
+      await loadRsvp(detail.swimmer.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save ID");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!detail && publicDetail) {
+    const pub = publicDetail;
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+        <Header />
+        <main className="container mx-auto px-4 py-8 space-y-5">
+          <Link href="/events" className="text-sm text-slate-600 hover:text-slate-900">
+            ← Events
+          </Link>
+          <section className="rounded-2xl bg-gradient-to-br from-stone-50 via-white to-amber-50/50 p-6 shadow-xl">
+            <div className="flex items-start gap-4">
+              <MeetDateStamp startDate={pub.meet.startDate} endDate={pub.meet.endDate} className="mt-1" />
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {pub.meet.isTestData && <Badge className="bg-amber-100 text-amber-800">TEST DATA</Badge>}
+                  <Badge variant="outline" className="border-slate-200 text-slate-700">
+                    {pub.meet.meetType === "invitational" ? "Invitational" : "Open meet"}
+                  </Badge>
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-800">{displayMeetName(pub.meet.name)}</h1>
+                {pub.rsvpNotice && (
+                  <p className="text-sm rounded-xl bg-slate-100 text-slate-700 px-3 py-2">{pub.rsvpNotice}</p>
+                )}
+                <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+                  <span className="font-medium text-slate-800">{meetDateStamp(pub.meet.startDate, pub.meet.endDate).rangeLabel}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-slate-500" />
+                    {pub.meet.location || "Location TBD"}
+                  </span>
+                  <span>Host: {pub.meet.hostClub}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <PnsMeetLink sourceKey={pub.meet.sourceKey} />
+                  <MeetAnnouncementLink url={pub.announcementUrl} />
+                </div>
+              </div>
+            </div>
+          </section>
+          {(pub.meet.announcementText || pub.meet.eligibilityNotes.length > 0 || pub.announcementUrl) && (
+            <Card className="border-0 shadow-xl overflow-hidden bg-white">
+              <CardHeader className="pb-3 bg-white">
+                <CardTitle className="text-base">Announcement</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pub.announcementUrl && (
+                  <MeetAnnouncementLink
+                    url={pub.announcementUrl}
+                    className="inline-flex text-sm font-medium text-slate-800 underline underline-offset-2"
+                  />
+                )}
+                {pub.meet.eligibilityNotes.length > 0 && (
+                  <ul className="text-[13px] space-y-1.5">
+                    {pub.meet.eligibilityNotes.map((n) => (
+                      <li key={n} className="rounded-lg bg-slate-50 px-3 py-2 text-slate-700">
+                        {n}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {pub.meet.announcementText && (
+                  <MeetAnnouncementText text={pub.meet.announcementText} hostClub={pub.meet.hostClub} meetName={pub.meet.name} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+          <Card className="border-0 shadow-xl bg-white">
+            <CardHeader>
+              <CardTitle>Attend / Decline</CardTitle>
+              <p className="text-sm text-slate-500 mt-1">
+                Anyone can read this meet. Sign in to your Prime parent account to Attend or Decline for your swimmer.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Button className="bg-slate-800 hover:bg-slate-700 text-white rounded-full" asChild>
+                <Link href={`/login?next=${encodeURIComponent(`/meets/${id}`)}`}>Log in to Attend or Decline</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
   }
 
   if (!detail) {
@@ -263,8 +366,8 @@ function ParentMeetDetailInner() {
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       <Header />
       <main className="container mx-auto px-4 py-8 space-y-5">
-        <Link href="/meets" className="text-sm text-slate-600 hover:text-slate-900">
-          ← Meets
+        <Link href="/events" className="text-sm text-slate-600 hover:text-slate-900">
+          ← Events
         </Link>
 
         <section className="rounded-2xl bg-gradient-to-br from-stone-50 via-white to-amber-50/50 p-6 shadow-xl">
@@ -296,11 +399,7 @@ function ParentMeetDetailInner() {
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 <PnsMeetLink sourceKey={detail.meet.sourceKey} />
-                {detail.announcementUrl && (
-                  <a href={detail.announcementUrl} className="text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900" target="_blank" rel="noreferrer">
-                    Open announcement / qualification PDF
-                  </a>
-                )}
+                <MeetAnnouncementLink url={detail.announcementUrl} />
               </div>
             </div>
           </div>
@@ -312,7 +411,7 @@ function ParentMeetDetailInner() {
           </div>
         )}
 
-        {(detail.meet.announcementText || detail.eligibility.notes.length > 0) && (
+        {(detail.meet.announcementText || detail.eligibility.notes.length > 0 || detail.announcementUrl) && (
           <Card className="border-0 shadow-xl overflow-hidden bg-white">
             <CardHeader className="pb-3 bg-white">
               <CardTitle className="text-base">Announcement</CardTitle>
@@ -324,6 +423,12 @@ function ParentMeetDetailInner() {
               )}
             </CardHeader>
             <CardContent className="space-y-3">
+              {detail.announcementUrl && (
+                <MeetAnnouncementLink
+                  url={detail.announcementUrl}
+                  className="inline-flex text-sm font-medium text-slate-800 underline underline-offset-2"
+                />
+              )}
               {detail.eligibility.notes.filter((n) => !/^This swimmer will be /i.test(n)).length > 0 && (
                 <ul className="text-[13px] space-y-1.5">
                   {detail.eligibility.notes
@@ -420,8 +525,21 @@ function ParentMeetDetailInner() {
                   <div>
                     <p className="font-semibold text-base">Required before Attend</p>
                     <p className="mt-1">
-                      The host has not posted the Event File yet, so there are no 50 Fly / 50 Free checkboxes. You must write the events {firstName} wants in the box below, or Attend will stay disabled.
+                      The host has not posted the Event File yet, so there are no 50 Fly / 50 Free checkboxes. Open the meet announcement, then write the events {firstName} wants in the box below, or Attend will stay disabled.
                     </p>
+                    {detail.announcementUrl ? (
+                      <p className="mt-2">
+                        <MeetAnnouncementLink
+                          url={detail.announcementUrl}
+                          className="font-semibold text-slate-900 underline underline-offset-2"
+                        />
+                      </p>
+                    ) : (
+                      <p className="mt-2">
+                        <PnsMeetLink sourceKey={detail.meet.sourceKey} className="font-semibold text-slate-900 underline underline-offset-2" />
+                        {" — look for the announcement PDF on that page."}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="event-wishlist" className="flex items-center gap-2 text-sm font-semibold text-slate-800">

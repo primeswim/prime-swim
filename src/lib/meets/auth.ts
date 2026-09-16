@@ -1,6 +1,17 @@
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebaseAdmin";
 
+export async function optionalMeetUser(req: Request): Promise<DecodedIdToken | null> {
+  const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
+  const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!idToken) return null;
+  try {
+    return await getAuth().verifyIdToken(idToken);
+  } catch {
+    return null;
+  }
+}
+
 export async function requireMeetUser(req: Request): Promise<DecodedIdToken> {
   const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
   const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";

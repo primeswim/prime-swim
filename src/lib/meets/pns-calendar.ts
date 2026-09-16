@@ -113,6 +113,12 @@ function firstFileUrl(files: PnsSourceFile[] | undefined, kind: PnsSourceFile["k
   return files?.find((f) => f.kind === kind)?.url;
 }
 
+function firstPdfHref(html: string): string | undefined {
+  const hrefs = [...html.matchAll(/href="([^"]+)"/gi)].map((match) => match[1]);
+  const hit = hrefs.find((href) => /\.pdf(\b|$)/i.test(href) || /announcement/i.test(href));
+  return hit ? absolutePnsUrl(hit) : undefined;
+}
+
 export function mapTeamUnifyListRow(row: Record<string, unknown>): PnsCalendarItem {
   const id = String(tuValue(row.id) ?? "").trim();
   const name = String(tuValue(row.title) ?? "").replace(/\s+/g, " ").trim();
@@ -145,7 +151,7 @@ export function applyTeamUnifyDetail(item: PnsCalendarItem, detail: Record<strin
     endDate: endDate || item.endDate,
     location: String(detail.location || item.location).replace(/\s+/g, " ").trim(),
     announcementText,
-    announcementUrl: firstFileUrl(sourceFiles, "announcement") || item.announcementUrl,
+    announcementUrl: firstFileUrl(sourceFiles, "announcement") || firstPdfHref(descriptionHtml) || item.announcementUrl,
     eventFileUrl: firstFileUrl(sourceFiles, "event_file") || item.eventFileUrl,
     sourceFiles: sourceFiles.length ? sourceFiles : item.sourceFiles,
     registrationDeadline: deadline,

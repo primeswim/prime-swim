@@ -4,6 +4,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   serverExternalPackages: ["unpdf"],
+  async redirects() {
+    return [{ source: "/meets", destination: "/events", permanent: false }];
+  },
   images: {
     domains: ['i.imgur.com', 'imgur.com', 'www.primeswimacademy.com', 'primeswimacademy.com'],
     remotePatterns: [
