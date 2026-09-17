@@ -163,7 +163,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-xs text-slate-500">
-                <p>• 4 sessions per week</p>
+                <p>• 3 sessions per week</p>
                 <p>• 90-minute sessions</p>
                 <p>• Elite competition focus</p>
               </div>
@@ -395,13 +395,12 @@ export default function Home() {
             <CardContent className="space-y-3">
               <div className="flex items-center text-slate-600">
                 <Clock className="w-4 h-4 mr-2" />
-                <span className="text-sm">Weekdays & Weekend</span>
+                <span className="text-sm">Weekdays</span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">
                 <p>7:00-8:15 PM (Tue)</p>
                 <p>7:00-8:15 PM (Thu)</p>
                 <p>7:45-9:00 PM (Fri)</p>
-                <p>10:30 AM-12:00 PM (Sat)</p>
               </div>
             </CardContent>
           </Card>
