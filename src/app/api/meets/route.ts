@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { privateMeetJson } from "@/lib/meets/http";
 import { meetAuthError, optionalMeetUser } from "@/lib/meets/auth";
-import { MeetServiceError } from "@/lib/meets/service";
+import { MeetServiceError, meetServiceStatus } from "@/lib/meets/service";
 import { getMeetService } from "@/lib/meets/server";
 
 export const runtime = "nodejs";
@@ -18,11 +19,11 @@ export async function GET(req: Request) {
       service.listParentMeets(user.uid, user.email),
       service.listParentSwimmers(user.uid),
     ]);
-    return NextResponse.json({ ok: true, signedIn: true, meets, swimmers });
+    return privateMeetJson({ ok: true, signedIn: true, meets, swimmers });
   } catch (e) {
     const auth = meetAuthError(e);
-    if (auth) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+    if (auth) return privateMeetJson({ ok: false, error: auth.error }, { status: auth.status });
     const msg = e instanceof MeetServiceError ? e.message : "Server error";
-    return NextResponse.json({ ok: false, error: msg }, { status: e instanceof MeetServiceError ? 400 : 500 });
+    return privateMeetJson({ ok: false, error: msg }, { status: meetServiceStatus(e) });
   }
 }

@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { privateMeetJson } from "@/lib/meets/http";
 import { meetAuthError, requireMeetUser } from "@/lib/meets/auth";
-import { MeetServiceError } from "@/lib/meets/service";
+import { MeetServiceError, meetServiceStatus } from "@/lib/meets/service";
 import { getMeetService } from "@/lib/meets/server";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       acceptFeePolicy?: boolean;
     };
     if (!body.swimmerId || (body.attendance !== "attend" && body.attendance !== "decline")) {
-      return NextResponse.json({ ok: false, error: "swimmerId and attendance are required" }, { status: 400 });
+      return privateMeetJson({ ok: false, error: "swimmerId and attendance are required" }, { status: 400 });
     }
     const service = getMeetService();
     const commitment = await service.saveParentCommitment({
@@ -32,11 +32,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       parentNotes: body.parentNotes || "",
       acceptFeePolicy: body.acceptFeePolicy,
     });
-    return NextResponse.json({ ok: true, commitment });
+    return privateMeetJson({ ok: true, commitment });
   } catch (e) {
     const auth = meetAuthError(e);
-    if (auth) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+    if (auth) return privateMeetJson({ ok: false, error: auth.error }, { status: auth.status });
     const msg = e instanceof MeetServiceError ? e.message : "Server error";
-    return NextResponse.json({ ok: false, error: msg }, { status: e instanceof MeetServiceError ? 400 : 500 });
+    return privateMeetJson({ ok: false, error: msg }, { status: meetServiceStatus(e) });
   }
 }

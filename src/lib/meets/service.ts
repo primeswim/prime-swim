@@ -4,9 +4,20 @@ import { exceedsEventLimits, feeForMeetEvents, resolveMeetFeeRates, typicalIndiv
 import { eventLabel, parseHytekEventFile } from "./hytek-events";
 import { mailtoHref } from "./mailto";
 import { serializeMeetEntries, serializeMeetPayments, type MeetEntriesPayload, type MeetPaymentRow } from "./entries";
-import { applyPendingSourcePatch, calendarItemToDraftMeet, fetchLivePnsCalendar, mergePnsUpdates, parentBannerForDayReselection, pnsDatesChanged, type PnsCalendarItem } from "./pns-calendar";
-import { attendingNeedsNewDays, keepValidMeetDayIds } from "./sessions";
-import { buildParentMeetDetail, buildPublicMeetDetail, householdMeetPayments, listParentMeetCards, listPublicMeetCards, listUpcomingSwimmerMeets, type ParentMeetDetail, type PublicMeetDetail } from "./parent-view";
+import { applyPendingSourcePatch, calendarItemToDraftMeet, fetchLivePnsCalendar, mergePnsUpdates, pnsDatesChanged, pnsLocationChanged, type PnsCalendarItem } from "./pns-calendar";
+import { keepValidMeetDayIds } from "./sessions";
+import {
+  applyLocationNoticeBump,
+  applyMeetVersionBump,
+  currentMeetVersion,
+  currentNoticeVersion,
+  isAttendingCommitment,
+  locationChanged,
+  parentMeetReviewState,
+  reasonsForMeetShapeChange,
+  reasonsFromPnsDateDiffs,
+} from "./meet-version";
+import { buildParentMeetDetail, buildPublicMeetDetail, householdMeetPayments, listParentMeetCards, listPublicMeetCards, listUpcomingSwimmerMeets, parentAccessFlags, type ParentMeetDetail, type PublicMeetDetail } from "./parent-view";
 import { commitmentId, type MeetStore } from "./store";
 import { canViewerSeeMeet, isTestEmail, isTestRecord, isTestSwimmer, markTestName } from "./test-data";
 import type {
@@ -21,9 +32,13 @@ import { isOmrWelcomeUrl, isValidUsaSwimmingId, normalizeUsaSwimmingId, usaSwimm
 import { canPublishToFamilies, finalSwimEventIds, isPrePublishStatus, parentEventLabel, shouldAutoCloseRsvp, statusAfterApprove } from "./workflow";
 
 export class MeetServiceError extends Error {
-  constructor(message: string, readonly code = "INVALID") {
+  constructor(message: string, readonly status = 400) {
     super(message);
   }
+}
+
+export function meetServiceStatus(e: unknown): number {
+  return e instanceof MeetServiceError ? e.status : 500;
 }
 
 export interface PnsScanMeet {
@@ -161,10 +176,16 @@ export class MeetService {
       ("surcharge" in (meet.pendingSourcePatch || {}) || "individualEventFee" in (meet.pendingSourcePatch || {}));
     const next = applyPendingSourcePatch(meet);
     const commits = await this.store.listCommitments({ meetId });
-    const needsReselect =
-      datesChanged && commits.some((commitment) => attendingNeedsNewDays(next, commitment));
-    const note = (banner || "").trim() || (needsReselect ? parentBannerForDayReselection() : undefined);
-    next.parentUpdateBanner = note || undefined;
+    const reasons = [...reasonsFromPnsDateDiffs(diffs), ...reasonsForMeetShapeChange(meet, next)];
+    const bumped = applyMeetVersionBump(next, reasons, banner);
+    if (bumped !== next) {
+      Object.assign(next, bumped);
+    } else {
+      next.parentUpdateBanner = (banner || "").trim() || undefined;
+    }
+    if (pnsLocationChanged(diffs) || locationChanged(meet.location, next.location)) {
+      Object.assign(next, applyLocationNoticeBump(next, nowIso()));
+    }
     if (next.pnsPublishedDeadline) {
       next.effectiveHostDeadline = effectiveHostDeadline(next);
     }
@@ -208,6 +229,10 @@ export class MeetService {
     const feesInPatch = "surcharge" in patch || "individualEventFee" in patch;
     if ("surcharge" in patch) next.surcharge = Number(patch.surcharge) || 0;
     if ("individualEventFee" in patch) next.individualEventFee = Number(patch.individualEventFee) || 0;
+    Object.assign(next, applyMeetVersionBump(next, reasonsForMeetShapeChange(meet, next)));
+    if (locationChanged(meet.location, next.location)) {
+      Object.assign(next, applyLocationNoticeBump(next, nowIso()));
+    }
     const saved = await this.store.saveMeet(next);
     if (feesInPatch) await this.recalculateConfirmedInvoices(saved);
     return saved;
@@ -259,6 +284,7 @@ export class MeetService {
 
   async importEventFile(meetId: string, fileContent: string, opts?: { accept?: boolean }): Promise<Meet> {
     const meet = await this.requireMeet(meetId);
+    const before = { startDate: meet.startDate, endDate: meet.endDate, sessions: meet.sessions, events: meet.events };
     const parsed = parseHytekEventFile(fileContent);
     meet.events = parsed.events;
     meet.sessions = [...new Set(parsed.events.map((e) => e.sessionName))].map((name) => ({
@@ -276,6 +302,10 @@ export class MeetService {
     } else {
       meet.pendingSourceReview = true;
       meet.pendingSourceDiffs = [`Imported ${parsed.events.length} events from event file`];
+    }
+    const reasons = reasonsForMeetShapeChange(before, meet);
+    if (opts?.accept !== false && reasons.length) {
+      Object.assign(meet, applyMeetVersionBump(meet, [...reasons, "event_file_changed"]));
     }
     const saved = await this.store.saveMeet(meet);
     await this.recalculateConfirmedInvoices(saved);
@@ -373,7 +403,7 @@ export class MeetService {
     }
     const commitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
     if (!commitment || commitment.parentUID !== opts.parentUID) {
-      throw new MeetServiceError("Commitment not found.");
+      throw new MeetServiceError("Commitment not found.", 404);
     }
     if (commitment.paymentStatus === "paid") return commitment;
     commitment.paymentStatus = "payment_reported";
@@ -564,8 +594,7 @@ export class MeetService {
     nowIso?: string;
   }): Promise<MeetCommitment> {
     const meet = await this.requireMeet(opts.meetId);
-    const swimmer = await this.requireSwimmer(opts.swimmerId);
-    if (swimmer.parentUID !== opts.parentUID) throw new MeetServiceError("Swimmer does not belong to this parent.");
+    const swimmer = await this.requireHouseholdSwimmer(opts.swimmerId, opts.parentUID);
     const viewerIsTest = await this.viewerIsTestAccount(opts.parentUID);
     if (!canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: viewerIsTest })) {
       throw new MeetServiceError("Meet not found.");
@@ -639,11 +668,13 @@ export class MeetService {
       finalFee: prev?.finalFee,
       paymentStatus: opts.attendance === "attend" ? "estimated" : "none",
       isTestData: meet.isTestData,
+      responseVersion: currentMeetVersion(meetNow),
+      acknowledgedNoticeVersion: currentNoticeVersion(meetNow),
     };
     const saved = await this.store.saveCommitment(commitment);
     if (meetNow.parentUpdateBanner) {
       const all = await this.store.listCommitments({ meetId: opts.meetId });
-      const stillNeed = all.some((row) => attendingNeedsNewDays(meetNow, row));
+      const stillNeed = all.some((row) => parentMeetReviewState(meetNow, row).requiresEventReview);
       if (!stillNeed) {
         meetNow.parentUpdateBanner = undefined;
         await this.store.saveMeet(meetNow);
@@ -652,9 +683,48 @@ export class MeetService {
     return saved;
   }
 
+  async acknowledgeParentMeet(opts: {
+    meetId: string;
+    swimmerId: string;
+    parentUID: string;
+    acknowledge: Array<"notice" | "closed_review">;
+    nowIso?: string;
+  }): Promise<MeetCommitment> {
+    const swimmer = await this.requireHouseholdSwimmer(opts.swimmerId, opts.parentUID);
+    const clock = opts.nowIso || nowIso();
+    const meet = await this.applyDeadlineClose(await this.requireMeet(opts.meetId), clock);
+    const commitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
+    if (!commitment || !isAttendingCommitment(commitment.attendance)) {
+      throw new MeetServiceError("No attending response to acknowledge.");
+    }
+    const kinds = [...new Set(opts.acknowledge)];
+    if (kinds.length === 0) throw new MeetServiceError("acknowledge is required.");
+    const settings = await this.getSettings();
+    const gate = usaSwimmingAttendGate({
+      usaSwimmingId: swimmer.usaSwimmingId,
+      omrUrl: settings.usaSwimmingOmrUrl,
+    });
+    const access = parentAccessFlags(meet, clock, gate.canAttend);
+    const review = parentMeetReviewState(meet, commitment, access);
+    const next = { ...commitment };
+    for (const kind of kinds) {
+      if (kind === "notice") {
+        next.acknowledgedNoticeVersion = currentNoticeVersion(meet);
+        continue;
+      }
+      if (!review.requiresEventReview) {
+        throw new MeetServiceError("There is no closed event review to acknowledge.");
+      }
+      if (access.canRespond) {
+        throw new MeetServiceError("RSVP is still open. Confirm events again instead of acknowledging.");
+      }
+      next.responseVersion = currentMeetVersion(meet);
+    }
+    return this.store.saveCommitment(next);
+  }
+
   async saveUsaSwimmingId(opts: { swimmerId: string; parentUID: string; usaSwimmingId: string }): Promise<MeetSwimmer> {
-    const swimmer = await this.requireSwimmer(opts.swimmerId);
-    if (swimmer.parentUID !== opts.parentUID) throw new MeetServiceError("Swimmer does not belong to this parent.");
+    const swimmer = await this.requireHouseholdSwimmer(opts.swimmerId, opts.parentUID);
     if (!isValidUsaSwimmingId(opts.usaSwimmingId)) {
       throw new MeetServiceError("Enter a valid USA Swimming ID (6–14 letters or numbers).");
     }
@@ -716,10 +786,16 @@ export class MeetService {
     return detail;
   }
 
-  async listParentMeets(parentUID: string, email?: string | null, swimmerId?: string) {
+  async listParentMeets(parentUID: string, email?: string | null, swimmerId?: string, opts?: { nowIso?: string }) {
     const viewerIsTestAccount = await this.viewerIsTestAccount(parentUID, email);
-    const [rawMeets, commitments] = await Promise.all([this.store.listMeets(), this.store.listCommitments({ parentUID })]);
-    const meets = await Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet)));
+    const clock = opts?.nowIso || nowIso();
+    const [rawMeets, commitments, swimmers, settings] = await Promise.all([
+      this.store.listMeets(),
+      this.store.listCommitments({ parentUID }),
+      this.listParentSwimmers(parentUID),
+      this.getSettings(),
+    ]);
+    const meets = await Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet, clock)));
     const repaired: MeetCommitment[] = [];
     for (const commitment of commitments) {
       const meet = meets.find((row) => row.id === commitment.meetId);
@@ -730,6 +806,9 @@ export class MeetService {
       commitments: swimmerId ? repaired.filter((c) => c.swimmerId === swimmerId) : repaired,
       viewerIsTestAccount,
       swimmerId,
+      nowIso: clock,
+      swimmers,
+      settings,
     });
   }
 
@@ -756,16 +835,22 @@ export class MeetService {
     ]);
     const wanted = [...new Set((opts?.swimmerIds || []).filter(Boolean))];
     if (wanted.some((id) => !swimmers.some((swimmer) => swimmer.id === id))) {
-      throw new MeetServiceError("Swimmer not found.");
+      throw new MeetServiceError("Swimmer not found.", 404);
     }
-    const meets = await Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet, opts?.nowIso)));
+    const clock = opts?.nowIso || nowIso();
+    const [meets, settings] = await Promise.all([
+      Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet, clock))),
+      this.getSettings(),
+    ]);
     return listUpcomingSwimmerMeets({
       meets,
       commitments,
       swimmers,
       viewerIsTestAccount,
-      todayYmd: pacificYmd(opts?.nowIso),
+      todayYmd: pacificYmd(clock),
       swimmerIds: wanted.length ? wanted : undefined,
+      nowIso: clock,
+      settings,
     });
   }
 
@@ -777,8 +862,7 @@ export class MeetService {
     nowIso?: string;
   }): Promise<ParentMeetDetail> {
     const meet = await this.applyDeadlineClose(await this.requireMeet(opts.meetId), opts.nowIso || nowIso());
-    const swimmer = await this.requireSwimmer(opts.swimmerId);
-    if (swimmer.parentUID !== opts.parentUID) throw new MeetServiceError("Swimmer does not belong to this parent.");
+    const swimmer = await this.requireHouseholdSwimmer(opts.swimmerId, opts.parentUID);
     const viewerIsTestAccount = await this.viewerIsTestAccount(opts.parentUID, opts.email);
     const rawCommitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
     const commitment = rawCommitment ? await this.persistInvoiceIfStale(meet, rawCommitment) : rawCommitment;
@@ -975,13 +1059,19 @@ export class MeetService {
 
   private async requireMeet(id: string): Promise<Meet> {
     const meet = await this.store.getMeet(id);
-    if (!meet) throw new MeetServiceError("Meet not found.");
+    if (!meet) throw new MeetServiceError("Meet not found.", 404);
     return meet;
   }
 
   private async requireSwimmer(id: string): Promise<MeetSwimmer> {
     const swimmer = await this.store.getSwimmer(id);
-    if (!swimmer) throw new MeetServiceError("Swimmer not found.");
+    if (!swimmer) throw new MeetServiceError("Swimmer not found.", 404);
+    return swimmer;
+  }
+
+  private async requireHouseholdSwimmer(swimmerId: string, parentUID: string): Promise<MeetSwimmer> {
+    const swimmer = await this.requireSwimmer(swimmerId);
+    if (swimmer.parentUID !== parentUID) throw new MeetServiceError("Swimmer not found.", 404);
     return swimmer;
   }
 }

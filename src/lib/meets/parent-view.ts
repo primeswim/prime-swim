@@ -8,6 +8,34 @@ import { usaSwimmingAttendGate } from "./usa-swimming";
 import { canParentEditCommitment, finalSwimEventIds, isParentVisibleStatus, parentEventLabel } from "./workflow";
 import { meetPaymentDueAt } from "./deadlines";
 import { meetAnnouncementUrl } from "./pns-url";
+import { parentMeetReviewState, type EventReviewAction, type ParentMeetReview } from "./meet-version";
+
+export function parentAccessFlags(
+  meet: Pick<Meet, "status" | "primeCommitmentDeadline">,
+  nowIso: string,
+  canAttend = true
+): { canEdit: boolean; canRespond: boolean } {
+  const canRespond = canParentEditCommitment(meet.status, nowIso, meet.primeCommitmentDeadline);
+  return { canRespond, canEdit: canRespond && canAttend };
+}
+
+function reviewFields(review: ParentMeetReview) {
+  return {
+    meetVersion: review.meetVersion,
+    responseVersion: review.responseVersion,
+    requiresEventReview: review.requiresEventReview,
+    updateReason: review.updateReason,
+    updatedAt: review.updatedAt,
+    canEdit: review.canEdit,
+    canRespond: review.canRespond,
+    eventReviewAction: review.eventReviewAction,
+    requiresMeetAcknowledgement: review.requiresMeetAcknowledgement,
+    noticeReason: review.noticeReason,
+    noticeVersion: review.noticeVersion,
+    acknowledgedNoticeVersion: review.acknowledgedNoticeVersion,
+    noticeUpdatedAt: review.noticeUpdatedAt,
+  };
+}
 
 export interface ParentRequestedEvent {
   id: string;
@@ -39,6 +67,19 @@ export interface UpcomingSwimmerMeet {
   attendance: Extract<MeetCommitment["attendance"], "attend" | "incomplete">;
   sourceKey?: string;
   events: ParentSelectedEvent[];
+  meetVersion: number;
+  responseVersion: number;
+  requiresEventReview: boolean;
+  updateReason: ParentMeetReview["updateReason"];
+  updatedAt?: string;
+  canEdit: boolean;
+  canRespond: boolean;
+  eventReviewAction: EventReviewAction;
+  requiresMeetAcknowledgement: boolean;
+  noticeReason?: ParentMeetReview["noticeReason"];
+  noticeVersion: number;
+  acknowledgedNoticeVersion: number;
+  noticeUpdatedAt?: string;
 }
 
 export interface ParentMeetCard {
@@ -72,6 +113,19 @@ export interface ParentMeetCard {
   paymentStatus?: MeetCommitment["paymentStatus"];
   paymentDueAt?: string;
   isTestData: boolean;
+  meetVersion: number;
+  responseVersion: number;
+  requiresEventReview: boolean;
+  updateReason: ParentMeetReview["updateReason"];
+  updatedAt?: string;
+  canEdit: boolean;
+  canRespond: boolean;
+  eventReviewAction: EventReviewAction;
+  requiresMeetAcknowledgement: boolean;
+  noticeReason?: ParentMeetReview["noticeReason"];
+  noticeVersion: number;
+  acknowledgedNoticeVersion: number;
+  noticeUpdatedAt?: string;
 }
 
 export interface PublicMeetDetail {
@@ -114,6 +168,7 @@ export interface ParentMeetDetail {
   settings: ClubMeetSettings;
   hasEventFile: boolean;
   announcementUrl?: string;
+  review: ParentMeetReview;
 }
 
 export function listPublicMeetCards(meets: Meet[]): ParentMeetCard[] {
@@ -158,7 +213,11 @@ export function listParentMeetCards(opts: {
   commitments: MeetCommitment[];
   viewerIsTestAccount: boolean;
   swimmerId?: string;
+  nowIso?: string;
+  settings?: ClubMeetSettings;
+  swimmers?: MeetSwimmer[];
 }): ParentMeetCard[] {
+  const clock = opts.nowIso || new Date().toISOString();
   return opts.meets
     .filter((meet) => isParentVisibleStatus(meet.status) || Boolean(meet.status === "cancelled" && meet.publishedToFamiliesAt))
     .filter((meet) => canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: opts.viewerIsTestAccount }))
@@ -167,6 +226,14 @@ export function listParentMeetCards(opts: {
         (c) => c.meetId === meet.id && (!opts.swimmerId || c.swimmerId === opts.swimmerId)
       );
       const label = parentEventLabel(meet.status);
+      const swimmer = opts.swimmerId ? opts.swimmers?.find((row) => row.id === opts.swimmerId) : undefined;
+      const canAttend = swimmer
+        ? usaSwimmingAttendGate({
+            usaSwimmingId: swimmer.usaSwimmingId,
+            omrUrl: opts.settings?.usaSwimmingOmrUrl,
+          }).canAttend
+        : true;
+      const review = parentMeetReviewState(meet, commitment, parentAccessFlags(meet, clock, canAttend));
       return {
         meetId: meet.id,
         swimmerId: opts.swimmerId || commitment?.swimmerId,
@@ -200,6 +267,7 @@ export function listParentMeetCards(opts: {
         paymentStatus: label === "confirmed" ? commitment?.paymentStatus : commitment?.attendance === "attend" ? "estimated" : "none",
         paymentDueAt: label === "confirmed" ? commitment?.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt) : undefined,
         isTestData: meet.isTestData,
+        ...reviewFields(review),
       };
     });
 }
@@ -225,6 +293,7 @@ export function buildParentMeetDetail(opts: {
     usaSwimmingId: opts.swimmer.usaSwimmingId,
     omrUrl: settings.usaSwimmingOmrUrl,
   });
+  const access = parentAccessFlags(opts.meet, opts.nowIso, usaGate.canAttend);
   const eligibility = swimmerEligibilitySummary(opts.meet, opts.swimmer);
   const eligible = eventsForSwimmer(opts.meet, opts.swimmer).map((event) => ({
     ...event,
@@ -253,9 +322,9 @@ export function buildParentMeetDetail(opts: {
     meet: opts.meet,
     swimmer: opts.swimmer,
     eventLabel: label,
-    canRespond: canParentEditCommitment(opts.meet.status, opts.nowIso, opts.meet.primeCommitmentDeadline),
+    canRespond: access.canRespond,
     rsvpNotice: parentRsvpNotice(opts.meet.status),
-    canEdit: canParentEditCommitment(opts.meet.status, opts.nowIso, opts.meet.primeCommitmentDeadline) && usaGate.canAttend,
+    canEdit: access.canEdit,
     usaGate,
     eligibility,
     eligibleEvents: eligible,
@@ -266,6 +335,7 @@ export function buildParentMeetDetail(opts: {
     settings,
     hasEventFile: (opts.meet.events || []).length > 0 && Boolean(opts.meet.eventFileAcceptedAt),
     announcementUrl: meetAnnouncementUrl(opts.meet),
+    review: parentMeetReviewState(opts.meet, opts.commitment, access),
   };
 }
 
@@ -338,6 +408,8 @@ export function listUpcomingSwimmerMeets(opts: {
   viewerIsTestAccount: boolean;
   todayYmd: string;
   swimmerIds?: string[];
+  nowIso?: string;
+  settings?: ClubMeetSettings;
 }): UpcomingSwimmerMeet[] {
   const wanted = opts.swimmerIds?.length ? new Set(opts.swimmerIds) : null;
   const swimmers = wanted ? opts.swimmers.filter((swimmer) => wanted.has(swimmer.id)) : opts.swimmers;
@@ -356,6 +428,15 @@ export function listUpcomingSwimmerMeets(opts: {
       if (commitment.attendance !== "attend" && commitment.attendance !== "incomplete") continue;
       const swimmer = byId.get(commitment.swimmerId);
       if (!swimmer) continue;
+      const canAttend = usaSwimmingAttendGate({
+        usaSwimmingId: swimmer.usaSwimmingId,
+        omrUrl: opts.settings?.usaSwimmingOmrUrl,
+      }).canAttend;
+      const review = parentMeetReviewState(
+        meet,
+        commitment,
+        parentAccessFlags(meet, opts.nowIso || new Date().toISOString(), canAttend)
+      );
       rows.push({
         swimmerId: swimmer.id,
         swimmerFirstName: displaySwimmerFirstName(swimmer.childFirstName),
@@ -370,6 +451,7 @@ export function listUpcomingSwimmerMeets(opts: {
         attendance: commitment.attendance,
         sourceKey: meet.sourceKey,
         events: commitmentSelectedEvents(meet, commitment),
+        ...reviewFields(review),
       });
     }
   }

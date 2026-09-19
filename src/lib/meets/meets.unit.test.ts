@@ -18,6 +18,7 @@ import { hostEntrySd3 } from "./sd3";
 import { PRIME_SWIM_OMR_URL, resolveClubMeetSettings, type Meet, type MeetCommitment, type MeetEvent, type MeetSwimmer } from "./types";
 import { classifyAdminMeetList, countAdminMeetList, filterAdminMeetList } from "./list-filter";
 import { classifyCalendarWhen } from "../calendar-when";
+import { applyLocationNoticeBump, applyMeetVersionBump, parentMeetReviewState, reasonsForMeetShapeChange } from "./meet-version";
 import { composePnsAdminAlert, pnsScanNeedsAdminAlert } from "./pns-notify";
 
 function assert(cond: boolean, msg: string) {
@@ -430,6 +431,60 @@ function testLiveEventFiles() {
   assert(hyv.events.filter((e) => e.maxAge >= 109).length === 24, "COM open-age 0;0 becomes Open");
 }
 
+function testMeetVersionReview() {
+  const meet = { meetVersion: 1, updatedAt: "2026-09-19T18:00:00Z" };
+  const legacyAttend = { attendance: "attend" as const };
+  assert(parentMeetReviewState(meet, legacyAttend).requiresEventReview === false, "legacy Attend is in sync until the next bump");
+  assert(parentMeetReviewState(meet, legacyAttend).responseVersion === 1, "missing responseVersion equals current meetVersion");
+  const bumped = applyMeetVersionBump({ ...meet }, ["dates_changed"]);
+  assert(bumped.meetVersion === 2, "date change increments meetVersion");
+  assert(parentMeetReviewState(bumped, { attendance: "attend", responseVersion: 1 }).requiresEventReview === true, "Attend must re-save after bump");
+  assert(parentMeetReviewState(bumped, { attendance: "attend", responseVersion: 2 }).requiresEventReview === false, "re-Attend clears review");
+  assert(parentMeetReviewState(bumped, { attendance: "decline", responseVersion: 1 }).requiresEventReview === false, "Decline does not require event review");
+  assert(
+    parentMeetReviewState(bumped, { attendance: "attend", responseVersion: 1 }, { canEdit: true, canRespond: true }).eventReviewAction === "reconfirm",
+    "open RSVP after an event change asks them to reconfirm"
+  );
+  assert(
+    parentMeetReviewState(bumped, { attendance: "attend", responseVersion: 1 }, { canEdit: false, canRespond: false }).eventReviewAction === "contact_prime",
+    "closed RSVP after an event change is contact Prime, not a stuck Attend"
+  );
+  const noticed = applyLocationNoticeBump(
+    {} as { noticeVersion?: number; noticeReason?: "location_changed"; noticeUpdatedAt?: string },
+    "2026-09-19T18:00:00Z"
+  );
+  assert(noticed.noticeVersion === 1 && noticed.noticeReason === "location_changed", "location change bumps noticeVersion only");
+  assert(
+    parentMeetReviewState({ ...meet, ...noticed }, { attendance: "attend", responseVersion: 1 }).requiresMeetAcknowledgement === true,
+    "attending families must acknowledge a location change"
+  );
+  assert(
+    parentMeetReviewState({ ...meet, ...noticed }, { attendance: "attend", responseVersion: 1 }).requiresEventReview === false,
+    "location change does not require event review"
+  );
+  assert(
+    parentMeetReviewState(
+      { ...meet, ...noticed },
+      { attendance: "attend", responseVersion: 1, acknowledgedNoticeVersion: 1 }
+    ).requiresMeetAcknowledgement === false,
+    "acknowledging the notice clears it"
+  );
+  assert(
+    reasonsForMeetShapeChange(
+      { startDate: "2026-10-17", endDate: "2026-10-18", sessions: [], events: [] },
+      { startDate: "2026-10-17", endDate: "2026-10-18", sessions: [], events: [] }
+    ).length === 0,
+    "PDF-only / identical shape does not bump"
+  );
+  assert(
+    reasonsForMeetShapeChange(
+      { startDate: "2026-10-17", endDate: "2026-10-18", sessions: [], events: [] },
+      { startDate: "2026-10-24", endDate: "2026-10-25", sessions: [], events: [] }
+    ).includes("dates_changed"),
+    "moved dates are a shape change"
+  );
+}
+
 function testCalendarWhen() {
   const today = "2026-09-15";
   assert(classifyCalendarWhen("2026-10-17", "2026-10-18", today) === "upcoming", "future meet is upcoming");
@@ -695,6 +750,21 @@ function testHostPacketAndParentEvents() {
     viewerIsTestAccount: true,
   });
   assert(cards[0].selectedEvents.map((event) => event.label).join(",") === "50 Fly,50 Free", "stored events stay on the card payload");
+  assert(cards[0].canRespond === true && cards[0].canEdit === true, "dashboard cards include RSVP access flags");
+  const closedCards = listParentMeetCards({
+    meets: [{ ...meet, primeCommitmentDeadline: "2026-09-08T23:59:00" }],
+    commitments: [attending],
+    viewerIsTestAccount: true,
+    nowIso: "2026-09-09T08:00:00",
+  });
+  assert(closedCards[0].canRespond === false && closedCards[0].canEdit === false, "dashboard cards close after Prime Deadline");
+  const noticeCards = listParentMeetCards({
+    meets: [{ ...meet, noticeVersion: 1, noticeReason: "location_changed" }],
+    commitments: [attending],
+    viewerIsTestAccount: true,
+    nowIso: "2026-09-01T12:00:00",
+  });
+  assert(noticeCards[0].requiresMeetAcknowledgement === true, "dashboard cards flag a location notice");
   assert(cards[0].swimmerResponses.find((r) => r.swimmerId === "s1")?.events.map((event) => event.label).join(",") === "50 Fly,50 Free", "attending swimmer lists events");
   assert((cards[0].swimmerResponses.find((r) => r.swimmerId === "s2")?.events || []).length === 0, "declined swimmer hides events");
   const confirmedCards = listParentMeetCards({
@@ -719,6 +789,7 @@ function testHostPacketAndParentEvents() {
   });
   assert(upcoming.length === 1 && upcoming[0].swimmerId === "s1", "upcoming API is Attend only and skips past meets");
   assert(upcoming[0].events.map((event) => event.label).join(",") === "50 Fly,50 Free", "upcoming API returns selected events");
+  assert(typeof upcoming[0].canEdit === "boolean" && typeof upcoming[0].canRespond === "boolean", "upcoming rows include RSVP access flags");
   const oneKid = listUpcomingSwimmerMeets({
     meets: [meet],
     commitments: [attending, declined],
@@ -839,6 +910,7 @@ async function run() {
   testFinalEntriesAndPaymentDue();
   testHostPacketAndParentEvents();
   testAdminGuide();
+  testMeetVersionReview();
   testCalendarWhen();
   testAdminMeetListFilter();
   testPnsHtmlParse();

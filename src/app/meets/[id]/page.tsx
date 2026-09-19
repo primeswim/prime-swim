@@ -14,9 +14,10 @@ import { CheckCircle2, MapPin } from "lucide-react";
 import { MeetAnnouncementText } from "@/components/meet-announcement-text";
 import { MeetAnnouncementLink } from "@/components/meet-announcement-link";
 import { PnsMeetLink } from "@/components/pns-meet-link";
+import { CLOSED_REVIEW_TEXT, LOCATION_NOTICE_TEXT } from "@/lib/meets/meet-version";
 import { displaySwimmerFirstName, parentAttendanceBadgeClass, parentAttendanceLabel, type ParentMeetDetail, type PublicMeetDetail } from "@/lib/meets/parent-view";
 import { displayMeetName } from "@/lib/meets/display-name";
-import { meetDayOptions, keepValidMeetDayIds, meetDateStamp } from "@/lib/meets/sessions";
+import { attendingNeedsNewDays, meetDayOptions, keepValidMeetDayIds, meetDateStamp } from "@/lib/meets/sessions";
 import { MeetDateStamp } from "@/components/meet-date-stamp";
 import { MeetPayPrimeButton, MeetPaymentStatusNote } from "@/components/meet-pay-button";
 
@@ -227,6 +228,29 @@ function ParentMeetDetailInner() {
     }
   }
 
+  async function acknowledge(kind: "notice" | "closed_review") {
+    if (!detail) return;
+    try {
+      setBusy(true);
+      setError("");
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not signed in");
+      const idToken = await user.getIdToken();
+      const res = await fetch(`/api/meets/${id}/acknowledgement`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ swimmerId: detail.swimmer.id, acknowledge: [kind] }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Could not clear this notice");
+      await loadRsvp(detail.swimmer.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not clear this notice");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveUsaId() {
     if (!detail) return;
     try {
@@ -344,7 +368,16 @@ function ParentMeetDetailInner() {
   const firstName = displaySwimmerFirstName(detail.swimmer.childFirstName);
   const statusLabel = parentAttendanceLabel(detail.commitment?.attendance || "no_response", detail.eventLabel);
   const alreadyAttending = detail.commitment?.attendance === "attend" || detail.commitment?.attendance === "incomplete";
-  const needsNewDays = Boolean(detail.meet.parentUpdateBanner) && alreadyAttending;
+  const needsReview = Boolean(detail.review?.requiresEventReview);
+  const needsLocationAck = Boolean(detail.review?.requiresMeetAcknowledgement);
+  const closedReview = needsReview && !detail.canRespond;
+  const needsNewDays = attendingNeedsNewDays(detail.meet, detail.commitment || {});
+  const updateBanner = closedReview
+    ? CLOSED_REVIEW_TEXT
+    : needsReview
+      ? detail.meet.parentUpdateBanner || "This meet was updated. Review the days and events, then tap Attend again."
+      : "";
+  const infoBanner = !needsReview && !needsLocationAck ? detail.meet.parentUpdateBanner : "";
   const wishlistReady = detail.hasEventFile || notesHaveEventWishlist(notes);
   const attendBlockedHint = !detail.usaGate.canAttend
     ? "USA Swimming ID is required to Attend."
@@ -392,7 +425,7 @@ function ParentMeetDetailInner() {
               )}
               <div className="flex flex-wrap gap-4 text-sm text-slate-600">
                 <span className="font-medium text-slate-800">{meetDateStamp(detail.meet.startDate, detail.meet.endDate).rangeLabel}</span>
-                <span className="inline-flex items-center gap-1.5">
+                <span id="meet-location" className="inline-flex items-center gap-1.5">
                   <MapPin className="h-4 w-4 text-slate-500" />
                   {detail.meet.location || "Location TBD"}
                 </span>
@@ -405,9 +438,42 @@ function ParentMeetDetailInner() {
           </div>
         </section>
 
-        {detail.meet.parentUpdateBanner && (
-          <div className="text-sm bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-amber-950 shadow-sm">
-            {detail.meet.parentUpdateBanner}
+        {needsLocationAck && (
+          <div className="text-sm bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3 text-sky-950 shadow-sm space-y-3">
+            <p>{LOCATION_NOTICE_TEXT}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                className="bg-slate-800 hover:bg-slate-700 text-white rounded-full"
+                disabled={busy}
+                onClick={() => {
+                  document.getElementById("meet-location")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  void acknowledge("notice");
+                }}
+              >
+                View new location
+              </Button>
+              <Button type="button" variant="outline" className="rounded-full" disabled={busy} onClick={() => void acknowledge("notice")}>
+                Got it
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {updateBanner && (
+          <div className="text-sm bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-amber-950 shadow-sm space-y-3">
+            <p>{updateBanner}</p>
+            {closedReview && (
+              <Button type="button" variant="outline" className="rounded-full" disabled={busy} onClick={() => void acknowledge("closed_review")}>
+                Got it
+              </Button>
+            )}
+          </div>
+        )}
+
+        {infoBanner && (
+          <div className="text-sm bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-slate-700 shadow-sm">
+            {infoBanner}
           </div>
         )}
 
@@ -651,8 +717,8 @@ function ParentMeetDetailInner() {
               {rsvpButtons && (
                 <div className="border-t border-slate-100 pt-4">
                   <p className="text-sm text-slate-500 mb-3">
-                    {needsNewDays
-                      ? `Choose the new days, then tap Attend to update ${firstName}'s RSVP.`
+                    {needsReview || needsNewDays
+                      ? `Review the updated meet, then tap Attend to confirm ${firstName}'s RSVP.`
                       : !wishlistReady
                         ? `Write ${firstName}'s events in the required box above, then tap Attend.`
                         : alreadyAttending

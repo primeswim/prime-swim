@@ -1,0 +1,75 @@
+---
+description: How to run Prime Swim automated tests and what each suite covers
+alwaysApply: true
+---
+
+# Automated tests
+
+After changing membership, tuition, roster, siblings, meets, calendar, or parent RSVP, run the matching suite. For a full pass: `npm test`. These are in-process `ts-node` files (no Jest). Do not Publish live PNS meets; keep TEST fixtures isolated (`isTestData`, `canViewerSeeMeet`).
+
+## Commands
+
+- `npm test` — all suites below
+- `npm run test:membership` — `src/lib/membership-renewal.test.ts`
+- `npm run test:membership-pause` — `src/lib/membership-pause.test.ts`
+- `npm run test:tuition-v2` — session generator, templates, calculate engine, training roster, parent tuition
+- `npm run test:siblings` — sibling discount + month overrides
+- `npm run test:meets` — `meets.unit.test.ts` then `meets.integration.test.ts`
+
+Meets tests are **not HTTP mocks**. They run the real `MeetService` against `[TEST]` fixtures in a memory store (same code as Firestore). Clock: `TEST_NOW = 2026-09-01T12:00:00` (before TAC Prime Deadline). Pass that `nowIso` into `getParentDetail` / `listAdminMeets` / `listParentMeets` / `listUpcoming` when RSVP can auto-close. Foreign `swimmerId` is 404. Do not Publish live PNS meets.
+
+## Browser / Firestore click-through (after code changes to RSVP or Has updates)
+
+Do **not** Publish live PNS meets. Use `[TEST]` only, then delete.
+
+1. `npx ts-node -r dotenv/config -r tsconfig-paths/register --compiler-options '{"module":"commonjs"}' scripts/create-meet-e2e-accounts.ts` (needs `DOTENV_CONFIG_PATH=.env.local`)
+2. `ALLOW_MEET_TEST_SEED=1 TEST_PARENT_UID=<parentUid> TEST_PARENT_EMAIL=meet.e2e.parent+meetstest@prime-swim.test TEST_SWIMMER_ATTEND=e2e-test-swimmer-elena TEST_SWIMMER_DECLINE=e2e-test-swimmer-mia npm run seed:meets-test`
+3. Admin `/admin/meets` → **Has updates** → Open Challenge. Diffs must include dates, `location changed`, and event file URL. **Accept update**.
+4. Parent `/dashboard`: Elena card shows location notice + date re-Attend banner. Mia (Decline) has **no** upcoming meet card.
+5. **Got it** clears location notice only. Open meet: new venue/dates, must re-pick days and Attend.
+6. Event File: Has updates that only post a **file URL** does **not** unlock checkboxes. Admin must upload `.hyv`/`.ev3` on the meet page (`importEventFile` accept). Then attending families get `requiresEventReview` / “Review the list and tap Attend again.” Decline does not. If RSVP is already closed: contact Prime, no checkboxes.
+7. Always finish with `ALLOW_MEET_TEST_DELETE=1 npm run delete:meets-test` (keeps live PNS meets). Also delete the `+meetstest` Auth users if you created them.
+
+## Membership (`test:membership`)
+
+- Grace / due-soon / exact due date / last grace day → period starts from due date
+- Expired / one day after grace / new frozen registration → rejoin from today
+- After renew: status active, 1-year period, next due = period end + 1 day
+
+## Membership pause (`test:membership-pause`)
+
+- Pause days are whole days; same day is 0
+- While paused, status does not go past due / stays grace not inactive
+- Resume extends `nextDue` and period end; after resume, status uses real now
+
+## Tuition / roster (`test:tuition-v2`)
+
+- Sessions: basic generation, schedule periods, preserve cancellation, resolve from plans
+- Templates: merge keeps schedule periods; merge can create a new plan
+- Engine: extra training outside regular weekdays; skip extra; regular weekday required; unavailable weekday excludes Friday regular/extra but not a Friday swap; explicit plan keys; period range vs explicit date / skip
+- Roster: counts match billable; same-time slot aggregates levels; omit empty levels
+- Parent tuition: prep-month cutoff; candidate months; visibility per invoice; new invoice unpublished until publish; parent view hides draft amount; pick latest published else prep; publish filter skips already published
+
+## Siblings (`test:siblings`)
+
+- Normalize sibling IDs; enrollment millis; min-days helper
+- Discount only when all linked siblings meet min days (including 4-sibling); none if any below min, unlinked, or a linked sibling not in the billed rows
+- Month overrides: stale sibling override ignored; manual override applied; `shouldApply` helper
+
+## Meets unit (`meets.unit.test.ts`)
+
+Eligibility, deadlines/fees, USA ID + TEST isolation, workflow (edit through deadline day, closed next Pacific day), finalized entries/payment due, admin guide, PNS HTML/TeamUnify/merge, GUID meet ids, announcement readability, HYV + live EV3/HYV files, calendar days not weekend-only, host packet CSV/SD3, PDF fee extract.
+
+Version / notice (`testMeetVersionReview` + parent cards):
+
+- Date/session/event-file/optional-event change bumps `meetVersion`; PDF/fees do not
+- Attend + `meetVersion > responseVersion` → `requiresEventReview`; Decline does not; missing `responseVersion` treated as in sync
+- Open review → `eventReviewAction: reconfirm`; closed RSVP → `contact_prime`
+- Location change bumps `noticeVersion` only; attending families get `requiresMeetAcknowledgement` / `noticeReason: location_changed`; acknowledge clears it
+- Dashboard/upcoming cards include `canEdit` / `canRespond`; after Prime Deadline both false; location notice appears on cards
+
+## Meets integration (`meets.integration.test.ts`)
+
+Memory store + `TEST_*` parents/swimmers. Parent-card scenario (`testParentCardsAttendDeclineAndHasUpdates`): create Open Challenge → Elena Attend / Mia Decline → Decline is **not** on the swimmer upcoming card or `/upcoming` → ingest Has updates (new weekend + new venue + Event File URL) while family still sees old date/location → Accept → attending family gets `requiresEventReview` + location notice, Decline does not → import Event File → re-Attend clears both. Also: PNS ingest + invitational vs open publish; USA ID / OMR gate; TAC notes then Event File then Attend/cuts; TEST vs prod isolation; deadline auto-close + host email; compose needs attenders; Decline without USA ID + payment; final invoice uses event fees; deadline-close drill; reject stays off family list; published PNS PDF waits for Accept (no `meetVersion` bump); date extend/move bumps version and requires re-Attend; location Accept does not bump `meetVersion` but sets notice; after deadline, event review cannot re-Attend (`canRespond: false`) and `closed_review` acknowledgement clears Action Required; open RSVP cannot use `closed_review`; public catalog hides TEST meets.
+
+Private Meet APIs use `Cache-Control: no-store`. Acknowledgement body is `{ swimmerId, acknowledge: ["notice"] | ["closed_review"] }`.

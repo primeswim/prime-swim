@@ -181,6 +181,11 @@ function asMeet(id: string, data: FirebaseFirestore.DocumentData): Meet {
     rejectedAt: data.rejectedAt,
     rejectedReason: data.rejectedReason,
     parentUpdateBanner: data.parentUpdateBanner,
+    meetVersion: typeof data.meetVersion === "number" ? data.meetVersion : undefined,
+    updateReason: Array.isArray(data.updateReason) ? data.updateReason : undefined,
+    noticeVersion: typeof data.noticeVersion === "number" ? data.noticeVersion : undefined,
+    noticeReason: data.noticeReason,
+    noticeUpdatedAt: data.noticeUpdatedAt,
     hostReplySummary: data.hostReplySummary,
     isTestData: data.isTestData === true,
     createdAt: data.createdAt,
@@ -219,6 +224,8 @@ function asCommitment(id: string, data: FirebaseFirestore.DocumentData): MeetCom
     paymentDueAt: data.paymentDueAt,
     isTestData: data.isTestData === true,
     updatedAt: data.updatedAt,
+    responseVersion: typeof data.responseVersion === "number" ? data.responseVersion : undefined,
+    acknowledgedNoticeVersion: typeof data.acknowledgedNoticeVersion === "number" ? data.acknowledgedNoticeVersion : undefined,
   };
 }
 

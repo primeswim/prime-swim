@@ -124,6 +124,13 @@ export interface Meet {
   rejectedAt?: string;
   rejectedReason?: string;
   parentUpdateBanner?: string;
+  /** Increments when dates, sessions, Event File, or optional events change. */
+  meetVersion?: number;
+  /** Last family-visible change. App uses this with requiresEventReview, not the banner text. */
+  updateReason?: Array<"dates_changed" | "sessions_changed" | "event_file_changed" | "events_changed">;
+  noticeVersion?: number;
+  noticeReason?: "location_changed";
+  noticeUpdatedAt?: string;
   hostReplySummary?: string;
   /** Hard isolation flag. Parent APIs hide these unless the viewer is a test account. */
   isTestData: boolean;
@@ -162,6 +169,10 @@ export interface MeetCommitment {
   paymentDueAt?: string;
   isTestData: boolean;
   updatedAt?: string;
+  /** meetVersion at the time this household last saved Attend / Decline. */
+  responseVersion?: number;
+  /** noticeVersion this household last acknowledged (location change, etc.). */
+  acknowledgedNoticeVersion?: number;
 }
 
 export interface MeetSwimmer {

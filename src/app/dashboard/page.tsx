@@ -30,6 +30,7 @@ import {
   diffInDays,
 } from "@/lib/membership"
 import type { ParentTuitionView } from "@/lib/tuition-v2/parent-tuition"
+import { CLOSED_REVIEW_TEXT, LOCATION_NOTICE_TEXT } from "@/lib/meets/meet-version"
 import type { ParentMeetCard } from "@/lib/meets/parent-view"
 import { isSwimmerUpcomingMeetCard } from "@/lib/meets/parent-view"
 import { PnsMeetLink } from "@/components/pns-meet-link"
@@ -207,6 +208,46 @@ export default function DashboardPage() {
       )
     } catch (e) {
       alert(e instanceof Error ? e.message : "Could not save USA Swimming ID")
+    } finally {
+      setMeetBusy("")
+    }
+  }
+
+  const acknowledgeMeet = async (meetId: string, swimmerId: string, kind: "notice" | "closed_review") => {
+    try {
+      setMeetBusy(`ack-${kind}-${meetId}-${swimmerId}`)
+      const u = auth.currentUser
+      if (!u) throw new Error("Not signed in")
+      const idToken = await u.getIdToken(true)
+      const res = await fetch(`/api/meets/${meetId}/acknowledgement`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ swimmerId, acknowledge: [kind] }),
+      })
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error || "Could not clear this notice")
+      const patch = (card: ParentMeetCard) => {
+        if (card.meetId !== meetId || card.swimmerId !== swimmerId) return card
+        if (kind === "notice") {
+          return {
+            ...card,
+            requiresMeetAcknowledgement: false,
+            noticeReason: undefined,
+            acknowledgedNoticeVersion: card.noticeVersion,
+          }
+        }
+        return {
+          ...card,
+          requiresEventReview: false,
+          eventReviewAction: "none" as const,
+          responseVersion: card.meetVersion,
+        }
+      }
+      setMeetsBySwimmer((prev) =>
+        Object.fromEntries(Object.entries(prev).map(([id, cards]) => [id, cards.map(patch)]))
+      )
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not clear this notice")
     } finally {
       setMeetBusy("")
     }
@@ -677,8 +718,51 @@ export default function DashboardPage() {
                             <MeetPaymentStatusNote status={meet.paymentStatus} />
                           </div>
                         )}
-                        {meet.parentUpdateBanner && (
-                          <div className="text-xs text-amber-900 bg-amber-50 rounded-lg px-2 py-1.5 mt-2">{meet.parentUpdateBanner}</div>
+                        {meet.requiresMeetAcknowledgement && (
+                          <div className="text-xs text-sky-950 bg-sky-50 rounded-lg px-2 py-1.5 mt-2 space-y-2">
+                            <p>{LOCATION_NOTICE_TEXT}</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Link
+                                href={`/meets/${meet.meetId}?swimmerId=${swimmer.id}#meet-location`}
+                                className="pointer-events-auto inline-flex items-center rounded-full bg-slate-800 px-3 py-1 text-white"
+                                onClick={() => void acknowledgeMeet(meet.meetId, swimmer.id, "notice")}
+                              >
+                                View new location
+                              </Link>
+                              <button
+                                type="button"
+                                className="pointer-events-auto rounded-full border border-slate-300 bg-white px-3 py-1"
+                                disabled={meetBusy === `ack-notice-${meet.meetId}-${swimmer.id}`}
+                                onClick={() => void acknowledgeMeet(meet.meetId, swimmer.id, "notice")}
+                              >
+                                Got it
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {meet.parentUpdateBanner && !meet.requiresEventReview && !meet.requiresMeetAcknowledgement && (
+                          <div className="text-xs text-slate-700 bg-slate-50 rounded-lg px-2 py-1.5 mt-2">
+                            {meet.parentUpdateBanner}
+                          </div>
+                        )}
+                        {meet.requiresEventReview && (
+                          <div className="text-xs text-amber-900 bg-amber-50 rounded-lg px-2 py-1.5 mt-2 space-y-2">
+                            <p>
+                              {meet.requiresEventReview && !meet.canRespond
+                                ? CLOSED_REVIEW_TEXT
+                                : meet.parentUpdateBanner || "This meet was updated. Open it and tap Attend again."}
+                            </p>
+                            {meet.requiresEventReview && !meet.canRespond && (
+                              <button
+                                type="button"
+                                className="pointer-events-auto rounded-full border border-amber-300 bg-white px-3 py-1"
+                                disabled={meetBusy === `ack-closed_review-${meet.meetId}-${swimmer.id}`}
+                                onClick={() => void acknowledgeMeet(meet.meetId, swimmer.id, "closed_review")}
+                              >
+                                Got it
+                              </button>
+                            )}
+                          </div>
                         )}
                         <div className="flex flex-wrap gap-3 mt-1">
                           <PnsMeetLink sourceKey={meet.sourceKey} className="pointer-events-auto text-xs text-slate-700 underline underline-offset-2" />

@@ -11,8 +11,9 @@ import { assertSendableHostEmail, MeetService, MeetServiceError } from "./servic
 import { MemoryMeetStore } from "./store";
 import { meetDayOptions } from "./sessions";
 import { filterAdminMeetList } from "./list-filter";
+import { isSwimmerUpcomingMeetCard } from "./parent-view";
 import { canViewerSeeMeet } from "./test-data";
-import { meetMatchesSource } from "./types";
+import { meetMatchesSource, type MeetSwimmer } from "./types";
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
@@ -151,7 +152,7 @@ async function testUsaIdGateUsesClubOmrLink() {
 async function testInvitationalEventFlowAndCuts() {
   const { service } = await seedWorld();
   await service.ingestPns(mockPnsCalendarItems(), { isTestData: true });
-  const tac = (await service.listAdminMeets()).find((m) => meetMatchesSource(m, "tac"))!;
+  const tac = (await service.listAdminMeets(TEST_NOW)).find((m) => meetMatchesSource(m, "tac"))!;
   await service.setInvitationStatus(tac.id, "invited");
   await service.approveMeet(tac.id);
   await service.publishToFamilies(tac.id);
@@ -161,6 +162,7 @@ async function testInvitationalEventFlowAndCuts() {
     swimmerId: "test-swimmer-elena",
     parentUID: TEST_PARENT_WITH_ID.uid,
     email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
   });
   assert(beforeFile.hasEventFile === false, "no checkboxes before event file");
   assert(beforeFile.eligibility.notes.some((n) => /Invitational/i.test(n)), "parent sees invitational eligibility");
@@ -186,7 +188,9 @@ async function testInvitationalEventFlowAndCuts() {
     swimmerId: "test-swimmer-elena",
     parentUID: TEST_PARENT_WITH_ID.uid,
     email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
   });
+  assert(withFile.review.requiresEventReview === true, "Event File import requires Attend again");
   assert(withFile.hasEventFile === true, "event file unlocks checkboxes");
   assert(withFile.commitment?.parentNotes.includes("First meet") === true, "notes survive import");
   assert(withFile.eligibleEvents.some((e) => e.eventNumber === 3), "11yo sees 11-12 50 fly");
@@ -264,6 +268,7 @@ async function testInvitationalEventFlowAndCuts() {
     swimmerId: "test-swimmer-elena",
     parentUID: TEST_PARENT_WITH_ID.uid,
     email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
   });
   assert(pending.eventLabel === "pending_for_review", "after send still pending");
   assert(pending.displayedEvents.length === selected.length, "requested events still shown");
@@ -281,6 +286,7 @@ async function testInvitationalEventFlowAndCuts() {
     swimmerId: "test-swimmer-elena",
     parentUID: TEST_PARENT_WITH_ID.uid,
     email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
   });
   assert(stillPending.eventLabel === "pending_for_review", "cuts not shown before publish confirmed");
   assert(stillPending.displayedEvents.length === selected.length, "parent still sees original request");
@@ -291,6 +297,7 @@ async function testInvitationalEventFlowAndCuts() {
     swimmerId: "test-swimmer-elena",
     parentUID: TEST_PARENT_WITH_ID.uid,
     email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
   });
   assert(confirmed.eventLabel === "confirmed", "publish confirmed unlocks lineup");
   assert(confirmed.displayedEvents.length === sat.length, "Sunday cut removed for parent");
@@ -757,6 +764,7 @@ async function testHasUpdatesDateChangeParentRsvp() {
   assert(parentWhileWaiting.meet.startDate === "2026-10-17", "family still sees the old dates before Accept");
   assert(parentWhileWaiting.canRespond === true, "Attend stays available while Has updates is pending");
   const pdfAccepted = await service.acceptSourceUpdate(open.id);
+  assert((pdfAccepted.meetVersion || 1) === 1, "PDF-only Accept does not increment meetVersion");
   assert(!pdfAccepted.parentUpdateBanner, "same days do not show a re-pick prompt");
   const afterPdf = await store.getCommitment(open.id, "test-swimmer-elena");
   assert(afterPdf?.availableSessionIds.join(",") === originalDays.join(","), "selected days stay when dates did not move");
@@ -790,9 +798,38 @@ async function testHasUpdatesDateChangeParentRsvp() {
   assert((await service.getAdminMeet(open.id))?.pendingSourceReview === true, "endDate change flags Has updates");
   const extendAccepted = await service.acceptSourceUpdate(open.id);
   assert(extendAccepted.endDate === "2026-10-19", "Accept applies the extra day");
-  assert(!extendAccepted.parentUpdateBanner, "kept days do not prompt a re-pick");
+  assert((extendAccepted.meetVersion || 1) === 2, "adding a day increments meetVersion");
+  assert(Boolean(extendAccepted.parentUpdateBanner), "families must confirm Attend after a date change");
   const afterExtend = await store.getCommitment(open.id, "test-swimmer-elena");
   assert(afterExtend?.availableSessionIds.join(",") === originalDays.join(","), "Oct 17–18 stay selected on a longer meet");
+  const reviewExtend = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(reviewExtend.review.requiresEventReview === true, "API flags event review from meetVersion, not banner text");
+  assert(reviewExtend.review.updateReason.includes("dates_changed"), "updateReason tells the app why");
+  await service.saveParentCommitment({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    attendance: "attend",
+    availableSessionIds: originalDays,
+    selectedEventIds: [],
+    parentNotes: "Saturday 50 fly, 50 free.",
+    acceptFeePolicy: true,
+    nowIso: TEST_NOW,
+  });
+  const afterConfirmExtend = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(afterConfirmExtend.review.requiresEventReview === false, "re-Attend stores responseVersion");
 
   const movedWeekend = mockPnsCalendarItems().map((item) =>
     item.sourceId === open.sourceKey
@@ -825,6 +862,8 @@ async function testHasUpdatesDateChangeParentRsvp() {
   });
   assert(afterMove.canRespond === true && afterMove.canEdit === true, "Attend stays available after the date change");
   assert(Boolean(afterMove.meet.parentUpdateBanner), "parent page shows the re-pick prompt");
+  assert(afterMove.review.requiresEventReview === true, "moved dates require a new Attend save");
+  assert((moved.meetVersion || 1) >= 3, "each accepted date change increments meetVersion");
   const updated = await service.saveParentCommitment({
     meetId: open.id,
     swimmerId: "test-swimmer-elena",
@@ -839,6 +878,286 @@ async function testHasUpdatesDateChangeParentRsvp() {
   assert(updated.attendance === "attend", "parent can tap Attend with the new days");
   const cleared = await service.getAdminMeet(open.id);
   assert(!cleared?.parentUpdateBanner, "prompt clears after they save new days");
+  const confirmed = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(confirmed.review.requiresEventReview === false, "responseVersion matches meetVersion after Attend");
+  try {
+    await service.getParentDetail({
+      meetId: open.id,
+      swimmerId: "test-swimmer-leo",
+      parentUID: TEST_PARENT_WITH_ID.uid,
+      email: TEST_PARENT_WITH_ID.email,
+      nowIso: TEST_NOW,
+    });
+    throw new Error("should hide another family's swimmer");
+  } catch (e) {
+    assert(e instanceof MeetServiceError && e.status === 404, "non-household swimmerId is 404");
+  }
+}
+
+async function testLocationNoticeAndClosedReview() {
+  const { service } = await seedWorld();
+  await service.ingestPns(mockPnsCalendarItems(), { isTestData: true });
+  const open = (await service.listAdminMeets(TEST_NOW)).find((m) => meetMatchesSource(m, "open-challenge"))!;
+  await service.publishToFamilies(open.id);
+  await service.saveParentCommitment({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    attendance: "attend",
+    availableSessionIds: meetDayOptions(open).map((day) => day.id),
+    selectedEventIds: [],
+    parentNotes: "Saturday 50 fly, 50 free.",
+    acceptFeePolicy: true,
+    nowIso: TEST_NOW,
+  });
+
+  const movedPool = mockPnsCalendarItems().map((item) =>
+    item.sourceId === open.sourceKey ? { ...item, location: "Bellevue Aquatic Center" } : item
+  );
+  await service.ingestPns(movedPool, { isTestData: true });
+  const accepted = await service.acceptSourceUpdate(open.id);
+  assert(accepted.location === "Bellevue Aquatic Center", "Accept writes the new venue");
+  assert((accepted.meetVersion || 1) === 1, "location change does not increment meetVersion");
+  assert((accepted.noticeVersion || 0) === 1, "location change increments noticeVersion");
+  const afterMove = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(afterMove.review.requiresEventReview === false, "location change is not an event review");
+  assert(afterMove.review.requiresMeetAcknowledgement === true, "attending family sees a location notice");
+  assert(afterMove.review.noticeReason === "location_changed", "noticeReason is location_changed");
+  const cards = await service.listParentMeets(TEST_PARENT_WITH_ID.uid, TEST_PARENT_WITH_ID.email, "test-swimmer-elena", {
+    nowIso: TEST_NOW,
+  });
+  assert(cards.find((card) => card.meetId === open.id)?.requiresMeetAcknowledgement === true, "dashboard card carries the location notice");
+  const upcoming = await service.listUpcomingSwimmerMeets(TEST_PARENT_WITH_ID.uid, TEST_PARENT_WITH_ID.email, {
+    nowIso: TEST_NOW,
+  });
+  assert(upcoming.find((row) => row.meetId === open.id)?.canRespond === true, "upcoming includes canRespond while RSVP is open");
+  await service.acknowledgeParentMeet({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    acknowledge: ["notice"],
+    nowIso: TEST_NOW,
+  });
+  const clearedNotice = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(clearedNotice.review.requiresMeetAcknowledgement === false, "acknowledgement clears the location notice");
+
+  const extraDay = mockPnsCalendarItems().map((item) =>
+    item.sourceId === open.sourceKey ? { ...item, location: "Bellevue Aquatic Center", endDate: "2026-10-19" } : item
+  );
+  await service.ingestPns(extraDay, { isTestData: true });
+  const dateAccepted = await service.acceptSourceUpdate(open.id);
+  assert((dateAccepted.meetVersion || 1) === 2, "date change still increments meetVersion");
+  try {
+    await service.acknowledgeParentMeet({
+      meetId: open.id,
+      swimmerId: "test-swimmer-elena",
+      parentUID: TEST_PARENT_WITH_ID.uid,
+      acknowledge: ["closed_review"],
+      nowIso: TEST_NOW,
+    });
+    throw new Error("should not acknowledge a still-open event review");
+  } catch (e) {
+    assert(e instanceof MeetServiceError, "open RSVP must re-Attend instead of acknowledging");
+  }
+
+  const afterDeadline = "2026-10-11T12:00:00";
+  const closed = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: afterDeadline,
+  });
+  assert(closed.review.requiresEventReview === true, "event change after deadline still flags review");
+  assert(closed.canRespond === false && closed.canEdit === false, "parents cannot save Attend after deadline");
+  assert(closed.review.eventReviewAction === "contact_prime", "closed review tells the app to contact Prime");
+  const closedCards = await service.listParentMeets(TEST_PARENT_WITH_ID.uid, TEST_PARENT_WITH_ID.email, "test-swimmer-elena", {
+    nowIso: afterDeadline,
+  });
+  const closedCard = closedCards.find((card) => card.meetId === open.id);
+  assert(closedCard?.requiresEventReview === true && closedCard.canRespond === false, "dashboard summary carries closed-review flags");
+  await service.acknowledgeParentMeet({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    acknowledge: ["closed_review"],
+    nowIso: afterDeadline,
+  });
+  const dismissed = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: afterDeadline,
+  });
+  assert(dismissed.review.requiresEventReview === false, "closed-review acknowledgement clears Action Required");
+}
+
+async function testParentCardsAttendDeclineAndHasUpdates() {
+  const { store, service } = await seedWorld();
+  const mia: MeetSwimmer = {
+    id: "test-swimmer-mia",
+    childFirstName: "[TEST] Mia",
+    childLastName: "Chen",
+    childDateOfBirth: "2017-08-01",
+    childGender: "female",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    isTestData: true,
+  };
+  await store.saveSwimmer(mia);
+
+  await service.ingestPns(mockPnsCalendarItems(), { isTestData: true });
+  const open = (await service.listAdminMeets(TEST_NOW)).find((m) => meetMatchesSource(m, "open-challenge"))!;
+  await service.publishToFamilies(open.id);
+  const days = meetDayOptions(open).map((day) => day.id);
+
+  await service.saveParentCommitment({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    attendance: "attend",
+    availableSessionIds: days,
+    selectedEventIds: [],
+    parentNotes: "Saturday 50 fly, 50 free.",
+    acceptFeePolicy: true,
+    nowIso: TEST_NOW,
+  });
+  await service.saveParentCommitment({
+    meetId: open.id,
+    swimmerId: "test-swimmer-mia",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    attendance: "decline",
+    availableSessionIds: [],
+    selectedEventIds: [],
+    parentNotes: "Cannot make this weekend.",
+    nowIso: TEST_NOW,
+  });
+
+  const dashAfterRsvp = await service.listParentDashboard(TEST_PARENT_WITH_ID.uid, TEST_PARENT_WITH_ID.email);
+  const elenaCards = dashAfterRsvp.meetsBySwimmer["test-swimmer-elena"] || [];
+  const miaCards = dashAfterRsvp.meetsBySwimmer["test-swimmer-mia"] || [];
+  const today = "2026-09-01";
+  assert(
+    elenaCards.some((card) => card.meetId === open.id && isSwimmerUpcomingMeetCard(card, today)),
+    "Attend stays on the swimmer upcoming card"
+  );
+  assert(
+    !miaCards.some((card) => card.meetId === open.id && isSwimmerUpcomingMeetCard(card, today)),
+    "Decline does not appear on the swimmer upcoming card"
+  );
+  assert(
+    !dashAfterRsvp.upcoming.some((row) => row.swimmerId === "test-swimmer-mia"),
+    "upcoming API omits the child who Declined"
+  );
+
+  const hasUpdate = mockPnsCalendarItems().map((item) =>
+    item.sourceId === open.sourceKey
+      ? {
+          ...item,
+          startDate: "2026-10-24",
+          endDate: "2026-10-25",
+          location: "Bellevue Aquatic Center",
+          eventFileUrl: "https://example.test/open-challenge.hyv",
+          announcementUrl: "https://example.test/open-challenge-v2.pdf",
+          announcementText: `${item.announcementText}\nVenue and weekend moved.`,
+        }
+      : item
+  );
+  await service.ingestPns(hasUpdate, { isTestData: true });
+  const waiting = await service.getAdminMeet(open.id, TEST_NOW);
+  assert(waiting?.pendingSourceReview === true, "date + location + event file flag Has updates");
+  assert(filterAdminMeetList([waiting!], "has_updates").length === 1, "admin Has updates list includes this meet");
+  const parentWhileWaiting = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(parentWhileWaiting.meet.startDate === "2026-10-17", "family still sees the old weekend until Accept");
+  assert(parentWhileWaiting.meet.location === "Mary Wayte Pool", "family still sees the old venue until Accept");
+  assert(parentWhileWaiting.review.requiresEventReview === false, "Has updates is not live for families until Accept");
+
+  const accepted = await service.acceptSourceUpdate(open.id);
+  assert(accepted.startDate === "2026-10-24" && accepted.location === "Bellevue Aquatic Center", "Accept writes the new weekend and venue");
+  assert((accepted.meetVersion || 1) === 2, "date change increments meetVersion");
+  assert((accepted.noticeVersion || 0) === 1, "location change increments noticeVersion");
+  const afterAccept = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(afterAccept.review.requiresEventReview === true, "attending family must reconfirm days after the date change");
+  assert(afterAccept.review.requiresMeetAcknowledgement === true, "attending family must see the location notice");
+  assert(afterAccept.review.eventReviewAction === "reconfirm", "RSVP is still open so they can save Attend again");
+  const declinedAfterAccept = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-mia",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(declinedAfterAccept.review.requiresEventReview === false, "Decline does not get event review");
+  assert(declinedAfterAccept.review.requiresMeetAcknowledgement === false, "Decline does not get a location notice");
+
+  const withFile = await service.importEventFile(open.id, loadTestTacHyv(), { accept: true });
+  assert((withFile.meetVersion || 1) >= 3, "accepting the Event File increments meetVersion again");
+  assert((withFile.updateReason || []).includes("event_file_changed"), "updateReason records the Event File");
+  const afterFile = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(afterFile.hasEventFile === true, "Event File unlocks official event checkboxes");
+  assert(afterFile.review.requiresEventReview === true, "Event File after Attend still requires a new Attend save");
+  const picked = afterFile.eligibleEvents.filter((event) => event.sessionName === "Saturday").slice(0, 2).map((event) => event.id);
+  await service.saveParentCommitment({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    attendance: "attend",
+    availableSessionIds: meetDayOptions(afterFile.meet).filter((day) => /sat/i.test(day.label)).map((day) => day.id),
+    selectedEventIds: picked,
+    parentNotes: "Saturday 50 fly, 50 free.",
+    acceptFeePolicy: true,
+    nowIso: TEST_NOW,
+  });
+  const confirmed = await service.getParentDetail({
+    meetId: open.id,
+    swimmerId: "test-swimmer-elena",
+    parentUID: TEST_PARENT_WITH_ID.uid,
+    email: TEST_PARENT_WITH_ID.email,
+    nowIso: TEST_NOW,
+  });
+  assert(confirmed.review.requiresEventReview === false, "re-Attend clears event review");
+  assert(confirmed.review.requiresMeetAcknowledgement === false, "re-Attend also clears the location notice");
+
+  const dashAfter = await service.listParentDashboard(TEST_PARENT_WITH_ID.uid, TEST_PARENT_WITH_ID.email);
+  const upcoming = dashAfter.upcoming.filter((row) => row.meetId === open.id);
+  assert(upcoming.length === 1 && upcoming[0].swimmerId === "test-swimmer-elena", "after updates, only the attending child stays on upcoming");
+  assert((upcoming[0].events.length || 0) === picked.length, "upcoming card lists the events she reconfirmed");
 }
 
 async function testPublicCatalogHidesTestMeets() {
@@ -873,6 +1192,8 @@ async function run() {
   await testRejectKeepsMeetOffFamilyList();
   await testPublishedPnsUpdateWaitsForAccept();
   await testHasUpdatesDateChangeParentRsvp();
+  await testLocationNoticeAndClosedReview();
+  await testParentCardsAttendDeclineAndHasUpdates();
   await testUsaIdGateUsesClubOmrLink();
   await testInvitationalEventFlowAndCuts();
   await testIsolationSharedDatabase();

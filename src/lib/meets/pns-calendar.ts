@@ -242,6 +242,7 @@ export function calendarItemToDraftMeet(item: PnsCalendarItem, opts: { isTestDat
     status: invitationStatus === "not_required" ? "admin_review" : "invitation_pending",
     sessions: [],
     events: [],
+    meetVersion: 1,
     isTestData: opts.isTestData,
   };
 }
@@ -411,6 +412,10 @@ export function pnsDiffsChangeFamilySchedule(diffs: string[]): boolean {
 
 export function pnsDatesChanged(diffs: string[]): boolean {
   return diffs.some((d) => /startDate|endDate/i.test(d));
+}
+
+export function pnsLocationChanged(diffs: string[]): boolean {
+  return diffs.some((d) => /location/i.test(d));
 }
 
 export function parentBannerForDayReselection(): string {
