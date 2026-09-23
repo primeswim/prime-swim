@@ -118,6 +118,13 @@ export type TuitionV2InvoiceLineItem = {
   amount: number;
 };
 
+export type TuitionV2PriorMonthCredit = {
+  /** Missed classes last month due to the team (pool closed, etc.). */
+  sessions: number;
+  creditAmount: number;
+  note: string;
+};
+
 export type TuitionV2Invoice = {
   swimmerId: string;
   swimmerName: string;
@@ -135,6 +142,8 @@ export type TuitionV2Invoice = {
   lineItems: TuitionV2InvoiceLineItem[];
   siblingDiscountApplied?: boolean;
   siblingDiscountPercent?: number;
+  /** Team-caused missed class last month — billed session count is reduced, sibling rate kept. */
+  priorMonthCredit?: TuitionV2PriorMonthCredit | null;
   manualOverride?: { amount: number; reason: string } | null;
   dueDate: string;
   months: string[];

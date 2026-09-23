@@ -47,8 +47,9 @@ Do **not** Publish live PNS meets. Use `[TEST]` only, then delete.
 - Sessions: basic generation, schedule periods, preserve cancellation, resolve from plans
 - Templates: merge keeps schedule periods; merge can create a new plan
 - Engine: extra training outside regular weekdays; skip extra; regular weekday required; unavailable weekday excludes Friday regular/extra but not a Friday swap; explicit plan keys; period range vs explicit date / skip
+- Prior-month credit: 9→8 keeps sibling rate ($540→$480, $486→$432); parent view includes credit note
 - Roster: counts match billable; same-time slot aggregates levels; omit empty levels
-- Parent tuition: prep-month cutoff; candidate months; visibility per invoice; new invoice unpublished until publish; parent view hides draft amount; pick latest published else prep; publish filter skips already published
+- Parent tuition: prep-month cutoff; candidate months; visibility per invoice; new invoice unpublished until publish; parent view hides draft amount; pick latest published else prep; publish filter skips already published; credit note on parent view
 
 ## Siblings (`test:siblings`)
 

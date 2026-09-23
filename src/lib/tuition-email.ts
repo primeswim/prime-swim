@@ -25,6 +25,7 @@ export type TuitionEmailPayload = {
   siblingDiscountPercent?: number;
   siblingDiscountApplied?: boolean;
   afterFeeNote?: string;
+  priorMonthCreditNote?: string;
   /** invoice = first notice; reminder = due soon; past_due = overdue */
   variant?: TuitionEmailVariant;
   /** For reminder copy, e.g. 2 */
@@ -162,8 +163,14 @@ export function buildTuitionEmailHtml(data: TuitionEmailPayload): string {
 
   const practiceHtml = escapeHtml(data.practiceText || "Please check with your coach").replace(/\r?\n/g, "<br/>");
 
-  const afterFeeNoteHtml = data.afterFeeNote
-    ? escapeHtml(data.afterFeeNote).replace(/\r?\n/g, "<br/>")
+  const creditNote = data.priorMonthCreditNote?.trim() || "";
+  const afterFeeRaw = data.afterFeeNote?.trim() || "";
+  const afterFeeNoteHtml =
+    afterFeeRaw && afterFeeRaw !== creditNote
+      ? escapeHtml(afterFeeRaw).replace(/\r?\n/g, "<br/>")
+      : "";
+  const creditNoteHtml = creditNote
+    ? `<p style="font-size:15px;margin:0 0 16px;padding:14px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;color:#92400e;">${escapeHtml(creditNote)}</p>`
     : "";
 
   const siblingApplied = Boolean(data.siblingDiscountApplied);
@@ -234,6 +241,8 @@ export function buildTuitionEmailHtml(data: TuitionEmailPayload): string {
           ? `<p style="font-size:16px;margin:0 0 24px;color:#475569;">${afterFeeNoteHtml}</p>`
           : ""
       }
+
+      ${creditNoteHtml}
 
       ${siblingNoteHtml}
 

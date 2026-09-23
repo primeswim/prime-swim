@@ -21,6 +21,13 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
     if (body.amount !== undefined) patch.amount = Number(body.amount);
     if (typeof body.dueDate === "string") patch.dueDate = body.dueDate;
     if (typeof body.afterFeeNote === "string") patch.afterFeeNote = body.afterFeeNote;
+    if (body.priorMonthCreditSessions !== undefined) {
+      const sessions = Number(body.priorMonthCreditSessions);
+      if (!Number.isFinite(sessions) || sessions < 0) {
+        return NextResponse.json({ error: "Invalid priorMonthCreditSessions" }, { status: 400 });
+      }
+      patch.priorMonthCreditSessions = Math.floor(sessions);
+    }
     if (typeof body.parentEmail === "string") patch.parentEmail = body.parentEmail;
     if (typeof body.parentName === "string") patch.parentName = body.parentName;
     if (Array.isArray(body.months)) patch.months = body.months.map(String);

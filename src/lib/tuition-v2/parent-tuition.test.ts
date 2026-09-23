@@ -119,6 +119,26 @@ function testParentViewHidesDraftAmount() {
   );
   assert(ready.status === "ready", "published ready");
   assert(ready.amount === 420, "amount shown");
+  assert(ready.creditNote === null, "no credit note");
+
+  const credited = toParentTuitionView(
+    "2026-10",
+    "computed",
+    invoice({
+      amount: 432,
+      publishedToApp: true,
+      priorMonthCredit: {
+        sessions: 1,
+        creditAmount: 54,
+        note: "$54 credit from previous month has been applied to this month's tuition.",
+      },
+    })
+  );
+  assert(credited.amount === 432, "credited amount");
+  assert(
+    credited.creditNote === "$54 credit from previous month has been applied to this month's tuition.",
+    "credit note on parent view"
+  );
 }
 
 function testPickLatestPublishedElsePrep() {

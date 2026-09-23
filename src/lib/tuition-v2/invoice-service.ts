@@ -26,6 +26,12 @@ import {
   invoicesPublishedToApp,
   keepPublishedToAppAfterRecalc,
 } from "@/lib/tuition-v2/parent-tuition";
+import {
+  applyPriorMonthSessionCredit,
+  isAutoPriorMonthCreditNote,
+  normalizePriorMonthCredit,
+  toPriorMonthCredit,
+} from "@/lib/tuition-v2/prior-month-credit";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
 
 function invoiceBillingUnchanged(prev: TuitionV2Invoice, next: TuitionV2Invoice): boolean {
@@ -40,9 +46,27 @@ function invoiceBillingUnchanged(prev: TuitionV2Invoice, next: TuitionV2Invoice)
     prev.billableSessionCount === next.billableSessionCount &&
     prev.practiceText === next.practiceText &&
     prev.siblingDiscountApplied === next.siblingDiscountApplied &&
+    (prev.priorMonthCredit?.sessions ?? 0) === (next.priorMonthCredit?.sessions ?? 0) &&
+    (prev.priorMonthCredit?.creditAmount ?? 0) === (next.priorMonthCredit?.creditAmount ?? 0) &&
     JSON.stringify(prev.regularWeekdays) === JSON.stringify(next.regularWeekdays) &&
     JSON.stringify(prev.lineItems) === JSON.stringify(next.lineItems)
   );
+}
+
+function creditFromSessions(
+  invoice: Pick<
+    TuitionV2Invoice,
+    "billableSessionCount" | "ratePerHour" | "siblingDiscountApplied" | "siblingDiscountPercent"
+  >,
+  creditSessions: number
+) {
+  return applyPriorMonthSessionCredit({
+    sessionCount: invoice.billableSessionCount,
+    ratePerHour: invoice.ratePerHour,
+    siblingDiscountApplied: invoice.siblingDiscountApplied,
+    siblingDiscountPercent: invoice.siblingDiscountPercent,
+    creditSessions,
+  });
 }
 
 function invoicesCol(db: Firestore, month: string) {
@@ -73,6 +97,7 @@ export function normalizeInvoice(swimmerId: string, raw: Record<string, unknown>
     siblingDiscountApplied: raw.siblingDiscountApplied === true,
     siblingDiscountPercent:
       typeof raw.siblingDiscountPercent === "number" ? raw.siblingDiscountPercent : undefined,
+    priorMonthCredit: normalizePriorMonthCredit(raw.priorMonthCredit),
     manualOverride:
       raw.manualOverride && typeof raw.manualOverride === "object"
         ? (raw.manualOverride as TuitionV2Invoice["manualOverride"])
@@ -229,6 +254,27 @@ export async function recalculateInvoices(
     const existing = existingById.get(enrollment.swimmerId);
 
     let amount = computedAmount;
+    let baseAmount = disc?.baseTuition ?? computedAmount;
+    let priorMonthCredit = existing?.priorMonthCredit ?? null;
+    let afterFeeNote = existing?.afterFeeNote ?? "";
+
+    const creditSessions = priorMonthCredit?.sessions ?? 0;
+    if (creditSessions > 0) {
+      const applied = applyPriorMonthSessionCredit({
+        sessionCount: lineItems.length,
+        ratePerHour,
+        siblingDiscountApplied: disc?.siblingDiscountApplied,
+        siblingDiscountPercent: disc?.siblingDiscountPercent,
+        creditSessions,
+      });
+      amount = applied.amount;
+      baseAmount = applied.baseAmount;
+      priorMonthCredit = toPriorMonthCredit(applied);
+      if (!afterFeeNote || isAutoPriorMonthCreditNote(afterFeeNote, existing?.priorMonthCredit)) {
+        afterFeeNote = applied.note;
+      }
+    }
+
     if (existing?.manualOverride && typeof existing.manualOverride.amount === "number") {
       amount = existing.manualOverride.amount;
     }
@@ -245,15 +291,16 @@ export async function recalculateInvoices(
       rateTierReason,
       billableSessionCount: lineItems.length,
       amount,
-      baseAmount: disc?.baseTuition ?? computedAmount,
+      baseAmount,
       practiceText: practiceTextFromLineItems(lineItems),
       lineItems,
       siblingDiscountApplied: disc?.siblingDiscountApplied,
       siblingDiscountPercent: disc?.siblingDiscountPercent,
+      priorMonthCredit,
       manualOverride: existing?.manualOverride ?? null,
       dueDate: existing?.dueDate ?? dueDate,
       months: existing?.months?.length ? existing.months : months,
-      afterFeeNote: existing?.afterFeeNote ?? "",
+      afterFeeNote,
       paid: existing?.paid ?? false,
       paidOn: existing?.paidOn ?? null,
       emailStatus: existing?.emailStatus ?? "pending",
@@ -429,24 +476,29 @@ export async function unpublishInvoicesFromApp(
   };
 }
 
+export type InvoicePatch = Partial<
+  Pick<
+    TuitionV2Invoice,
+    | "amount"
+    | "dueDate"
+    | "afterFeeNote"
+    | "months"
+    | "parentEmail"
+    | "parentName"
+    | "paid"
+    | "paidOn"
+    | "manualOverride"
+    | "priorMonthCredit"
+  >
+> & {
+  priorMonthCreditSessions?: number;
+};
+
 export async function updateInvoice(
   db: Firestore,
   month: string,
   swimmerId: string,
-  patch: Partial<
-    Pick<
-      TuitionV2Invoice,
-      | "amount"
-      | "dueDate"
-      | "afterFeeNote"
-      | "months"
-      | "parentEmail"
-      | "parentName"
-      | "paid"
-      | "paidOn"
-      | "manualOverride"
-    >
-  >
+  patch: InvoicePatch
 ): Promise<TuitionV2Invoice | null> {
   const ref = invoicesCol(db, month).doc(swimmerId);
   const snap = await ref.get();
@@ -454,18 +506,45 @@ export async function updateInvoice(
   const current = normalizeInvoice(swimmerId, snap.data());
   if (!current) return null;
 
+  const { priorMonthCreditSessions: creditSessionsPatch, ...invoicePatch } = patch;
   const next: TuitionV2Invoice = {
     ...current,
-    ...patch,
+    ...invoicePatch,
     updatedAt: new Date().toISOString(),
   };
 
-  if (patch.amount !== undefined && !patch.manualOverride) {
+  if (patch.amount !== undefined && !patch.manualOverride && creditSessionsPatch === undefined) {
     next.manualOverride = { amount: patch.amount, reason: "Admin edit" };
     next.amount = patch.amount;
   }
 
-  const affectsTuition = patch.amount !== undefined || patch.manualOverride !== undefined;
+  if (creditSessionsPatch !== undefined) {
+    const applied = creditFromSessions(current, creditSessionsPatch);
+    const credit = toPriorMonthCredit(applied);
+    next.priorMonthCredit = credit;
+    next.amount = applied.amount;
+    next.baseAmount = applied.baseAmount;
+    if (patch.manualOverride && typeof patch.manualOverride.amount === "number") {
+      next.manualOverride = patch.manualOverride;
+      next.amount = patch.manualOverride.amount;
+    } else {
+      next.manualOverride = null;
+    }
+    if (typeof patch.afterFeeNote === "string") {
+      next.afterFeeNote = patch.afterFeeNote;
+      if (credit) next.priorMonthCredit = { ...credit, note: patch.afterFeeNote.trim() || credit.note };
+    } else if (!current.afterFeeNote || isAutoPriorMonthCreditNote(current.afterFeeNote, current.priorMonthCredit)) {
+      next.afterFeeNote = applied.note;
+    }
+  } else if (patch.priorMonthCredit !== undefined) {
+    next.priorMonthCredit = patch.priorMonthCredit;
+  }
+
+  const affectsTuition =
+    patch.amount !== undefined ||
+    patch.manualOverride !== undefined ||
+    creditSessionsPatch !== undefined ||
+    patch.priorMonthCredit !== undefined;
   if (affectsTuition) {
     next.publishedToApp = false;
     next.publishedAt = undefined;
@@ -475,6 +554,12 @@ export async function updateInvoice(
   if (affectsTuition) {
     data.publishedToApp = false;
     data.publishedAt = FieldValue.delete();
+  }
+  if (next.priorMonthCredit == null) {
+    data.priorMonthCredit = FieldValue.delete();
+  }
+  if (next.manualOverride == null && (patch.manualOverride === null || creditSessionsPatch !== undefined)) {
+    data.manualOverride = FieldValue.delete();
   }
 
   await ref.set(data, { merge: true });

@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
+import { applyPriorMonthSessionCredit } from "@/lib/tuition-v2/prior-month-credit";
 import { getNextMonth, monthLabel, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
 import { LEVEL_GROUPS, SWIMMER_LEVELS } from "@/lib/swimmer-levels";
 import {
@@ -76,6 +77,8 @@ function TuitionV2ReviewContent() {
   const [error, setError] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [editInv, setEditInv] = useState<TuitionV2Invoice | null>(null);
+  const [editBillAs, setEditBillAs] = useState("");
+  const [editNote, setEditNote] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editReason, setEditReason] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
@@ -250,20 +253,60 @@ function TuitionV2ReviewContent() {
     }
   };
 
+  const editCreditPreview = useMemo(() => {
+    if (!editInv) return null;
+    const billed = Number(editBillAs);
+    const billedSessions =
+      editBillAs.trim() !== "" && Number.isFinite(billed)
+        ? Math.max(0, Math.floor(billed))
+        : editInv.billableSessionCount;
+    const creditSessions = Math.max(0, editInv.billableSessionCount - billedSessions);
+    return applyPriorMonthSessionCredit({
+      sessionCount: editInv.billableSessionCount,
+      ratePerHour: editInv.ratePerHour,
+      siblingDiscountApplied: editInv.siblingDiscountApplied,
+      siblingDiscountPercent: editInv.siblingDiscountPercent,
+      creditSessions,
+    });
+  }, [editInv, editBillAs]);
+
   const openEdit = (inv: TuitionV2Invoice) => {
+    const billed = Math.max(0, inv.billableSessionCount - (inv.priorMonthCredit?.sessions ?? 0));
+    const preview = applyPriorMonthSessionCredit({
+      sessionCount: inv.billableSessionCount,
+      ratePerHour: inv.ratePerHour,
+      siblingDiscountApplied: inv.siblingDiscountApplied,
+      siblingDiscountPercent: inv.siblingDiscountPercent,
+      creditSessions: inv.priorMonthCredit?.sessions ?? 0,
+    });
     setEditInv(inv);
+    setEditBillAs(String(billed));
+    setEditNote(inv.priorMonthCredit?.note || inv.afterFeeNote || preview.note);
     setEditAmount(String(inv.amount));
     setEditReason(inv.manualOverride?.reason ?? "");
   };
 
   const saveOverride = async () => {
-    if (!editInv) return;
+    if (!editInv || !editCreditPreview) return;
     const token = await fetchToken();
     if (!token) return;
+    const billed = Number(editBillAs);
+    if (editBillAs.trim() === "" || !Number.isFinite(billed) || billed < 0) {
+      setError("Invalid session count");
+      return;
+    }
     const amt = Number(editAmount);
     if (!Number.isFinite(amt) || amt < 0) {
       setError("Invalid amount");
       return;
+    }
+    const creditSessions = Math.max(0, editInv.billableSessionCount - Math.floor(billed));
+    const body: Record<string, unknown> = {
+      priorMonthCreditSessions: creditSessions,
+      afterFeeNote: editNote.trim(),
+    };
+    if (Math.round(amt) !== editCreditPreview.amount) {
+      body.manualOverride = { amount: Math.round(amt), reason: editReason || "Admin override" };
     }
     setSaveBusy(true);
     try {
@@ -272,9 +315,7 @@ function TuitionV2ReviewContent() {
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            manualOverride: { amount: Math.round(amt), reason: editReason || "Admin override" },
-          }),
+          body: JSON.stringify(body),
         }
       );
       const data = await res.json().catch(() => ({}));
@@ -283,7 +324,11 @@ function TuitionV2ReviewContent() {
         return;
       }
       setError("");
-      setStatusMsg(`Saved override for ${editInv.swimmerName}.`);
+      setStatusMsg(
+        creditSessions > 0
+          ? `Applied ${creditSessions} session credit for ${editInv.swimmerName} ($${editCreditPreview.creditAmount}).`
+          : `Saved tuition for ${editInv.swimmerName}.`
+      );
       setEditInv(null);
       await load();
     } finally {
@@ -503,12 +548,26 @@ function TuitionV2ReviewContent() {
                             ${inv.ratePerHour} ({inv.rateTier})
                           </span>
                         </td>
-                        <td className="py-2 pr-2">{inv.billableSessionCount}</td>
+                        <td className="py-2 pr-2">
+                          {inv.priorMonthCredit?.sessions
+                            ? `${inv.billableSessionCount - inv.priorMonthCredit.sessions} / ${inv.billableSessionCount}`
+                            : inv.billableSessionCount}
+                          {inv.priorMonthCredit?.sessions ? (
+                            <span className="block text-xs text-amber-700">
+                              −{inv.priorMonthCredit.sessions} credit
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="py-2 pr-2">
                           ${inv.amount}
                           {inv.siblingDiscountApplied && (
                             <span className="block text-xs text-green-700">-{inv.siblingDiscountPercent}% sibling</span>
                           )}
+                          {inv.priorMonthCredit?.creditAmount ? (
+                            <span className="block text-xs text-amber-700">
+                              −${inv.priorMonthCredit.creditAmount} prior month
+                            </span>
+                          ) : null}
                           {inv.manualOverride && (
                             <span className="block text-xs text-amber-700">override</span>
                           )}
@@ -558,26 +617,85 @@ function TuitionV2ReviewContent() {
         </Card>
 
         <Dialog open={!!editInv} onOpenChange={(o) => !o && setEditInv(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Override amount — {editInv?.swimmerName}</DialogTitle>
+              <DialogTitle>Edit tuition — {editInv?.swimmerName}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                This month: <strong>{editInv?.billableSessionCount}</strong> sessions × ${editInv?.ratePerHour}
+                {editInv?.siblingDiscountApplied
+                  ? ` · ${editInv.siblingDiscountPercent}% sibling discount`
+                  : ""}
+              </p>
+              <div>
+                <Label>Bill as (sessions)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={editInv?.billableSessionCount}
+                  value={editBillAs}
+                  onChange={(e) => {
+                    setEditBillAs(e.target.value);
+                    const billed = Number(e.target.value);
+                    if (!editInv || !Number.isFinite(billed)) return;
+                    const preview = applyPriorMonthSessionCredit({
+                      sessionCount: editInv.billableSessionCount,
+                      ratePerHour: editInv.ratePerHour,
+                      siblingDiscountApplied: editInv.siblingDiscountApplied,
+                      siblingDiscountPercent: editInv.siblingDiscountPercent,
+                      creditSessions: Math.max(0, editInv.billableSessionCount - Math.floor(billed)),
+                    });
+                    setEditAmount(String(preview.amount));
+                    setEditNote(preview.note);
+                  }}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Lower this when last month had a team cancellation (pool closed, etc.). Sibling discount still
+                  applies to the remaining sessions.
+                </p>
+              </div>
+              {editCreditPreview && editCreditPreview.creditSessions > 0 ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                  <p>
+                    Billed {editCreditPreview.billedSessions} sessions
+                    {editInv?.siblingDiscountApplied
+                      ? ` · $${editCreditPreview.baseAmount} → $${editCreditPreview.amount} after sibling`
+                      : ` · $${editCreditPreview.amount}`}
+                  </p>
+                  <p className="mt-1 font-medium">
+                    ${editCreditPreview.creditAmount} credit from previous month
+                  </p>
+                </div>
+              ) : null}
+              <div>
+                <Label>Note for parent / email</Label>
+                <Input
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder="$60 credit from previous month has been applied to this month's tuition."
+                />
+              </div>
               <div>
                 <Label>Amount ($)</Label>
                 <Input value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Auto-filled from sessions. Change only if you need a custom dollar override.
+                </p>
               </div>
-              <div>
-                <Label>Reason</Label>
-                <Input value={editReason} onChange={(e) => setEditReason(e.target.value)} />
-              </div>
+              {editInv && editCreditPreview && Number(editAmount) !== editCreditPreview.amount ? (
+                <div>
+                  <Label>Override reason</Label>
+                  <Input value={editReason} onChange={(e) => setEditReason(e.target.value)} />
+                </div>
+              ) : null}
               <p className="text-xs text-muted-foreground">{editInv?.rateTierReason}</p>
               <p className="text-xs text-muted-foreground whitespace-pre-wrap">{editInv?.practiceText}</p>
             </div>
             <DialogFooter>
               <Button onClick={() => void saveOverride()} disabled={saveBusy}>
                 {saveBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Save override
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>

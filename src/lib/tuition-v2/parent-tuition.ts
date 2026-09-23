@@ -12,6 +12,7 @@ export type ParentTuitionView = {
   dueDate: string | null;
   paid: boolean;
   practiceText: string | null;
+  creditNote: string | null;
 };
 
 export type ParentTuitionInvoiceHint = Pick<
@@ -141,9 +142,11 @@ export function toParentTuitionView(
       dueDate: null,
       paid: false,
       practiceText: null,
+      creditNote: null,
     };
   }
   const paid = invoice.paid === true;
+  const creditNote = invoice.priorMonthCredit?.note?.trim() || null;
   return {
     month,
     monthLabel: monthLabel(month),
@@ -153,5 +156,6 @@ export function toParentTuitionView(
     dueDate: invoice.dueDate ?? null,
     paid,
     practiceText: invoice.practiceText ?? null,
+    creditNote,
   };
 }

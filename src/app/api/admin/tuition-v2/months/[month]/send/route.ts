@@ -72,6 +72,12 @@ async function sendOneInvoice(
         : undefined,
     siblingDiscountApplied: siblingDiscountApplied || undefined,
     afterFeeNote: typeof d.afterFeeNote === "string" && d.afterFeeNote.trim() ? d.afterFeeNote : undefined,
+    priorMonthCreditNote:
+      d.priorMonthCredit &&
+      typeof d.priorMonthCredit === "object" &&
+      typeof (d.priorMonthCredit as { note?: unknown }).note === "string"
+        ? String((d.priorMonthCredit as { note: string }).note)
+        : undefined,
     variant,
     daysUntilDue,
   };

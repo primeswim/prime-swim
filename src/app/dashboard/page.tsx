@@ -650,6 +650,9 @@ export default function DashboardPage() {
                               {swimmer.tuition.dueDate && (
                                 <span className="text-slate-500 text-xs ml-2">Due {swimmer.tuition.dueDate}</span>
                               )}
+                              {swimmer.tuition.creditNote && (
+                                <p className="text-xs text-amber-800 mt-1">{swimmer.tuition.creditNote}</p>
+                              )}
                             </div>
                           )}
                         </div>
