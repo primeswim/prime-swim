@@ -1036,6 +1036,21 @@ export default function AdminSwimmerPage() {
                         await updateDoc(doc(db, 'swimmers', s.id), {
                           level: value === '__none__' ? null : value
                         })
+                        try {
+                          const authToken = await auth.currentUser?.getIdToken()
+                          if (authToken) {
+                            await fetch('/api/admin/tuition-v2/enrollments', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${authToken}`,
+                              },
+                              body: JSON.stringify({ swimmerIds: [s.id] }),
+                            })
+                          }
+                        } catch (err) {
+                          console.error('tuition enrollment refresh after level change:', err)
+                        }
                         await fetchSwimmers()
                       }}
                     >

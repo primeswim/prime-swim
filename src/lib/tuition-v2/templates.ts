@@ -166,6 +166,27 @@ export function levelPlanFromTemplate(level: string, template: TuitionV2LevelTem
   };
 }
 
+/**
+ * A month that already has saved plans must not pick up the latest templates.
+ * Only an empty month (not initialized yet) may preview from templates.
+ */
+export function coalesceSavedLevelPlans(
+  savedByLevel: Map<string, TuitionV2LevelPlan>,
+  templates: TuitionV2LevelTemplateMap
+): TuitionV2LevelPlan[] {
+  const saved = SWIMMER_LEVELS.map((level) => savedByLevel.get(level)).filter(
+    (plan): plan is TuitionV2LevelPlan => Boolean(plan)
+  );
+  if (saved.length > 0) return saved;
+
+  const preview: TuitionV2LevelPlan[] = [];
+  for (const level of SWIMMER_LEVELS) {
+    const template = templates[level];
+    if (template) preview.push(levelPlanFromTemplate(level, template));
+  }
+  return preview;
+}
+
 /** Copy template weekly slots into a plan; keep month-specific schedule periods and notes. */
 export function mergeTemplateWeeklySlotsIntoPlan(
   existing: TuitionV2LevelPlan | null | undefined,

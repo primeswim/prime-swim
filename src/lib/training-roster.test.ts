@@ -15,6 +15,8 @@ import type {
 } from "./tuition-v2/types";
 import type { TrainingRosterSlot } from "./training-roster-types";
 import { omitEmptyRosterLevels } from "./training-roster-types";
+import { isAssignedSwimmerLevel } from "./swimmer-levels";
+import { parseEnrollmentDoc } from "./tuition-v2/enrollment-service";
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
@@ -219,10 +221,38 @@ function testOmitEmptyLevels() {
   assert(cleaned[0].totalCount === 3, "recount after dropping zeros");
 }
 
+function testNotSetLevelIsUnassigned() {
+  assert(isAssignedSwimmerLevel("Platinum Performance") === true, "real level counts");
+  assert(isAssignedSwimmerLevel("  Silver Beginner  ") === true, "trim real level");
+  assert(isAssignedSwimmerLevel(null) === false, "null is Not set");
+  assert(isAssignedSwimmerLevel("") === false, "empty is Not set");
+  assert(isAssignedSwimmerLevel("Not set") === false, "label is not a group");
+  assert(isAssignedSwimmerLevel("Unknown Group") === false, "unknown is not a group");
+
+  const stillHasOldLevel = parseEnrollmentDoc("kid-1", {
+    swimmerName: "Everly",
+    level: "Platinum Performance",
+    parentName: "Parent",
+    parentEmail: "p@test.com",
+    active: true,
+  });
+  assert(!!stillHasOldLevel, "stale enrollment with a real level still parses");
+
+  const cleared = parseEnrollmentDoc("kid-1", {
+    swimmerName: "Everly",
+    level: "",
+    parentName: "Parent",
+    parentEmail: "p@test.com",
+    active: true,
+  });
+  assert(cleared === null, "empty enrollment level is not on the roster");
+}
+
 function run() {
   testRosterCountsMatchBillable();
   testSameTimeSlotAggregatesLevels();
   testOmitEmptyLevels();
+  testNotSetLevelIsUnassigned();
   console.log("training-roster tests passed");
 }
 

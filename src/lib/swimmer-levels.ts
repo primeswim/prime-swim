@@ -12,6 +12,13 @@ export const SWIMMER_LEVELS = [
 
 export type SwimmerLevel = typeof SWIMMER_LEVELS[number]
 
+const ASSIGNED_LEVELS = new Set<string>(SWIMMER_LEVELS);
+
+/** True for a real training group. Empty / Not set / unknown values are not assigned. */
+export function isAssignedSwimmerLevel(level: unknown): level is SwimmerLevel {
+  return typeof level === "string" && ASSIGNED_LEVELS.has(level.trim());
+}
+
 // Level groups for organization
 export const LEVEL_GROUPS = {
   Bronze: ["Bronze Beginner", "Bronze Performance"],

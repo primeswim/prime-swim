@@ -10,6 +10,7 @@ import {
 } from "@/lib/tuition-v2/templates";
 import { syncLevelPlansFromTemplates } from "@/lib/tuition-v2/month-service";
 import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
+import { templateSaveMaySyncMonth } from "@/lib/tuition-v2/shared-ui";
 import type { TuitionV2LevelTemplateMap } from "@/lib/tuition-v2/types";
 
 export async function GET(req: Request) {
@@ -33,7 +34,8 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Missing levels object" }, { status: 400 });
     }
     const levels = await saveV2Templates(adminDb, body.levels);
-    const syncMonth = parseMonthParam(body.syncMonth);
+    const requestedMonth = parseMonthParam(body.syncMonth);
+    const syncMonth = requestedMonth && templateSaveMaySyncMonth(requestedMonth) ? requestedMonth : null;
     let levelPlans;
     let invoiceCount: number | undefined;
     let rosterSlotCount: number | undefined;

@@ -57,18 +57,9 @@ export async function refreshMonthDerivedData(
     levels: options.levels,
     syncRoster: options.syncRoster === true,
   });
-  const roster =
-    invoices.wroteCount > 0
-      ? await saveTrainingRoster(db, month, options.actor)
-      : {
-          month,
-          generatedAt: "",
-          generatedBy: options.actor,
-          sessionCount: 0,
-          slotCount: 0,
-          uniqueSwimmerCount: 0,
-          slots: [],
-        };
+  // Always rebuild attendance roster — Not set / deactivated kids must drop
+  // even when invoice rows did not need a rewrite.
+  const roster = await saveTrainingRoster(db, month, options.actor);
   return {
     month: invoices.month,
     invoices: invoices.invoices,

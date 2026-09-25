@@ -1,5 +1,6 @@
-import { mergeTemplateWeeklySlotsIntoPlan } from "./templates";
-import type { TuitionV2LevelPlan, TuitionV2LevelTemplate } from "./types";
+import { templateSaveMaySyncMonth } from "./shared-ui";
+import { coalesceSavedLevelPlans, levelPlanFromTemplate, mergeTemplateWeeklySlotsIntoPlan } from "./templates";
+import type { TuitionV2LevelPlan, TuitionV2LevelTemplate, TuitionV2LevelTemplateMap } from "./types";
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg);
@@ -44,9 +45,56 @@ function testMergeCreatesNewPlan() {
   assert((merged.schedulePeriods?.length ?? 0) === 0, "new plan has no periods");
 }
 
+function testSavedMonthIgnoresNewerTemplates() {
+  const saved = new Map<string, TuitionV2LevelPlan>([
+    [
+      "Silver Beginner",
+      {
+        level: "Silver Beginner",
+        weeklySlots: [{ weekday: 1, timeSlot: "7-8PM", location: "Mary Wayte Pool" }],
+      },
+    ],
+  ]);
+  const newer: TuitionV2LevelTemplateMap = {
+    "Silver Beginner": {
+      ...template,
+      weeklySlots: [{ weekday: 1, timeSlot: "6:30-7:30PM", location: "Mary Wayte Pool" }],
+    },
+    "Bronze Performance": {
+      ...template,
+      weeklySlots: [{ weekday: 1, timeSlot: "6:30-7:30PM", location: "Mary Wayte Pool" }],
+    },
+  };
+  const plans = coalesceSavedLevelPlans(saved, newer);
+  assert(plans.length === 1, "do not invent missing levels from newer templates");
+  assert(plans[0].weeklySlots[0].timeSlot === "7-8PM", "saved month keeps old Monday");
+}
+
+function testTemplateSaveSkipsCurrentMonth() {
+  const now = new Date(2026, 8, 24);
+  assert(templateSaveMaySyncMonth("2026-09", now) === false, "do not sync September in September");
+  assert(templateSaveMaySyncMonth("2026-10", now) === true, "October is upcoming");
+  assert(templateSaveMaySyncMonth("2026-08", now) === false, "do not sync past August");
+}
+
+function testEmptyMonthPreviewsTemplates() {
+  const newer: TuitionV2LevelTemplateMap = {
+    "Silver Beginner": {
+      ...template,
+      weeklySlots: [{ weekday: 1, timeSlot: "6:30-7:30PM", location: "Mary Wayte Pool" }],
+    },
+  };
+  const plans = coalesceSavedLevelPlans(new Map(), newer);
+  assert(plans.some((p) => p.weeklySlots[0]?.timeSlot === "6:30-7:30PM"), "empty month can preview templates");
+  assert(levelPlanFromTemplate("Silver Beginner", newer["Silver Beginner"]).level === "Silver Beginner", "helper");
+}
+
 function run() {
   testMergeKeepsSchedulePeriods();
   testMergeCreatesNewPlan();
+  testSavedMonthIgnoresNewerTemplates();
+  testTemplateSaveSkipsCurrentMonth();
+  testEmptyMonthPreviewsTemplates();
   console.log("tuition-v2 templates tests passed");
 }
 

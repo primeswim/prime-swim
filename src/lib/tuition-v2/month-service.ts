@@ -12,6 +12,7 @@ import {
   normalizeSession,
 } from "@/lib/tuition-v2/session-generator";
 import {
+  coalesceSavedLevelPlans,
   levelPlanFromTemplate,
   loadV2Templates,
   mergeTemplateWeeklySlotsIntoPlan,
@@ -97,16 +98,7 @@ export async function loadLevelPlans(db: Firestore, month: string): Promise<Tuit
     });
     byLevel.set(level, normalizeLevelPlan(level, doc.data(), template, month));
   }
-  const out: TuitionV2LevelPlan[] = [];
-  for (const level of SWIMMER_LEVELS) {
-    if (byLevel.has(level)) {
-      out.push(byLevel.get(level)!);
-    } else {
-      const template = templates[level];
-      if (template) out.push(levelPlanFromTemplate(level, template));
-    }
-  }
-  return out;
+  return coalesceSavedLevelPlans(byLevel, templates);
 }
 
 export async function saveLevelPlans(

@@ -8,6 +8,7 @@ import {
   TUITION_V2_SETTINGS_DOC,
 } from "@/lib/tuition-v2/constants";
 import type { TuitionV2SwimmerEnrollment } from "@/lib/tuition-v2/types";
+import { isAssignedSwimmerLevel } from "@/lib/swimmer-levels";
 
 function normalizeWeekdays(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
@@ -19,7 +20,7 @@ function enrollmentFromRoster(
   data: Record<string, unknown>
 ): TuitionV2SwimmerEnrollment | null {
   const level = typeof data.level === "string" ? data.level.trim() : "";
-  if (!level) return null;
+  if (!isAssignedSwimmerLevel(level)) return null;
 
   const swimmerName =
     [data.childFirstName, data.childLastName]
@@ -60,7 +61,7 @@ export function parseEnrollmentDoc(
 ): TuitionV2SwimmerEnrollment | null {
   if (!raw) return null;
   const level = typeof raw.level === "string" ? raw.level.trim() : "";
-  if (!level) return null;
+  if (!isAssignedSwimmerLevel(level)) return null;
   const swimmerName =
     (typeof raw.swimmerName === "string" && raw.swimmerName.trim()) || swimmerId;
   return {
@@ -121,9 +122,7 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<Roste
     const data = doc.data();
     const existing = existingById.get(doc.id);
     const eligible =
-      isSwimmerEligibleForMonthlyTuition(data) &&
-      typeof data.level === "string" &&
-      data.level.trim().length > 0;
+      isSwimmerEligibleForMonthlyTuition(data) && isAssignedSwimmerLevel(data.level);
 
     if (!eligible) {
       if (existing && existing.active !== false) {
@@ -212,9 +211,7 @@ export async function upsertEnrollmentFromSwimmer(
   if (!snap.exists) return null;
   const data = snap.data() ?? {};
   const eligible =
-    isSwimmerEligibleForMonthlyTuition(data) &&
-    typeof data.level === "string" &&
-    data.level.trim().length > 0;
+    isSwimmerEligibleForMonthlyTuition(data) && isAssignedSwimmerLevel(data.level);
   const now = new Date().toISOString();
 
   if (!eligible) {

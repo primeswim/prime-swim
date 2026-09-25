@@ -477,7 +477,9 @@ function TuitionV2PlanContent() {
         );
       }
       setStatusMsg(
-        "V2 level templates saved. Weekly schedule, tuition, and training calendar updated for this month."
+        data.levelPlans
+          ? "V2 level templates saved. Upcoming month weekly schedule, tuition, and training calendar updated."
+          : "V2 level templates saved. This month already started, so its plan and attendance schedule were left unchanged."
       );
     } finally {
       setSavingTemplates(false);
@@ -824,9 +826,9 @@ function TuitionV2PlanContent() {
           <TabsContent value="level-templates" className="mt-4 space-y-4">
             <p className="text-sm text-muted-foreground">
               V2-only level configuration (rates + weekly schedule). Stored in{" "}
-              <code className="text-xs">tuition_v2_level_templates</code>. Saving templates also updates
-              this month&apos;s default weekly schedule in Level Plans — schedule periods are not
-              cleared.
+              <code className="text-xs">tuition_v2_level_templates</code>. Saving updates the default
+              for future months. It also copies into this month only if this month is still upcoming
+              — the current or past month (e.g. September) keeps its own plan and attendance schedule.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => void seedTemplates()} disabled={seedingTemplates}>

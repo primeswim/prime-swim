@@ -17,6 +17,17 @@ export function getNextMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+export function currentCalendarMonth(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Saving V2 templates may update this month's plans only if it is still upcoming. */
+export function templateSaveMaySyncMonth(month: string, now = new Date()): boolean {
+  const normalized = normalizeBillingMonth(month);
+  if (!normalized) return false;
+  return normalized > currentCalendarMonth(now);
+}
+
 /** Validate YYYY-MM billing month (client + server). */
 export function normalizeBillingMonth(input: string | undefined | null): string | null {
   if (!input) return null;

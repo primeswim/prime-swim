@@ -1,6 +1,10 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { getBillableSessionsForSwimmer } from "@/lib/tuition-v2/calculate-engine";
-import { listSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
+import {
+  listSwimmerEnrollments,
+  syncActiveSwimmerEnrollments,
+} from "@/lib/tuition-v2/enrollment-service";
+import { isAssignedSwimmerLevel } from "@/lib/swimmer-levels";
 import {
   ensureMonthDoc,
   loadLevelPlans,
@@ -82,6 +86,7 @@ export async function computeTrainingRoster(
 
   for (const enrollment of enrollments) {
     if (enrollment.active === false) continue;
+    if (!isAssignedSwimmerLevel(enrollment.level)) continue;
     const billable = getBillableSessionsForSwimmer(
       enrollment,
       billingSessions,
@@ -206,6 +211,7 @@ export async function saveTrainingRoster(
   month: string,
   generatedBy: string
 ): Promise<TrainingRosterDoc> {
+  await syncActiveSwimmerEnrollments(db);
   const computed = await computeTrainingRoster(db, month);
   const doc: TrainingRosterDoc = {
     ...computed,
