@@ -97,11 +97,39 @@ function testResolveSessionsFromPlans() {
   );
 }
 
+function testClosedPoolLeavesOtherPool() {
+  const plans: TuitionV2LevelPlan[] = [
+    {
+      level: "Bronze Performance",
+      weeklySlots: [{ weekday: 5, timeSlot: "5-6PM", location: "Mary Wayte Pool" }],
+    },
+    {
+      level: "Platinum Performance",
+      weeklySlots: [{ weekday: 5, timeSlot: "7-8PM", location: "Norwood Swimming Pool" }],
+    },
+  ];
+  const friday = "2026-10-02";
+  const sessions = generateSessionsForMonth("2026-10", plans, [
+    { date: friday, location: "Norwood Swimming Pool" },
+  ]);
+  assert(
+    sessions.some((s) => s.date === friday && s.location === "Mary Wayte Pool"),
+    "open pool still trains"
+  );
+  assert(
+    !sessions.some((s) => s.date === friday && s.location === "Norwood Swimming Pool"),
+    "closed pool drops off training"
+  );
+  const wholeDay = generateSessionsForMonth("2026-10", plans, [friday]);
+  assert(!wholeDay.some((s) => s.date === friday), "legacy date still closes every pool");
+}
+
 function run() {
   testBasicGeneration();
   testSchedulePeriod();
   testPreserveCancellation();
   testResolveSessionsFromPlans();
+  testClosedPoolLeavesOtherPool();
   console.log("tuition-v2 session-generator tests passed");
 }
 

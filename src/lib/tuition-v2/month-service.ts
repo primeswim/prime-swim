@@ -9,6 +9,7 @@ import {
 import {
   generateSessionsForMonth,
   mergeRegeneratedSessions,
+  normalizeNoTrainingEntries,
   normalizeSession,
 } from "@/lib/tuition-v2/session-generator";
 import {
@@ -47,9 +48,7 @@ export function normalizeMonthDoc(month: string, raw: Record<string, unknown> | 
     statusRaw === "closed"
       ? statusRaw
       : "planning";
-  const noTrainingDates = Array.isArray(raw?.noTrainingDates)
-    ? raw!.noTrainingDates.filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
-    : [];
+  const noTrainingDates = normalizeNoTrainingEntries(raw?.noTrainingDates);
   return {
     month,
     status,
@@ -296,7 +295,7 @@ export async function updateSession(
 export async function updateMonthNoTraining(
   db: Firestore,
   month: string,
-  noTrainingDates: string[]
+  noTrainingDates: TuitionV2MonthDoc["noTrainingDates"]
 ): Promise<TuitionV2MonthDoc> {
   await ensureMonthDoc(db, month);
   const ref = monthRef(db, month);

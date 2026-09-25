@@ -1,11 +1,56 @@
 import type {
   TuitionV2EffectiveRange,
   TuitionV2LevelPlan,
+  TuitionV2NoTrainingEntry,
   TuitionV2SchedulePeriod,
   TuitionV2Session,
   TuitionV2TrainingDate,
   TuitionV2WeeklySlot,
 } from "@/lib/tuition-v2/types";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function poolKey(location: string): string {
+  return location.trim().toLowerCase();
+}
+
+/** Accept legacy whole-day strings and { date, location } pool closures. */
+export function normalizeNoTrainingEntries(raw: unknown): TuitionV2NoTrainingEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TuitionV2NoTrainingEntry[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    let date = "";
+    let location = "";
+    if (typeof item === "string") {
+      date = item.trim();
+    } else if (item && typeof item === "object") {
+      const row = item as { date?: unknown; location?: unknown };
+      date = typeof row.date === "string" ? row.date.trim() : "";
+      location = typeof row.location === "string" ? row.location.trim() : "";
+    }
+    if (!DATE_RE.test(date)) continue;
+    const key = location ? `${date}|${poolKey(location)}` : `${date}|*`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(location ? { date, location } : { date });
+  }
+  out.sort((a, b) => a.date.localeCompare(b.date) || (a.location ?? "").localeCompare(b.location ?? ""));
+  return out;
+}
+
+export function isPoolClosedOnDate(
+  entries: TuitionV2NoTrainingEntry[],
+  date: string,
+  location: string
+): boolean {
+  const loc = poolKey(location);
+  return entries.some((entry) => {
+    if (entry.date !== date) return false;
+    if (!entry.location) return true;
+    return poolKey(entry.location) === loc;
+  });
+}
 
 function getDatesInMonth(month: string): string[] {
   const [y, m] = month.split("-").map(Number);
@@ -142,10 +187,13 @@ export function resolveSessionsForMonth(
   month: string,
   levelPlans: TuitionV2LevelPlan[],
   storedSessions: TuitionV2Session[],
-  noTrainingDates: string[] = []
+  noTrainingDates: Array<string | TuitionV2NoTrainingEntry> = []
 ): TuitionV2Session[] {
-  const generated = generateSessionsForMonth(month, levelPlans, noTrainingDates);
-  const merged = mergeRegeneratedSessions(generated, storedSessions);
+  const closures = normalizeNoTrainingEntries(noTrainingDates);
+  const generated = generateSessionsForMonth(month, levelPlans, closures);
+  const merged = mergeRegeneratedSessions(generated, storedSessions).filter(
+    (session) => !isPoolClosedOnDate(closures, session.date, session.location)
+  );
   merged.sort((a, b) => {
     const byDate = a.date.localeCompare(b.date);
     if (byDate !== 0) return byDate;
@@ -161,7 +209,7 @@ export function billingSessionsForMonth(
   month: string,
   levelPlans: TuitionV2LevelPlan[],
   storedSessions: TuitionV2Session[],
-  noTrainingDates: string[] = []
+  noTrainingDates: Array<string | TuitionV2NoTrainingEntry> = []
 ): TuitionV2Session[] {
   return resolveSessionsForMonth(month, levelPlans, storedSessions, noTrainingDates);
 }
@@ -186,9 +234,9 @@ export function expandLegacyEffectiveRange(
 export function generateSessionsForMonth(
   month: string,
   levelPlans: TuitionV2LevelPlan[],
-  noTrainingDates: string[]
+  noTrainingDates: Array<string | TuitionV2NoTrainingEntry>
 ): TuitionV2Session[] {
-  const noTraining = new Set(noTrainingDates);
+  const closures = normalizeNoTrainingEntries(noTrainingDates);
   const dates = getDatesInMonth(month);
   const sessions: TuitionV2Session[] = [];
 
@@ -196,12 +244,11 @@ export function generateSessionsForMonth(
     if (!plan.level) continue;
 
     for (const date of dates) {
-      if (noTraining.has(date)) continue;
-
       const period = periodForDate(plan, date);
       if (period) {
         for (const t of period.trainingDates) {
           if (t.date !== date) continue;
+          if (isPoolClosedOnDate(closures, date, t.location)) continue;
           sessions.push(makeSession(date, plan.level, t.timeSlot, t.location, true));
         }
         continue;
@@ -210,6 +257,7 @@ export function generateSessionsForMonth(
       const weekday = weekdayForDate(date);
       const slot = slotForWeekday(plan.weeklySlots, weekday);
       if (!slot) continue;
+      if (isPoolClosedOnDate(closures, date, slot.location)) continue;
       sessions.push(makeSession(date, plan.level, slot.timeSlot, slot.location));
     }
   }

@@ -160,10 +160,16 @@ export type TuitionV2Invoice = {
   updatedAt?: string;
 };
 
+/** A closed pool on one date. Missing location means every pool that day. */
+export type TuitionV2NoTrainingEntry = {
+  date: string;
+  location?: string;
+};
+
 export type TuitionV2MonthDoc = {
   month: string;
   status: TuitionV2MonthStatus;
-  noTrainingDates: string[];
+  noTrainingDates: TuitionV2NoTrainingEntry[];
   lastSessionsGeneratedAt?: string;
   lastCalculatedAt?: string;
   approvedAt?: string;

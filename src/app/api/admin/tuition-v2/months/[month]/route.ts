@@ -12,6 +12,7 @@ import {
 } from "@/lib/tuition-v2/month-service";
 import { TUITION_V2_MONTHS_COLLECTION } from "@/lib/tuition-v2/constants";
 import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
+import { normalizeNoTrainingEntries } from "@/lib/tuition-v2/session-generator";
 
 type RouteCtx = { params: Promise<{ month: string }> };
 
@@ -44,13 +45,11 @@ export async function PUT(req: Request, ctx: RouteCtx) {
     const month = parseMonthParam(raw);
     if (!month) return NextResponse.json({ error: "Invalid month (YYYY-MM)" }, { status: 400 });
 
-    const body = (await req.json()) as { noTrainingDates?: string[] };
+    const body = (await req.json()) as { noTrainingDates?: unknown };
     if (!Array.isArray(body.noTrainingDates)) {
       return NextResponse.json({ error: "Missing noTrainingDates array" }, { status: 400 });
     }
-    const noTrainingDates = body.noTrainingDates.filter(
-      (d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
-    );
+    const noTrainingDates = normalizeNoTrainingEntries(body.noTrainingDates);
     const monthDoc = await updateMonthNoTraining(adminDb, month, noTrainingDates);
     const refreshed = await refreshMonthDerivedData(adminDb, month, { actor: email });
     return NextResponse.json({

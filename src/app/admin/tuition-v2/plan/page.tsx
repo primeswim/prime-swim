@@ -19,6 +19,7 @@ import type {
   TuitionV2LevelTemplate,
   TuitionV2LevelTemplateMap,
   TuitionV2MonthDoc,
+  TuitionV2NoTrainingEntry,
   TuitionV2SchedulePeriod,
   TuitionV2Session,
   TuitionV2SwimmerEnrollment,
@@ -28,7 +29,12 @@ import type {
 } from "@/lib/tuition-v2/types";
 import { getNextMonth, monthLabel, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
 import { getBillableSessionsForSwimmer } from "@/lib/tuition-v2/calculate-engine";
-import { resolveSessionsForMonth, schedulePeriodCoverage } from "@/lib/tuition-v2/session-generator";
+import {
+  isPoolClosedOnDate,
+  poolKey,
+  resolveSessionsForMonth,
+  schedulePeriodCoverage,
+} from "@/lib/tuition-v2/session-generator";
 import {
   AlertCircle,
   Calendar,
@@ -136,7 +142,7 @@ function TuitionV2PlanContent() {
   const [swimmerRows, setSwimmerRows] = useState<
     { enrollment: TuitionV2SwimmerEnrollment; response: TuitionV2SwimmerResponse }[]
   >([]);
-  const [noTrainingDates, setNoTrainingDates] = useState<string[]>([]);
+  const [noTrainingDates, setNoTrainingDates] = useState<TuitionV2NoTrainingEntry[]>([]);
   const [expandedLevel, setExpandedLevel] = useState<string | null>(null);
   const [expandedSwimmer, setExpandedSwimmer] = useState<string | null>(null);
   const [swimmerSearch, setSwimmerSearch] = useState("");
@@ -306,6 +312,31 @@ function TuitionV2PlanContent() {
 
   const datesInMonth = useMemo(() => getDatesInMonth(selectedMonth), [selectedMonth]);
 
+  const poolsByDate = useMemo(() => {
+    const open = resolveSessionsForMonth(selectedMonth, levelPlans, sessionOverrides, []);
+    const byDate = new Map<string, { location: string; times: string[] }[]>();
+    const add = (date: string, location: string, timeSlot?: string) => {
+      const pools = byDate.get(date) ?? [];
+      let pool = pools.find((row) => poolKey(row.location) === poolKey(location));
+      if (!pool) {
+        pool = { location, times: [] };
+        pools.push(pool);
+      }
+      if (timeSlot && !pool.times.includes(timeSlot)) pool.times.push(timeSlot);
+      byDate.set(date, pools);
+    };
+    for (const session of open) {
+      if (session.cancelled) continue;
+      add(session.date, session.location, session.timeSlot);
+    }
+    for (const entry of noTrainingDates) {
+      if (entry.location) add(entry.date, entry.location);
+    }
+    return [...byDate.entries()]
+      .filter(([date]) => datesInMonth.includes(date))
+      .sort((a, b) => a[0].localeCompare(b[0]));
+  }, [selectedMonth, levelPlans, sessionOverrides, noTrainingDates, datesInMonth]);
+
   const resolvedSessions = useMemo(
     () => resolveSessionsForMonth(selectedMonth, levelPlans, sessionOverrides, noTrainingDates),
     [selectedMonth, levelPlans, sessionOverrides, noTrainingDates]
@@ -333,10 +364,18 @@ function TuitionV2PlanContent() {
     [resolvedSessions]
   );
 
-  const toggleNoTraining = (date: string, checked: boolean) => {
+  const toggleNoTrainingPool = (date: string, location: string, pools: string[], checked: boolean) => {
     setNoTrainingDates((prev) => {
-      if (checked) return [...new Set([...prev, date])].sort();
-      return prev.filter((d) => d !== date);
+      const closed = new Set(pools.filter((pool) => isPoolClosedOnDate(prev, date, pool)));
+      if (checked) closed.add(location);
+      else closed.delete(location);
+      const rest = prev.filter((entry) => entry.date !== date);
+      const next = [
+        ...rest,
+        ...[...closed].map((pool) => ({ date, location: pool })),
+      ];
+      next.sort((a, b) => a.date.localeCompare(b.date) || (a.location ?? "").localeCompare(b.location ?? ""));
+      return next;
     });
   };
 
@@ -358,7 +397,7 @@ function TuitionV2PlanContent() {
       }
       const data = await res.json();
       setMonthDoc(data.month);
-      setStatusMsg("No-training dates saved. Tuition and training schedule updated.");
+      setStatusMsg("No-training pools saved. That pool drops off swimmer training; other pools the same day stay.");
     } finally {
       setSavingNoTraining(false);
     }
@@ -970,33 +1009,53 @@ function TuitionV2PlanContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Check dates when the team does not train (holidays, breaks). Sessions update automatically when saved.
+                  Check a pool when that pool is closed. Other pools the same day still train, and those
+                  sessions stay on each swimmer&apos;s training. Saving updates tuition and the training schedule.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                  {datesInMonth.map((date) => {
-                    const wd = new Date(date + "T12:00:00").getDay();
-                    const checked = noTrainingDates.includes(date);
-                    return (
-                      <label
-                        key={date}
-                        className={`flex items-center gap-2 rounded border p-2 text-sm cursor-pointer ${
-                          checked ? "border-red-300 bg-red-50" : "border-border"
-                        }`}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(v) => toggleNoTraining(date, Boolean(v))}
-                        />
-                        <span>
-                          {WEEKDAYS[wd]} {formatDateShort(date)}
-                        </span>
-                      </label>
-                    );
-                  })}
+                <div className="space-y-3">
+                  {poolsByDate.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No training pools this month yet.</p>
+                  ) : (
+                    poolsByDate.map(([date, pools]) => {
+                      const wd = new Date(date + "T12:00:00").getDay();
+                      const poolNames = pools.map((pool) => pool.location);
+                      return (
+                        <div key={date} className="rounded border p-3">
+                          <div className="text-sm font-medium">
+                            {WEEKDAYS[wd]} {formatDateShort(date)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {pools.map((pool) => {
+                              const checked = isPoolClosedOnDate(noTrainingDates, date, pool.location);
+                              return (
+                                <label
+                                  key={pool.location}
+                                  className={`flex items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer ${
+                                    checked ? "border-red-300 bg-red-50" : "border-border"
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(v) =>
+                                      toggleNoTrainingPool(date, pool.location, poolNames, Boolean(v))
+                                    }
+                                  />
+                                  <span>
+                                    {pool.location}
+                                    {pool.times.length > 0 ? ` · ${pool.times.join(", ")}` : ""}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
                 <Button onClick={() => void saveNoTraining()} disabled={savingNoTraining}>
                   {savingNoTraining ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Save no-training dates
+                  Save no-training pools
                 </Button>
               </CardContent>
             </Card>
