@@ -49,6 +49,7 @@ Do **not** Publish live PNS meets. Use `[TEST]` only, then delete.
 - Engine: extra training outside regular weekdays; skip extra; regular weekday required; unavailable weekday excludes Friday regular/extra but not a Friday swap; explicit plan keys; period range vs explicit date / skip
 - Prior-month credit: 9→8 keeps sibling rate ($540→$480, $486→$432); parent view includes credit note
 - Roster: counts match billable; same-time slot aggregates levels; omit empty levels; attendance uses that month's saved plans, not the latest V2 template
+- Month move: current month keeps its level, training days, price, sibling eligibility, and calendar; next month uses the new plan; inactive and Not set stay off the roster; the parent app keeps the published current-month plan until the next month is published
 - Parent tuition: prep-month cutoff; candidate months; visibility per invoice; new invoice unpublished until publish; parent view hides draft amount; pick latest published else prep; publish filter skips already published; credit note on parent view
 
 ## Siblings (`test:siblings`)

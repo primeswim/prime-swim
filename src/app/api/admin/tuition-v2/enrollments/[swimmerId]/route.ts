@@ -39,7 +39,10 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
     let invoiceCount: number | undefined;
     let rosterSlotCount: number | undefined;
     if (refreshMonth) {
-      const refreshed = await refreshMonthDerivedData(adminDb, refreshMonth, { actor: email });
+      const refreshed = await refreshMonthDerivedData(adminDb, refreshMonth, {
+        actor: email,
+        swimmerIds: [swimmerId],
+      });
       invoiceCount = refreshed.invoiceCount;
       rosterSlotCount = refreshed.roster.slotCount;
     }

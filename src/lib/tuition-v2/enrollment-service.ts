@@ -7,6 +7,7 @@ import {
   TUITION_V2_SETTINGS_COLLECTION,
   TUITION_V2_SETTINGS_DOC,
 } from "@/lib/tuition-v2/constants";
+import { currentCalendarMonth } from "@/lib/tuition-v2/shared-ui";
 import type { TuitionV2SwimmerEnrollment } from "@/lib/tuition-v2/types";
 import { isAssignedSwimmerLevel } from "@/lib/swimmer-levels";
 
@@ -86,8 +87,74 @@ export function parseEnrollmentDoc(
     enrollmentMillis:
       typeof raw.enrollmentMillis === "number" ? raw.enrollmentMillis : undefined,
     active: raw.active !== false,
+    levelByMonth: readLevelByMonth(raw.levelByMonth),
+    weekdaysByMonth: readWeekdaysByMonth(raw.weekdaysByMonth),
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
   };
+}
+
+function readLevelByMonth(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [month, level] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}$/.test(month) || !isAssignedSwimmerLevel(level)) continue;
+    out[month] = level.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function readWeekdaysByMonth(raw: unknown): Record<string, number[]> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, number[]> = {};
+  for (const [month, days] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}$/.test(month)) continue;
+    const normalized = normalizeWeekdays(days);
+    out[month] = normalized;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Pin the level a month already started with. Later months keep the new level. */
+export function shouldPinCurrentMonthLevel(
+  previousLevel: string | undefined,
+  nextLevel: string,
+  alreadyPinned: unknown
+): boolean {
+  if (!previousLevel || previousLevel === nextLevel) return false;
+  return !(typeof alreadyPinned === "string" && alreadyPinned.trim().length > 0);
+}
+
+/**
+ * Keep the training days a month already started with.
+ * A later change in the same month does not overwrite that pin.
+ */
+export function weekdaysByMonthAfterChange(
+  enrollment: Pick<TuitionV2SwimmerEnrollment, "regularWeekdays" | "weekdaysByMonth">,
+  nextWeekdays: number[],
+  currentMonth: string
+): Record<string, number[]> {
+  const sorted = normalizeWeekdays(nextWeekdays);
+  const weekdaysByMonth = { ...(enrollment.weekdaysByMonth ?? {}) };
+  const previous = normalizeWeekdays(enrollment.regularWeekdays);
+  const sameDays =
+    previous.length === sorted.length && previous.every((day, index) => day === sorted[index]);
+  if (!sameDays && !weekdaysByMonth[currentMonth]) {
+    weekdaysByMonth[currentMonth] = previous;
+  }
+  return weekdaysByMonth;
+}
+
+/** Months already underway keep the level and training days they had. */
+export function enrollmentForMonth(
+  enrollment: TuitionV2SwimmerEnrollment,
+  month: string
+): TuitionV2SwimmerEnrollment {
+  const level = enrollment.levelByMonth?.[month];
+  const days = enrollment.weekdaysByMonth?.[month];
+  const nextLevel = level && level !== enrollment.level ? level : enrollment.level;
+  const nextDays = days ?? enrollment.regularWeekdays;
+  if (nextLevel === enrollment.level && nextDays === enrollment.regularWeekdays) return enrollment;
+  return { ...enrollment, level: nextLevel, regularWeekdays: nextDays };
 }
 
 /**
@@ -278,8 +345,13 @@ export async function updateEnrollmentRegularWeekdays(
   const parsed = parseEnrollmentDoc(swimmerId, snap.data());
   if (!parsed || parsed.active === false) return null;
 
-  const sorted = [...regularWeekdays].sort((a, b) => a - b);
-  const updated: TuitionV2SwimmerEnrollment = { ...parsed, regularWeekdays: sorted };
+  const sorted = normalizeWeekdays(regularWeekdays);
+  const weekdaysByMonth = weekdaysByMonthAfterChange(parsed, sorted, currentCalendarMonth());
+  const updated: TuitionV2SwimmerEnrollment = {
+    ...parsed,
+    regularWeekdays: sorted,
+    weekdaysByMonth,
+  };
   await saveSwimmerEnrollment(db, updated);
   return updated;
 }

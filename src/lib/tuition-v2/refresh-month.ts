@@ -2,12 +2,14 @@ import type { Firestore } from "firebase-admin/firestore";
 import { loadInvoices, recalculateInvoices } from "@/lib/tuition-v2/invoice-service";
 import {
   syncActiveSwimmerEnrollmentsIfStale,
+  shouldPinCurrentMonthLevel,
   upsertEnrollmentFromSwimmer,
 } from "@/lib/tuition-v2/enrollment-service";
 import { saveTrainingRoster } from "@/lib/training-roster";
 import type { TrainingRosterDoc } from "@/lib/training-roster-types";
 import type { TuitionV2Invoice, TuitionV2MonthDoc } from "@/lib/tuition-v2/types";
-import { getNextMonth } from "@/lib/tuition-v2/shared-ui";
+import { currentCalendarMonth, getNextMonth } from "@/lib/tuition-v2/shared-ui";
+import { TUITION_V2_ENROLLMENT_COLLECTION } from "@/lib/tuition-v2/constants";
 
 /** Current calendar month + next month (typical open billing windows). */
 export function openBillingMonths(now = new Date()): string[] {
@@ -34,6 +36,8 @@ export type RefreshMonthDerivedOptions = {
   syncRoster?: boolean;
   /** Optional level filter for invoice writes only. */
   levels?: string[];
+  /** Optional swimmer filter for invoice writes only. */
+  swimmerIds?: string[];
 };
 
 export type RefreshMonthDerivedResult = {
@@ -55,6 +59,7 @@ export async function refreshMonthDerivedData(
 ): Promise<RefreshMonthDerivedResult> {
   const invoices = await recalculateInvoices(db, month, {
     levels: options.levels,
+    swimmerIds: options.swimmerIds,
     syncRoster: options.syncRoster === true,
   });
   // Always rebuild attendance roster — Not set / deactivated kids must drop
@@ -73,14 +78,34 @@ export async function refreshMonthDerivedData(
  * Pull new roster members into enrollments, then rebuild invoices only if
  * someone is missing (new swimmer) or the month has never been computed.
  */
-/** Sync those swimmers into V2 enrollments, then rebuild invoices for their levels. */
+/** Sync those swimmers into V2 enrollments, then rebuild only their invoices. */
 export async function refreshOpenMonthsForSwimmers(
   db: Firestore,
   actor: string,
   swimmerIds: string[]
 ): Promise<{ months: string[]; levels: string[] }> {
   const ids = [...new Set(swimmerIds.filter((id) => id.trim() && !id.includes("/")))];
+  const currentMonth = currentCalendarMonth();
+  const previousLevels = new Map<string, string>();
+  for (const id of ids) {
+    const snap = await db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(id).get();
+    const level = snap.data()?.level;
+    if (typeof level === "string" && level.trim()) previousLevels.set(id, level.trim());
+  }
   const enrollments = await Promise.all(ids.map((id) => upsertEnrollmentFromSwimmer(db, id)));
+  for (const enrollment of enrollments) {
+    if (!enrollment) continue;
+    const previous = previousLevels.get(enrollment.swimmerId);
+    const ref = db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(enrollment.swimmerId);
+    const snap = await ref.get();
+    if (
+      !previous ||
+      !shouldPinCurrentMonthLevel(previous, enrollment.level, snap.data()?.levelByMonth?.[currentMonth])
+    ) {
+      continue;
+    }
+    await ref.update({ [`levelByMonth.${currentMonth}`]: previous });
+  }
   const levels = [
     ...new Set(enrollments.filter((e): e is NonNullable<typeof e> => !!e).map((e) => e.level)),
   ];
@@ -89,7 +114,7 @@ export async function refreshOpenMonthsForSwimmers(
     await refreshMonthDerivedData(db, month, {
       actor,
       syncRoster: false,
-      levels: levels.length > 0 ? levels : undefined,
+      swimmerIds: ids,
     });
   }
   return { months, levels };

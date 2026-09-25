@@ -14,7 +14,7 @@ import {
   practiceTextFromLineItems,
   toSiblingDiscountRows,
 } from "@/lib/tuition-v2/calculate-engine";
-import { loadSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
+import { enrollmentForMonth, loadSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
 import { ensureMonthDoc, loadLevelPlans, loadSessions, normalizeMonthDoc } from "@/lib/tuition-v2/month-service";
 import { resolveSessionsForMonth, schedulePeriodCoverage } from "@/lib/tuition-v2/session-generator";
 import { loadSwimmerResponses } from "@/lib/tuition-v2/swimmer-response-service";
@@ -132,6 +132,8 @@ export async function loadInvoices(db: Firestore, month: string): Promise<Tuitio
 export type RecalculateInvoicesOptions = {
   /** When set, only compute and write invoices for these swimmer levels. */
   levels?: string[];
+  /** When set, only write these swimmers. Other families are left unchanged. */
+  swimmerIds?: string[];
   /**
    * Sync active team roster into enrollments before calc.
    * Default false — auto-refresh after plan saves must not scan all swimmers.
@@ -154,6 +156,11 @@ export async function recalculateInvoices(
     options.levels?.length &&
     options.levels.every((l) => typeof l === "string" && l.trim().length > 0)
       ? new Set(options.levels.map((l) => l.trim()))
+      : null;
+  const swimmerFilter =
+    options.swimmerIds?.length &&
+    options.swimmerIds.every((id) => typeof id === "string" && id.trim().length > 0 && !id.includes("/"))
+      ? new Set(options.swimmerIds)
       : null;
 
   const monthDoc = await ensureMonthDoc(db, month);
@@ -188,7 +195,8 @@ export async function recalculateInvoices(
     tuition: number;
   }> = [];
 
-  for (const enrollment of enrollments) {
+  for (const rawEnrollment of enrollments) {
+    const enrollment = enrollmentForMonth(rawEnrollment, month);
     if (levelFilter && !levelFilter.has(enrollment.level)) continue;
     const template = templates[enrollment.level];
     const rate = getMonthlyRate(enrollment, template);
@@ -213,13 +221,15 @@ export async function recalculateInvoices(
   }
 
   const tuitionById = new Map(preSibling.map((r) => [r.enrollment.swimmerId, r.tuition]));
-  const siblingRows = toSiblingDiscountRows(enrollments, tuitionById, minDaysByLevel);
+  const monthEnrollments = enrollments.map((raw) => enrollmentForMonth(raw, month));
+  const siblingRows = toSiblingDiscountRows(monthEnrollments, tuitionById, minDaysByLevel);
 
   const enrollmentById = new Map<string, number>();
   const siblingIdsBySwimmer = new Map<string, string[]>();
   const trainingEligibilityById = new Map<string, { trainingWeekdays: number[]; minDaysPerWeek: number }>();
 
-  for (const e of enrollments) {
+  for (const raw of enrollments) {
+    const e = enrollmentForMonth(raw, month);
     enrollmentById.set(e.swimmerId, e.enrollmentMillis ?? Number.MAX_SAFE_INTEGER);
     siblingIdsBySwimmer.set(e.swimmerId, e.siblingIds ?? []);
     trainingEligibilityById.set(e.swimmerId, {
@@ -249,6 +259,7 @@ export async function recalculateInvoices(
 
   for (const row of preSibling) {
     const { enrollment, ratePerHour, rateTier, rateTierReason, lineItems } = row;
+    if (swimmerFilter && !swimmerFilter.has(enrollment.swimmerId)) continue;
     const disc = discountedById.get(enrollment.swimmerId);
     const computedAmount = disc?.tuition ?? row.tuition;
     const existing = existingById.get(enrollment.swimmerId);
@@ -336,6 +347,27 @@ export async function recalculateInvoices(
     }
   }
 
+  const rewrittenIds = new Set(preSibling.map((row) => row.enrollment.swimmerId));
+  const enrollmentByIdForLevel = new Map(enrollments.map((enrollment) => [enrollment.swimmerId, enrollment]));
+  for (const existing of existingInvoices) {
+    if (swimmerFilter && !swimmerFilter.has(existing.swimmerId)) continue;
+    if (rewrittenIds.has(existing.swimmerId)) continue;
+    const enrollment = enrollmentByIdForLevel.get(existing.swimmerId);
+    const monthEnrollment = enrollment ? enrollmentForMonth(enrollment, month) : null;
+    if (!monthEnrollment || monthEnrollment.active === false || monthEnrollment.level === existing.level) continue;
+    if (
+      levelFilter &&
+      !levelFilter.has(monthEnrollment.level) &&
+      !levelFilter.has(existing.level)
+    ) {
+      continue;
+    }
+    writes.push({
+      type: "delete",
+      ref: invoicesCol(db, month).doc(existing.swimmerId),
+    });
+  }
+
   if (writes.length > 0) {
     writes.push({
       type: "update",
@@ -349,7 +381,7 @@ export async function recalculateInvoices(
     await commitWrites(db, writes);
   }
 
-  const wroteCount = writes.filter((w) => w.type === "set").length;
+  const wroteCount = writes.filter((w) => w.type === "set" || w.type === "delete").length;
   if (wroteCount === 0) {
     return {
       month: monthDoc,

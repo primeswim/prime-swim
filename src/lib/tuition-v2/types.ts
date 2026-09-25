@@ -106,6 +106,13 @@ export type TuitionV2SwimmerEnrollment = {
   enrollmentMillis?: number;
   /** When false, excluded from V2 tuition calculate */
   active?: boolean;
+  /**
+   * Level already used for a month that had started when the swimmer moved.
+   * Later months use `level`.
+   */
+  levelByMonth?: Record<string, string>;
+  /** Training days already used for a month that had started. Later months use `regularWeekdays`. */
+  weekdaysByMonth?: Record<string, number[]>;
   updatedAt?: string;
 };
 

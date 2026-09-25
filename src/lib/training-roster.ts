@@ -1,6 +1,7 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { getBillableSessionsForSwimmer } from "@/lib/tuition-v2/calculate-engine";
 import {
+  enrollmentForMonth,
   listSwimmerEnrollments,
   syncActiveSwimmerEnrollments,
 } from "@/lib/tuition-v2/enrollment-service";
@@ -33,6 +34,11 @@ export type {
 export { TRAINING_ROSTERS_COLLECTION, omitEmptyRosterLevels } from "@/lib/training-roster-types";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Inactive and Not set swimmers stay off the training calendar. */
+export function countsOnMonthRoster(enrollment: { active?: boolean; level: string }): boolean {
+  return enrollment.active !== false && isAssignedSwimmerLevel(enrollment.level);
+}
 
 function slotKey(date: string, timeSlot: string, location: string): string {
   return `${date}|${timeSlot}|${location}`;
@@ -84,9 +90,9 @@ export async function computeTrainingRoster(
 
   const uniqueSwimmers = new Set<string>();
 
-  for (const enrollment of enrollments) {
-    if (enrollment.active === false) continue;
-    if (!isAssignedSwimmerLevel(enrollment.level)) continue;
+  for (const rawEnrollment of enrollments) {
+    const enrollment = enrollmentForMonth(rawEnrollment, month);
+    if (!countsOnMonthRoster(enrollment)) continue;
     const billable = getBillableSessionsForSwimmer(
       enrollment,
       billingSessions,
