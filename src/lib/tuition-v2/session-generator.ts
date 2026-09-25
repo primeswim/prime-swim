@@ -14,6 +14,10 @@ export function poolKey(location: string): string {
   return location.trim().toLowerCase();
 }
 
+export function timeKey(timeSlot: string): string {
+  return timeSlot.trim().toLowerCase();
+}
+
 /** Accept legacy whole-day strings and { date, location } pool closures. */
 export function normalizeNoTrainingEntries(raw: unknown): TuitionV2NoTrainingEntry[] {
   if (!Array.isArray(raw)) return [];
@@ -22,33 +26,46 @@ export function normalizeNoTrainingEntries(raw: unknown): TuitionV2NoTrainingEnt
   for (const item of raw) {
     let date = "";
     let location = "";
+    let timeSlot = "";
     if (typeof item === "string") {
       date = item.trim();
     } else if (item && typeof item === "object") {
-      const row = item as { date?: unknown; location?: unknown };
+      const row = item as { date?: unknown; location?: unknown; timeSlot?: unknown };
       date = typeof row.date === "string" ? row.date.trim() : "";
       location = typeof row.location === "string" ? row.location.trim() : "";
+      timeSlot = typeof row.timeSlot === "string" ? row.timeSlot.trim() : "";
     }
     if (!DATE_RE.test(date)) continue;
-    const key = location ? `${date}|${poolKey(location)}` : `${date}|*`;
+    const key = `${date}|${location ? poolKey(location) : "*"}|${timeSlot ? timeKey(timeSlot) : "*"}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(location ? { date, location } : { date });
+    if (!location) out.push({ date });
+    else if (!timeSlot) out.push({ date, location });
+    else out.push({ date, location, timeSlot });
   }
-  out.sort((a, b) => a.date.localeCompare(b.date) || (a.location ?? "").localeCompare(b.location ?? ""));
+  out.sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      (a.location ?? "").localeCompare(b.location ?? "") ||
+      (a.timeSlot ?? "").localeCompare(b.timeSlot ?? "")
+  );
   return out;
 }
 
-export function isPoolClosedOnDate(
+export function isTrainingClosed(
   entries: TuitionV2NoTrainingEntry[],
   date: string,
-  location: string
+  location: string,
+  timeSlot: string
 ): boolean {
   const loc = poolKey(location);
+  const time = timeKey(timeSlot);
   return entries.some((entry) => {
     if (entry.date !== date) return false;
     if (!entry.location) return true;
-    return poolKey(entry.location) === loc;
+    if (poolKey(entry.location) !== loc) return false;
+    if (!entry.timeSlot) return true;
+    return timeKey(entry.timeSlot) === time;
   });
 }
 
@@ -192,7 +209,7 @@ export function resolveSessionsForMonth(
   const closures = normalizeNoTrainingEntries(noTrainingDates);
   const generated = generateSessionsForMonth(month, levelPlans, closures);
   const merged = mergeRegeneratedSessions(generated, storedSessions).filter(
-    (session) => !isPoolClosedOnDate(closures, session.date, session.location)
+    (session) => !isTrainingClosed(closures, session.date, session.location, session.timeSlot)
   );
   merged.sort((a, b) => {
     const byDate = a.date.localeCompare(b.date);
@@ -248,7 +265,7 @@ export function generateSessionsForMonth(
       if (period) {
         for (const t of period.trainingDates) {
           if (t.date !== date) continue;
-          if (isPoolClosedOnDate(closures, date, t.location)) continue;
+          if (isTrainingClosed(closures, date, t.location, t.timeSlot)) continue;
           sessions.push(makeSession(date, plan.level, t.timeSlot, t.location, true));
         }
         continue;
@@ -257,7 +274,7 @@ export function generateSessionsForMonth(
       const weekday = weekdayForDate(date);
       const slot = slotForWeekday(plan.weeklySlots, weekday);
       if (!slot) continue;
-      if (isPoolClosedOnDate(closures, date, slot.location)) continue;
+      if (isTrainingClosed(closures, date, slot.location, slot.timeSlot)) continue;
       sessions.push(makeSession(date, plan.level, slot.timeSlot, slot.location));
     }
   }

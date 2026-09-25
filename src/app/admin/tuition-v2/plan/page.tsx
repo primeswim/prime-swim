@@ -30,10 +30,11 @@ import type {
 import { getNextMonth, monthLabel, monthToApiPath, normalizeBillingMonth } from "@/lib/tuition-v2/shared-ui";
 import { getBillableSessionsForSwimmer } from "@/lib/tuition-v2/calculate-engine";
 import {
-  isPoolClosedOnDate,
+  isTrainingClosed,
   poolKey,
   resolveSessionsForMonth,
   schedulePeriodCoverage,
+  timeKey,
 } from "@/lib/tuition-v2/session-generator";
 import {
   AlertCircle,
@@ -312,30 +313,43 @@ function TuitionV2PlanContent() {
 
   const datesInMonth = useMemo(() => getDatesInMonth(selectedMonth), [selectedMonth]);
 
-  const poolsByDate = useMemo(() => {
+  const slotsByDate = useMemo(() => {
     const open = resolveSessionsForMonth(selectedMonth, levelPlans, sessionOverrides, []);
-    const byDate = new Map<string, { location: string; times: string[] }[]>();
-    const add = (date: string, location: string, timeSlot?: string) => {
-      const pools = byDate.get(date) ?? [];
-      let pool = pools.find((row) => poolKey(row.location) === poolKey(location));
-      if (!pool) {
-        pool = { location, times: [] };
-        pools.push(pool);
-      }
-      if (timeSlot && !pool.times.includes(timeSlot)) pool.times.push(timeSlot);
-      byDate.set(date, pools);
+    const coverage = schedulePeriodCoverage(levelPlans, selectedMonth);
+    const byDate = new Map<string, { location: string; timeSlot: string }[]>();
+    const add = (date: string, location: string, timeSlot: string) => {
+      const slots = byDate.get(date) ?? [];
+      const exists = slots.some(
+        (row) => poolKey(row.location) === poolKey(location) && timeKey(row.timeSlot) === timeKey(timeSlot)
+      );
+      if (!exists) slots.push({ location, timeSlot });
+      byDate.set(date, slots);
     };
-    for (const session of open) {
-      if (session.cancelled) continue;
-      add(session.date, session.location, session.timeSlot);
+    for (const row of swimmerRows) {
+      const billable = getBillableSessionsForSwimmer(
+        row.enrollment,
+        open,
+        row.response,
+        coverage.explicit,
+        coverage.periodDatesByLevel
+      );
+      for (const session of billable) {
+        if (session.cancelled) continue;
+        add(session.date, session.location, session.timeSlot);
+      }
     }
     for (const entry of noTrainingDates) {
-      if (entry.location) add(entry.date, entry.location);
+      if (entry.location && entry.timeSlot) add(entry.date, entry.location, entry.timeSlot);
+    }
+    for (const [date, slots] of byDate) {
+      slots.sort(
+        (a, b) => a.timeSlot.localeCompare(b.timeSlot) || a.location.localeCompare(b.location)
+      );
     }
     return [...byDate.entries()]
       .filter(([date]) => datesInMonth.includes(date))
       .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [selectedMonth, levelPlans, sessionOverrides, noTrainingDates, datesInMonth]);
+  }, [selectedMonth, levelPlans, sessionOverrides, noTrainingDates, datesInMonth, swimmerRows]);
 
   const resolvedSessions = useMemo(
     () => resolveSessionsForMonth(selectedMonth, levelPlans, sessionOverrides, noTrainingDates),
@@ -364,17 +378,35 @@ function TuitionV2PlanContent() {
     [resolvedSessions]
   );
 
-  const toggleNoTrainingPool = (date: string, location: string, pools: string[], checked: boolean) => {
+  const toggleNoTrainingSlot = (
+    date: string,
+    location: string,
+    timeSlot: string,
+    slots: { location: string; timeSlot: string }[],
+    checked: boolean
+  ) => {
     setNoTrainingDates((prev) => {
-      const closed = new Set(pools.filter((pool) => isPoolClosedOnDate(prev, date, pool)));
-      if (checked) closed.add(location);
-      else closed.delete(location);
+      const closed = new Set(
+        slots
+          .filter((slot) => isTrainingClosed(prev, date, slot.location, slot.timeSlot))
+          .map((slot) => `${poolKey(slot.location)}|${timeKey(slot.timeSlot)}`)
+      );
+      const id = `${poolKey(location)}|${timeKey(timeSlot)}`;
+      if (checked) closed.add(id);
+      else closed.delete(id);
       const rest = prev.filter((entry) => entry.date !== date);
       const next = [
         ...rest,
-        ...[...closed].map((pool) => ({ date, location: pool })),
+        ...slots
+          .filter((slot) => closed.has(`${poolKey(slot.location)}|${timeKey(slot.timeSlot)}`))
+          .map((slot) => ({ date, location: slot.location, timeSlot: slot.timeSlot })),
       ];
-      next.sort((a, b) => a.date.localeCompare(b.date) || (a.location ?? "").localeCompare(b.location ?? ""));
+      next.sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          (a.location ?? "").localeCompare(b.location ?? "") ||
+          (a.timeSlot ?? "").localeCompare(b.timeSlot ?? "")
+      );
       return next;
     });
   };
@@ -1009,27 +1041,31 @@ function TuitionV2PlanContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Check a pool when that pool is closed. Other pools the same day still train, and those
-                  sessions stay on each swimmer&apos;s training. Saving updates tuition and the training schedule.
+                  Check one pool and time when that session is closed. Other times and pools the same day
+                  still train. Saving updates tuition and each swimmer&apos;s training.
                 </p>
                 <div className="space-y-3">
-                  {poolsByDate.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No training pools this month yet.</p>
+                  {slotsByDate.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No training this month yet.</p>
                   ) : (
-                    poolsByDate.map(([date, pools]) => {
+                    slotsByDate.map(([date, slots]) => {
                       const wd = new Date(date + "T12:00:00").getDay();
-                      const poolNames = pools.map((pool) => pool.location);
                       return (
                         <div key={date} className="rounded border p-3">
                           <div className="text-sm font-medium">
                             {WEEKDAYS[wd]} {formatDateShort(date)}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {pools.map((pool) => {
-                              const checked = isPoolClosedOnDate(noTrainingDates, date, pool.location);
+                            {slots.map((slot) => {
+                              const checked = isTrainingClosed(
+                                noTrainingDates,
+                                date,
+                                slot.location,
+                                slot.timeSlot
+                              );
                               return (
                                 <label
-                                  key={pool.location}
+                                  key={`${slot.location}|${slot.timeSlot}`}
                                   className={`flex items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer ${
                                     checked ? "border-red-300 bg-red-50" : "border-border"
                                   }`}
@@ -1037,12 +1073,17 @@ function TuitionV2PlanContent() {
                                   <Checkbox
                                     checked={checked}
                                     onCheckedChange={(v) =>
-                                      toggleNoTrainingPool(date, pool.location, poolNames, Boolean(v))
+                                      toggleNoTrainingSlot(
+                                        date,
+                                        slot.location,
+                                        slot.timeSlot,
+                                        slots,
+                                        Boolean(v)
+                                      )
                                     }
                                   />
                                   <span>
-                                    {pool.location}
-                                    {pool.times.length > 0 ? ` · ${pool.times.join(", ")}` : ""}
+                                    {slot.location} · {slot.timeSlot}
                                   </span>
                                 </label>
                               );

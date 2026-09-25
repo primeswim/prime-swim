@@ -110,15 +110,30 @@ function testClosedPoolLeavesOtherPool() {
   ];
   const friday = "2026-10-02";
   const sessions = generateSessionsForMonth("2026-10", plans, [
-    { date: friday, location: "Norwood Swimming Pool" },
+    { date: friday, location: "Norwood Swimming Pool", timeSlot: "7-8PM" },
   ]);
   assert(
-    sessions.some((s) => s.date === friday && s.location === "Mary Wayte Pool"),
-    "open pool still trains"
+    sessions.some((s) => s.date === friday && s.location === "Mary Wayte Pool" && s.timeSlot === "5-6PM"),
+    "other pool and time still train"
   );
   assert(
-    !sessions.some((s) => s.date === friday && s.location === "Norwood Swimming Pool"),
-    "closed pool drops off training"
+    !sessions.some((s) => s.date === friday && s.timeSlot === "7-8PM"),
+    "closed time at that pool drops off training"
+  );
+  const samePoolOtherTime = generateSessionsForMonth("2026-10", [
+    ...plans,
+    {
+      level: "Gold Performance",
+      weeklySlots: [{ weekday: 5, timeSlot: "7:45-9PM", location: "Mary Wayte Pool" }],
+    },
+  ], [{ date: friday, location: "Mary Wayte Pool", timeSlot: "5-6PM" }]);
+  assert(
+    samePoolOtherTime.some((s) => s.date === friday && s.location === "Mary Wayte Pool" && s.timeSlot === "7:45-9PM"),
+    "another time at the same pool stays"
+  );
+  assert(
+    !samePoolOtherTime.some((s) => s.date === friday && s.timeSlot === "5-6PM"),
+    "only the closed time is removed"
   );
   const wholeDay = generateSessionsForMonth("2026-10", plans, [friday]);
   assert(!wholeDay.some((s) => s.date === friday), "legacy date still closes every pool");
