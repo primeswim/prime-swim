@@ -281,7 +281,11 @@ function TuitionV2ReviewContent() {
     });
     setEditInv(inv);
     setEditBillAs(String(billed));
-    setEditNote(inv.priorMonthCredit?.note || inv.afterFeeNote || preview.note);
+    setEditNote(
+      (inv.priorMonthCredit?.sessions ?? 0) > 0
+        ? inv.priorMonthCredit?.note || preview.note
+        : inv.afterFeeNote
+    );
     setEditAmount(String(inv.amount));
     setEditReason(inv.manualOverride?.reason ?? "");
   };
@@ -673,7 +677,7 @@ function TuitionV2ReviewContent() {
                 <Input
                   value={editNote}
                   onChange={(e) => setEditNote(e.target.value)}
-                  placeholder="$60 credit from previous month has been applied to this month's tuition."
+                  placeholder="Optional. Left blank unless you lower Bill as."
                 />
               </div>
               <div>
