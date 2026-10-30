@@ -931,14 +931,14 @@ function TuitionV2PlanContent() {
                         {level}
                       </CardTitle>
                       <span className="text-xs text-muted-foreground">
-                        ${tpl.defaultRatePerHour}/hr · min {tpl.minDaysPerWeek} days
+                        ${tpl.defaultRatePerHour}/hr · reduced rate min {tpl.minDaysPerWeek} days · sibling min {tpl.minDaysToQualifySibling ?? tpl.minDaysPerWeek} days
                         {tpl.reducedRatePerHour != null ? ` · reduced $${tpl.reducedRatePerHour}/hr` : ""}
                       </span>
                     </div>
                   </CardHeader>
                   {open && (
                     <CardContent className="space-y-4 border-t pt-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div>
                           <Label className="text-xs">Default rate ($/hr)</Label>
                           <Input
@@ -950,12 +950,25 @@ function TuitionV2PlanContent() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs">Min days/week</Label>
+                          <Label className="text-xs">Min days/week for reduced rate</Label>
                           <Input
                             type="number"
                             value={tpl.minDaysPerWeek}
                             onChange={(e) =>
                               updateTemplate(level, { minDaysPerWeek: Number(e.target.value) || 0 })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Min days/week for sibling discount</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={7}
+                            step={1}
+                            value={tpl.minDaysToQualifySibling ?? tpl.minDaysPerWeek}
+                            onChange={(e) =>
+                              updateTemplate(level, { minDaysToQualifySibling: Math.min(7, Math.max(0, Math.trunc(Number(e.target.value) || 0))) })
                             }
                           />
                         </div>

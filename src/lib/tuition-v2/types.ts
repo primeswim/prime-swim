@@ -40,7 +40,10 @@ export type TuitionV2EffectiveRange = {
 
 export type TuitionV2LevelTemplate = {
   defaultRatePerHour: number;
+  /** Minimum regular days for the reduced hourly rate. */
   minDaysPerWeek: number;
+  /** Independent minimum regular days for sibling discount eligibility. */
+  minDaysToQualifySibling?: number;
   reducedRatePerHour: number | null;
   weeklySlots: TuitionV2WeeklySlot[];
   defaultTimeSlot: string;

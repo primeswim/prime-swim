@@ -35,7 +35,8 @@ export function defaultV2Templates(): TuitionV2LevelTemplateMap {
     if (!def) continue;
     out[level] = {
       defaultRatePerHour: def.defaultRatePerHour,
-      minDaysPerWeek: def.minDaysPerWeek,
+      minDaysPerWeek: level === "Silver Beginner" ? 3 : def.minDaysPerWeek,
+      minDaysToQualifySibling: level === "Silver Beginner" ? 2 : def.minDaysPerWeek,
       reducedRatePerHour: def.reducedRatePerHour,
       weeklySlots: slotsFromLevelConfig(def),
       defaultTimeSlot: def.defaultTimeSlot,
@@ -69,6 +70,11 @@ function normalizeTemplate(raw: unknown, fallback: TuitionV2LevelTemplate): Tuit
       typeof s.defaultRatePerHour === "number" ? s.defaultRatePerHour : fallback.defaultRatePerHour,
     minDaysPerWeek:
       typeof s.minDaysPerWeek === "number" ? s.minDaysPerWeek : fallback.minDaysPerWeek,
+    minDaysToQualifySibling:
+      typeof s.minDaysToQualifySibling === "number" &&
+      Number.isInteger(s.minDaysToQualifySibling) && s.minDaysToQualifySibling >= 0 && s.minDaysToQualifySibling <= 7
+        ? s.minDaysToQualifySibling
+        : fallback.minDaysToQualifySibling ?? (typeof s.minDaysPerWeek === "number" ? s.minDaysPerWeek : fallback.minDaysPerWeek),
     reducedRatePerHour:
       s.reducedRatePerHour === null
         ? null
@@ -94,7 +100,10 @@ export function mergeV2Templates(raw: Record<string, unknown> | null | undefined
   if (!raw) return base;
   const out = { ...base };
   for (const level of Object.keys(base)) {
-    out[level] = normalizeTemplate(raw[level], base[level]);
+    out[level] = normalizeTemplate(raw[level], {
+      ...base[level],
+      minDaysToQualifySibling: level === "Silver Beginner" ? 2 : undefined,
+    });
   }
   for (const level of Object.keys(raw)) {
     if (out[level]) continue;

@@ -154,3 +154,18 @@ function run() {
 }
 
 run();
+
+// The lower monthly tuition receives the discount regardless of enrollment order.
+for (const prices of [[800, 180], [180, 800]]) {
+  const rows = prices.map((tuition, i) => ({ swimmerId: String(i), tuition, trainingWeekdays: [1, 5], minDaysPerWeek: 2 }));
+  const out = applySiblingTuitionDiscounts(rows, new Map([["0", 1], ["1", 2]]), new Map([["0", ["1"]]]));
+  assert(out.find(r => r.baseTuition === 800)?.tuition === 800, "higher price remains full regardless of registration order");
+  assert(out.find(r => r.baseTuition === 180)?.tuition === 162, "lower price receives 10%");
+  const reversed = applySiblingTuitionDiscounts([...rows].reverse(), new Map([["0", 1], ["1", 2]]), new Map([["1", ["0"]]]));
+  assert(reversed.find(r => r.baseTuition === 180)?.tuition === 162, "row and link direction do not change discount");
+}
+const equalPrice = applySiblingTuitionDiscounts([
+  { swimmerId: "earlier", tuition: 480, trainingWeekdays: [1, 5], minDaysPerWeek: 2 },
+  { swimmerId: "later", tuition: 480, trainingWeekdays: [1, 5], minDaysPerWeek: 2 },
+], new Map([["earlier", 1], ["later", 2]]), new Map([["earlier", ["later"]]]));
+assert(equalPrice[0].tuition === 480 && equalPrice[1].tuition === 432, "equal price keeps enrollment ordering");

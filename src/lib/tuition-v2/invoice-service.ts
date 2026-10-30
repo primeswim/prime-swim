@@ -186,7 +186,8 @@ export async function recalculateInvoices(
 
   const responseById = new Map(responses.map((r) => [r.swimmerId, r]));
   const existingById = new Map(existingInvoices.map((i) => [i.swimmerId, i]));
-  const minDaysByLevel = new Map(Object.entries(templates).map(([level, t]) => [level, t.minDaysPerWeek]));
+  const siblingMinDaysByLevel = new Map(Object.entries(templates).map(([level, t]) =>
+    [level, t.minDaysToQualifySibling ?? t.minDaysPerWeek]));
 
   const preSibling: Array<{
     enrollment: (typeof enrollments)[0];
@@ -227,7 +228,7 @@ export async function recalculateInvoices(
 
   const tuitionById = new Map(preSibling.map((r) => [r.enrollment.swimmerId, r.tuition]));
   const monthEnrollments = enrollments.map((raw) => enrollmentForMonth(raw, month));
-  const siblingRows = toSiblingDiscountRows(monthEnrollments, tuitionById, minDaysByLevel);
+  const siblingRows = toSiblingDiscountRows(monthEnrollments, tuitionById, siblingMinDaysByLevel);
 
   const enrollmentById = new Map<string, number>();
   const siblingIdsBySwimmer = new Map<string, string[]>();
@@ -239,7 +240,7 @@ export async function recalculateInvoices(
     siblingIdsBySwimmer.set(e.swimmerId, e.siblingIds ?? []);
     trainingEligibilityById.set(e.swimmerId, {
       trainingWeekdays: e.regularWeekdays,
-      minDaysPerWeek: minDaysByLevel.get(e.level) ?? 0,
+      minDaysPerWeek: siblingMinDaysByLevel.get(e.level) ?? 0,
     });
   }
 
@@ -314,7 +315,7 @@ export async function recalculateInvoices(
       baseAmount,
       practiceText: practiceTextFromLineItems(lineItems),
       lineItems,
-      siblingDiscountApplied: disc?.siblingDiscountApplied,
+      siblingDiscountApplied: disc?.siblingDiscountApplied === true,
       siblingDiscountPercent: disc?.siblingDiscountPercent,
       priorMonthCredit,
       manualOverride: existing?.manualOverride ?? null,
@@ -341,6 +342,9 @@ export async function recalculateInvoices(
     const publishFlagChanged = existing?.publishedToApp !== keepPublished;
     if (!existing || !billingSame || publishFlagChanged) {
       const data = withoutUndefined(invoice as unknown as Record<string, unknown>);
+      // Merge writes must clear an old recipient when the cheaper sibling changes.
+      data.siblingDiscountApplied = invoice.siblingDiscountApplied === true;
+      data.siblingDiscountPercent = invoice.siblingDiscountPercent ?? null;
       data.publishedToApp = keepPublished;
       if (keepPublished) {
         if (invoice.publishedAt) data.publishedAt = invoice.publishedAt;

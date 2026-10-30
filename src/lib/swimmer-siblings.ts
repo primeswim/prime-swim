@@ -3,7 +3,8 @@
  *
  * Discount rules (per linked sibling group):
  * - If ANY sibling does not meet their level min training days/week → no discount for anyone.
- * - If ALL siblings meet min days → eldest enrolled pays full tuition; each younger sibling gets 10% off.
+ * - If ALL siblings qualify, a two-swimmer family discounts the lower monthly tuition.
+ * - Equal tuition keeps enrollment ordering; larger families retain enrollment ordering.
  */
 
 export const SIBLING_TUITION_DISCOUNT_PERCENT = 10;
@@ -166,6 +167,12 @@ export function applySiblingTuitionDiscounts<T extends SiblingDiscountRow>(
     }
 
     const sorted = [...component].sort((a, b) => {
+      // Compare after hourly pricing, before sibling discounts and credits.
+      // Only two-swimmer groups change policy; larger families keep their existing rule.
+      if (component.length === 2 && rowsById.has(a) && rowsById.has(b)) {
+        const priceDifference = rowsById.get(b)!.tuition - rowsById.get(a)!.tuition;
+        if (priceDifference !== 0) return priceDifference;
+      }
       const ta = enrollmentById.get(a) ?? Number.MAX_SAFE_INTEGER;
       const tb = enrollmentById.get(b) ?? Number.MAX_SAFE_INTEGER;
       if (ta !== tb) return ta - tb;

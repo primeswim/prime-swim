@@ -1151,9 +1151,10 @@ export default function AdminSwimmerPage() {
                       >
                         <div className="font-semibold mb-1 text-slate-800">Siblings</div>
                         <p className="text-xs text-slate-600 mb-3">
-                          Check swimmers who are siblings with {swimmerDisplayName(s)}. Later-enrolled
-                          siblings get 10% off monthly tuition only if everyone in the sibling group
-                          meets their level&apos;s minimum training days per week.
+                          Check swimmers who are siblings with {swimmerDisplayName(s)}. For two siblings,
+                          the lower monthly tuition receives 10% off (equal tuition uses enrollment order).
+                          Everyone must meet their level&apos;s sibling discount minimum days.
+                          Reduced hourly pricing can also apply.
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                           {swimmers

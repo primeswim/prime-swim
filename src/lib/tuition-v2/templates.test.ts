@@ -1,5 +1,5 @@
 import { templateSaveMaySyncMonth } from "./shared-ui";
-import { coalesceSavedLevelPlans, levelPlanFromTemplate, mergeTemplateWeeklySlotsIntoPlan } from "./templates";
+import { mergeV2Templates, coalesceSavedLevelPlans, levelPlanFromTemplate, mergeTemplateWeeklySlotsIntoPlan } from "./templates";
 import type { TuitionV2LevelPlan, TuitionV2LevelTemplate, TuitionV2LevelTemplateMap } from "./types";
 
 function assert(cond: boolean, msg: string) {
@@ -99,3 +99,14 @@ function run() {
 }
 
 run();
+
+// Saved pricing thresholds must not override the independent sibling policy.
+const splitThresholds = mergeV2Templates({
+  "Silver Beginner": { minDaysPerWeek: 3, defaultRatePerHour: 60, reducedRatePerHour: 50 },
+  "Gold Beginner": { minDaysPerWeek: 2 },
+});
+assert(splitThresholds["Silver Beginner"].minDaysPerWeek === 3, "keep saved reduced-rate threshold");
+assert(splitThresholds["Silver Beginner"].minDaysToQualifySibling === 2, "legacy Silver Beginner gets two-day sibling threshold");
+assert(splitThresholds["Gold Beginner"].minDaysToQualifySibling === 2, "other levels keep saved eligibility");
+assert(mergeV2Templates({ "Silver Beginner": { minDaysToQualifySibling: 1 } })["Silver Beginner"].minDaysToQualifySibling === 1, "explicit sibling threshold persists");
+assert(mergeV2Templates(splitThresholds)["Silver Beginner"].minDaysToQualifySibling === 2, "sibling threshold survives save/load");

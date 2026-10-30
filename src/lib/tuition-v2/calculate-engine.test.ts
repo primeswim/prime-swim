@@ -1,4 +1,6 @@
-import { getBillableSessionsForSwimmer } from "./calculate-engine";
+import { mergeV2Templates } from "./templates";
+import { applySiblingTuitionDiscounts } from "../swimmer-siblings";
+import { getMonthlyRate, toSiblingDiscountRows, getBillableSessionsForSwimmer } from "./calculate-engine";
 import type { TuitionV2Session, TuitionV2SwimmerEnrollment } from "./types";
 
 function assert(cond: boolean, msg: string) {
@@ -166,3 +168,23 @@ function run() {
 }
 
 run();
+
+// Michelle's November upgrade: two days qualify for siblings, but not reduced pricing.
+const templates = mergeV2Templates({
+  "Silver Beginner": { minDaysPerWeek: 3, defaultRatePerHour: 60, reducedRatePerHour: 50 },
+});
+const michelle = enrollment({ swimmerId: "michelle", level: "Silver Beginner" });
+const brian = enrollment({ swimmerId: "brian" });
+assert(getMonthlyRate(michelle, templates[michelle.level]).ratePerHour === 60, "two days retain normal hourly price");
+assert(getMonthlyRate({ ...michelle, regularWeekdays: [1, 3, 5] }, templates[michelle.level]).ratePerHour === 50, "three days receive reduced hourly price");
+const thresholds = new Map(Object.entries(templates).map(([level, t]) => [level, t.minDaysToQualifySibling ?? t.minDaysPerWeek]));
+const rows = toSiblingDiscountRows([brian, michelle], new Map([["brian", 480], ["michelle", 480]]), thresholds);
+const discounted = applySiblingTuitionDiscounts(rows, new Map([["brian", 1], ["michelle", 2]]), new Map([["brian", ["michelle"]]]));
+assert(discounted.find(r => r.swimmerId === "michelle")?.tuition === 432, "two-day Silver Beginner receives 10% sibling discount");
+const oneDay = rows.map(r => r.swimmerId === "michelle" ? { ...r, trainingWeekdays: [1] } : r);
+assert(applySiblingTuitionDiscounts(oneDay, new Map([["brian", 1], ["michelle", 2]]), new Map([["brian", ["michelle"]]])).every(r => !r.siblingDiscountApplied), "below sibling threshold still disqualifies group");
+const threeDayMichelle = { ...michelle, regularWeekdays: [1, 3, 5] };
+const reducedRate = getMonthlyRate(threeDayMichelle, templates[michelle.level]).ratePerHour;
+const stackedRows = toSiblingDiscountRows([brian, threeDayMichelle], new Map([["brian", 800], ["michelle", 12 * reducedRate]]), thresholds);
+const stacked = applySiblingTuitionDiscounts(stackedRows, new Map([["brian", 1], ["michelle", 2]]), new Map([["brian", ["michelle"]]]));
+assert(stacked.find(r => r.swimmerId === "michelle")?.tuition === 540, "reduced $50 rate and sibling 10% stack: 12 * 50 * 0.9");
