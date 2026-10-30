@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { extractEligibilityNotes, inferInvitationStatus } from "./eligibility";
 import { effectiveHostDeadline, isPrimeDeadlinePassed, meetPaymentDueAt, pacificYmd, suggestPrimeDeadline } from "./deadlines";
 import { exceedsEventLimits, feeForMeetEvents, resolveMeetFeeRates, typicalIndividualEventFee } from "./fees";
@@ -42,6 +43,7 @@ export function meetServiceStatus(e: unknown): number {
 }
 
 export interface PnsScanMeet {
+  revision?: string;
   id: string;
   name: string;
   diffs: string[];
@@ -87,7 +89,7 @@ function sessionCounts(meet: Meet, eventIds: string[]): Record<string, number> {
 }
 
 export class MeetService {
-  constructor(private store: MeetStore) {}
+  constructor(private store: MeetStore, private clock: () => string = nowIso) {}
 
   async viewerIsTestAccount(uid: string, email?: string | null): Promise<boolean> {
     if (isTestEmail(email)) return true;
@@ -103,17 +105,17 @@ export class MeetService {
       const prev = existing.find((m) => m.sourceKey === item.sourceId || m.id === item.sourceId);
       if (!prev) {
         const draft = calendarItemToDraftMeet(item, { isTestData: opts.isTestData });
-        draft.sourceLastCheckedAt = nowIso();
+        draft.sourceLastCheckedAt = this.clock();
         out.push(await this.store.saveMeet(draft));
         continue;
       }
       if (prev.status === "cancelled" || prev.rejectedAt) {
-        prev.sourceLastCheckedAt = nowIso();
+        prev.sourceLastCheckedAt = this.clock();
         out.push(await this.store.saveMeet(prev));
         continue;
       }
       const merged = mergePnsUpdates(prev, item);
-      merged.next.sourceLastCheckedAt = nowIso();
+      merged.next.sourceLastCheckedAt = this.clock();
       if (isPrePublishStatus(merged.next.status)) {
         const invitationStatus = inferInvitationStatus(`${merged.next.name}\n${merged.next.announcementText || ""}`);
         merged.next.invitationStatus = invitationStatus;
@@ -143,7 +145,13 @@ export class MeetService {
     let unchanged = 0;
     for (const meet of meets) {
       const key = meet.sourceKey || meet.id;
-      const summary = { id: meet.id, name: meet.name, diffs: meet.pendingSourceDiffs || [] };
+      const revision = createHash("sha256").update(JSON.stringify([
+        meet.startDate, meet.endDate, meet.location, meet.announcementUrl,
+        meet.announcementText, meet.sourceFiles, meet.eventFileUrl,
+        meet.hostClub, meet.hostEntryEmail, meet.pnsPublishedDeadline,
+        meet.surcharge, meet.individualEventFee, meet.pendingSourcePatch,
+      ])).digest("hex");
+      const summary = { id: meet.id, name: meet.name, diffs: meet.pendingSourceDiffs || [], revision };
       if (!known.has(key)) {
         createdMeets.push(summary);
         continue;
@@ -184,7 +192,7 @@ export class MeetService {
       next.parentUpdateBanner = (banner || "").trim() || undefined;
     }
     if (pnsLocationChanged(diffs) || locationChanged(meet.location, next.location)) {
-      Object.assign(next, applyLocationNoticeBump(next, nowIso()));
+      Object.assign(next, applyLocationNoticeBump(next, this.clock()));
     }
     if (next.pnsPublishedDeadline) {
       next.effectiveHostDeadline = effectiveHostDeadline(next);
@@ -231,7 +239,7 @@ export class MeetService {
     if ("individualEventFee" in patch) next.individualEventFee = Number(patch.individualEventFee) || 0;
     Object.assign(next, applyMeetVersionBump(next, reasonsForMeetShapeChange(meet, next)));
     if (locationChanged(meet.location, next.location)) {
-      Object.assign(next, applyLocationNoticeBump(next, nowIso()));
+      Object.assign(next, applyLocationNoticeBump(next, this.clock()));
     }
     const saved = await this.store.saveMeet(next);
     if (feesInPatch) await this.recalculateConfirmedInvoices(saved);
@@ -264,7 +272,7 @@ export class MeetService {
       throw new MeetServiceError("Only unpublished meets can be rejected. Families already see this one.");
     }
     meet.status = "cancelled";
-    meet.rejectedAt = nowIso();
+    meet.rejectedAt = this.clock();
     meet.rejectedReason = (reason || "Admin chose not to post this meet to families.").trim();
     meet.pendingSourceReview = false;
     return this.store.saveMeet(meet);
@@ -278,7 +286,7 @@ export class MeetService {
     const gate = canPublishToFamilies(meet);
     if (!gate.ok) throw new MeetServiceError(gate.reason);
     meet.status = "commitment_open";
-    meet.publishedToFamiliesAt = nowIso();
+    meet.publishedToFamiliesAt = this.clock();
     return this.store.saveMeet(meet);
   }
 
@@ -297,7 +305,7 @@ export class MeetService {
       if (typical != null) meet.individualEventFee = typical;
     }
     if (opts?.accept !== false) {
-      meet.eventFileAcceptedAt = nowIso();
+      meet.eventFileAcceptedAt = this.clock();
       meet.pendingSourceReview = false;
     } else {
       meet.pendingSourceReview = true;
@@ -316,11 +324,11 @@ export class MeetService {
     const meet = await this.requireMeet(meetId);
     if (meet.status !== "commitment_open") throw new MeetServiceError("Meet is not open for commitments.");
     meet.status = "commitment_closed";
-    meet.commitmentClosedAt = nowIso();
+    meet.commitmentClosedAt = this.clock();
     return this.store.saveMeet(meet);
   }
 
-  async reopenCommitments(meetId: string, now = nowIso()): Promise<Meet> {
+  async reopenCommitments(meetId: string, now = this.clock()): Promise<Meet> {
     const meet = await this.requireMeet(meetId);
     if (meet.status !== "commitment_closed") {
       throw new MeetServiceError("Only a closed RSVP can be reopened. After entries are sent to the host, do not reopen.");
@@ -343,7 +351,7 @@ export class MeetService {
     const ready = commits.filter((c) => c.attendance === "attend");
     if (!ready.length) throw new MeetServiceError("No Attend responses to submit.");
     meet.status = "submitted";
-    meet.entriesSubmittedAt = nowIso();
+    meet.entriesSubmittedAt = this.clock();
     return this.store.saveMeet(meet);
   }
 
@@ -353,7 +361,7 @@ export class MeetService {
       throw new MeetServiceError("Record host reply after entries are sent.");
     }
     meet.status = "host_reply_received";
-    meet.hostReplyAt = nowIso();
+    meet.hostReplyAt = this.clock();
     meet.hostReplySummary = summary;
     return this.store.saveMeet(meet);
   }
@@ -380,7 +388,7 @@ export class MeetService {
     if (meet.status !== "host_reply_received") {
       throw new MeetServiceError("Publish confirmed only after host reply and cuts.");
     }
-    const confirmedAt = nowIso();
+    const confirmedAt = this.clock();
     const dueAt = meetPaymentDueAt(confirmedAt);
     const withFees = await this.fillMissingFeeRates(meet);
     const commits = await this.store.listCommitments({ meetId });
@@ -407,7 +415,7 @@ export class MeetService {
     }
     if (commitment.paymentStatus === "paid") return commitment;
     commitment.paymentStatus = "payment_reported";
-    commitment.paymentReportedAt = nowIso();
+    commitment.paymentReportedAt = this.clock();
     return this.store.saveCommitment(commitment);
   }
 
@@ -415,7 +423,7 @@ export class MeetService {
     const commitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
     if (!commitment) throw new MeetServiceError("Commitment not found.");
     commitment.paymentStatus = "paid";
-    commitment.paidAt = nowIso();
+    commitment.paidAt = this.clock();
     return this.store.saveCommitment(commitment);
   }
 
@@ -486,7 +494,7 @@ export class MeetService {
           meet,
           commitment,
           working,
-          commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || nowIso())
+          commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || this.clock())
         );
       } else {
         const fee = feeForMeetEvents(meet, working);
@@ -549,7 +557,7 @@ export class MeetService {
       meet,
       commitment,
       this.invoiceEventIds(meet, commitment),
-      commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || nowIso())
+      commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || this.clock())
     );
     return this.store.saveCommitment(commitment);
   }
@@ -569,7 +577,7 @@ export class MeetService {
     return serializeMeetEntries(meet, commitments, swimmers);
   }
 
-  async listMeetPayments(now = nowIso()): Promise<MeetPaymentRow[]> {
+  async listMeetPayments(now = this.clock()): Promise<MeetPaymentRow[]> {
     const meets = await this.listAdminMeets(now);
     const rows: MeetPaymentRow[] = [];
     for (const meet of meets) {
@@ -599,7 +607,7 @@ export class MeetService {
     if (!canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: viewerIsTest })) {
       throw new MeetServiceError("Meet not found.");
     }
-    const clock = opts.nowIso || nowIso();
+    const clock = opts.nowIso || this.clock();
     const meetNow = await this.applyDeadlineClose(meet, clock);
     if (meetNow.status !== "commitment_open") throw new MeetServiceError("This meet is not open for changes.");
     if (isPrimeDeadlinePassed(meetNow.primeCommitmentDeadline, clock)) {
@@ -691,7 +699,7 @@ export class MeetService {
     nowIso?: string;
   }): Promise<MeetCommitment> {
     const swimmer = await this.requireHouseholdSwimmer(opts.swimmerId, opts.parentUID);
-    const clock = opts.nowIso || nowIso();
+    const clock = opts.nowIso || this.clock();
     const meet = await this.applyDeadlineClose(await this.requireMeet(opts.meetId), clock);
     const commitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
     if (!commitment || !isAttendingCommitment(commitment.attendance)) {
@@ -744,12 +752,12 @@ export class MeetService {
     return this.store.saveSettings(next);
   }
 
-  async listAdminMeets(now = nowIso()): Promise<Meet[]> {
+  async listAdminMeets(now = this.clock()): Promise<Meet[]> {
     const meets = await this.store.listMeets();
     return Promise.all(meets.map((meet) => this.applyDeadlineClose(meet, now)));
   }
 
-  async getAdminMeet(id: string, now = nowIso()): Promise<Meet | null> {
+  async getAdminMeet(id: string, now = this.clock()): Promise<Meet | null> {
     const meet = await this.store.getMeet(id);
     if (!meet) return null;
     const closed = await this.applyDeadlineClose(meet, now);
@@ -771,13 +779,13 @@ export class MeetService {
     return this.store.listSwimmers({ ids });
   }
 
-  async listPublicMeets(now = nowIso()) {
+  async listPublicMeets(now = this.clock()) {
     const meets = await Promise.all((await this.store.listMeets()).map((meet) => this.applyDeadlineClose(meet, now)));
     return listPublicMeetCards(meets);
   }
 
   async getPublicMeet(meetId: string, opts?: { viewerIsTestAccount?: boolean; nowIso?: string }): Promise<PublicMeetDetail> {
-    const meet = await this.applyDeadlineClose(await this.requireMeet(meetId), opts?.nowIso || nowIso());
+    const meet = await this.applyDeadlineClose(await this.requireMeet(meetId), opts?.nowIso || this.clock());
     if (!canViewerSeeMeet({ meetIsTestData: meet.isTestData, viewerIsTestAccount: opts?.viewerIsTestAccount === true })) {
       throw new MeetServiceError("Meet not found.");
     }
@@ -788,7 +796,7 @@ export class MeetService {
 
   async listParentMeets(parentUID: string, email?: string | null, swimmerId?: string, opts?: { nowIso?: string }) {
     const viewerIsTestAccount = await this.viewerIsTestAccount(parentUID, email);
-    const clock = opts?.nowIso || nowIso();
+    const clock = opts?.nowIso || this.clock();
     const [rawMeets, commitments, swimmers, settings] = await Promise.all([
       this.store.listMeets(),
       this.store.listCommitments({ parentUID }),
@@ -837,7 +845,7 @@ export class MeetService {
     if (wanted.some((id) => !swimmers.some((swimmer) => swimmer.id === id))) {
       throw new MeetServiceError("Swimmer not found.", 404);
     }
-    const clock = opts?.nowIso || nowIso();
+    const clock = opts?.nowIso || this.clock();
     const [meets, settings] = await Promise.all([
       Promise.all(rawMeets.map((meet) => this.applyDeadlineClose(meet, clock))),
       this.getSettings(),
@@ -861,7 +869,7 @@ export class MeetService {
     email?: string | null;
     nowIso?: string;
   }): Promise<ParentMeetDetail> {
-    const meet = await this.applyDeadlineClose(await this.requireMeet(opts.meetId), opts.nowIso || nowIso());
+    const meet = await this.applyDeadlineClose(await this.requireMeet(opts.meetId), opts.nowIso || this.clock());
     const swimmer = await this.requireHouseholdSwimmer(opts.swimmerId, opts.parentUID);
     const viewerIsTestAccount = await this.viewerIsTestAccount(opts.parentUID, opts.email);
     const rawCommitment = await this.store.getCommitment(opts.meetId, opts.swimmerId);
@@ -872,7 +880,7 @@ export class MeetService {
       swimmer,
       commitment,
       settings,
-      nowIso: opts.nowIso || nowIso(),
+      nowIso: opts.nowIso || this.clock(),
       viewerIsTestAccount,
     });
     if ("error" in detail) throw new MeetServiceError(detail.error);
@@ -938,7 +946,7 @@ export class MeetService {
       meet.invitationStatus = "requested";
     }
     meet.invitationEmailTo = (to || hostInbox(meet)).trim();
-    meet.invitationEmailSentAt = nowIso();
+    meet.invitationEmailSentAt = this.clock();
     return this.store.saveMeet(meet);
   }
 
@@ -1046,11 +1054,11 @@ export class MeetService {
     await this.markSubmitted(meetId);
     const meet = await this.requireMeet(meetId);
     meet.entryEmailTo = to;
-    meet.entryEmailSentAt = nowIso();
+    meet.entryEmailSentAt = this.clock();
     return this.store.saveMeet(meet);
   }
 
-  private async applyDeadlineClose(meet: Meet, now = nowIso()): Promise<Meet> {
+  private async applyDeadlineClose(meet: Meet, now = this.clock()): Promise<Meet> {
     if (!shouldAutoCloseRsvp(meet, now)) return meet;
     meet.status = "commitment_closed";
     meet.commitmentClosedAt = now;

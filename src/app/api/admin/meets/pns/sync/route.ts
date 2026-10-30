@@ -1,33 +1,25 @@
+import { allowPnsCron } from "@/lib/meets/pns-cron-auth";
 import { NextResponse } from "next/server";
 import { meetAuthError, requireMeetAdmin } from "@/lib/meets/auth";
-import { getMeetService } from "@/lib/meets/server";
+import { runTrackedPnsSync } from "@/lib/meets/pns-sync-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function allowCron(req: Request): boolean {
-  if (req.headers.get("x-vercel-cron") === "1") return true;
-  const secret = (process.env.CRON_SECRET || "").trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
-  const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  return bearer === secret || (req.headers.get("x-api-key") || "").trim() === secret;
-}
-
 async function runScan() {
-  const stats = await getMeetService().scanLivePns();
+  const stats = await runTrackedPnsSync();
   return NextResponse.json({
     ok: true,
     source: "live",
     scheduled: true,
     ...stats,
-  });
+  }, {status: stats.notification === "failed" ? 502 : 200});
 }
 
 export async function GET(req: Request) {
   try {
-    if (!allowCron(req)) await requireMeetAdmin(req);
+    if (!allowPnsCron(req, process.env.CRON_SECRET)) await requireMeetAdmin(req);
     return await runScan();
   } catch (e) {
     const auth = meetAuthError(e);

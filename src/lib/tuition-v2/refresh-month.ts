@@ -13,8 +13,8 @@ import { TUITION_V2_ENROLLMENT_COLLECTION } from "@/lib/tuition-v2/constants";
 
 /** Current calendar month + next month (typical open billing windows). */
 export function openBillingMonths(now = new Date()): string[] {
-  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const next = getNextMonth();
+  const cur = currentCalendarMonth(now);
+  const next = getNextMonth(now);
   return cur === next ? [cur] : [cur, next];
 }
 
@@ -38,6 +38,7 @@ export type RefreshMonthDerivedOptions = {
   levels?: string[];
   /** Optional swimmer filter for invoice writes only. */
   swimmerIds?: string[];
+  preserveFinalizedInvoices?: boolean;
 };
 
 export type RefreshMonthDerivedResult = {
@@ -61,6 +62,7 @@ export async function refreshMonthDerivedData(
     levels: options.levels,
     swimmerIds: options.swimmerIds,
     syncRoster: options.syncRoster === true,
+    preserveFinalizedInvoices: options.preserveFinalizedInvoices,
   });
   // Always rebuild attendance roster — Not set / deactivated kids must drop
   // even when invoice rows did not need a rewrite.

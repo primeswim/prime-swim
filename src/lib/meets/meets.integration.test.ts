@@ -30,7 +30,7 @@ async function seedWorld() {
   for (const swimmer of testSwimmers()) {
     await store.saveSwimmer(swimmer);
   }
-  const service = new MeetService(store);
+  const service = new MeetService(store, () => TEST_NOW);
   return { store, service };
 }
 

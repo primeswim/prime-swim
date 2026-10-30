@@ -99,6 +99,10 @@ export type TuitionV2SwimmerEnrollment = {
   parentName: string;
   parentEmail: string;
   regularWeekdays: number[];
+  /** First actual training date, inclusive. Registration date is unrelated. */
+  trainingStartDate?: string;
+  /** New enrollments wait for an explicit first training date. */
+  trainingStartRequired?: boolean;
   unavailableWeekdays?: number[];
   ratePerHourOverride?: number | null;
   siblingIds?: string[];

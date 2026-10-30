@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { meetAuthError, requireMeetAdmin } from "@/lib/meets/auth";
 import { loadTestTacHyv, mockPnsCalendarItems } from "@/lib/meets/fixtures";
+import { runTrackedPnsSync, readPnsSyncStatus } from "@/lib/meets/pns-sync-server";
 import { getMeetService } from "@/lib/meets/server";
 
 export const runtime = "nodejs";
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
       });
     }
     try {
-      const stats = await service.scanLivePns();
+      const stats = await runTrackedPnsSync();
       return NextResponse.json({
         ok: true,
         source: "live",
@@ -49,5 +50,18 @@ export async function POST(req: Request) {
     console.error("admin/meets/pns:", e);
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    await requireMeetAdmin(req);
+    const status = await readPnsSyncStatus();
+    // Internal notification queues and deduplication tokens are not UI fields.
+    const {pendingAlerts, notifiedKeys, ...publicStatus} = status;
+    return NextResponse.json({ok:true,status:publicStatus,cronConfigured:!!process.env.CRON_SECRET?.trim()});
+  } catch(e) {
+    const auth = meetAuthError(e);
+    return NextResponse.json({ok:false,error:auth?.error || "Could not read PNS scan status"}, {status:auth?.status || 500});
   }
 }

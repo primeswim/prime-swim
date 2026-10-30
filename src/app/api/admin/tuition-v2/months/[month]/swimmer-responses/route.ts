@@ -8,6 +8,7 @@ import {
   normalizeSwimmerResponse,
   saveSwimmerResponsesBatch,
 } from "@/lib/tuition-v2/swimmer-response-service";
+import { enrollmentForMonth } from "@/lib/tuition-v2/enrollment-schedule";
 import { listSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
 import { ensureMonthDoc } from "@/lib/tuition-v2/month-service";
 import { refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
@@ -29,7 +30,7 @@ export async function GET(req: Request, ctx: RouteCtx) {
     const responseById = new Map(responses.map((r) => [r.swimmerId, r]));
 
     const merged = enrollments.map((e) => ({
-      enrollment: e,
+      enrollment: enrollmentForMonth(e, month),
       response: responseById.get(e.swimmerId) ?? normalizeSwimmerResponse(e.swimmerId, undefined),
     }));
 

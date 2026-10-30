@@ -250,6 +250,7 @@ export function calendarItemToDraftMeet(item: PnsCalendarItem, opts: { isTestDat
 async function pnsJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(15000),
     headers: { ...PNS_HEADERS, ...(init?.headers || {}) },
     cache: "no-store",
   });

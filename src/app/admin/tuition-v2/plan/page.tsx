@@ -55,6 +55,9 @@ type TrainingDayRow = {
   swimmerName: string;
   level: string;
   regularWeekdays: number[];
+  trainingStartDate: string;
+  trainingStartRequired: boolean;
+  monthEnrollment?: TuitionV2SwimmerEnrollment;
 };
 
 function getDatesInMonth(month: string): string[] {
@@ -231,7 +234,7 @@ function TuitionV2PlanContent() {
     setLoadingTrainingDays(true);
     try {
       // Auto-syncs active roster into V2 enrollments.
-      const res = await fetch("/api/admin/tuition-v2/enrollments", {
+      const res = await fetch(`/api/admin/tuition-v2/enrollments?month=${encodeURIComponent(selectedMonth)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
@@ -241,7 +244,7 @@ function TuitionV2PlanContent() {
     } finally {
       setLoadingTrainingDays(false);
     }
-  }, [fetchToken]);
+  }, [fetchToken, selectedMonth]);
 
   useEffect(() => {
     if (isAdmin) void loadTrainingDayList();
@@ -272,6 +275,7 @@ function TuitionV2PlanContent() {
         body: JSON.stringify({
           regularWeekdays: row.regularWeekdays,
           refreshMonth: selectedMonth,
+          ...(row.trainingStartDate ? { trainingStartDate: row.trainingStartDate } : {}),
         }),
       });
       if (!res.ok) {
@@ -280,16 +284,10 @@ function TuitionV2PlanContent() {
         return;
       }
       const data = await res.json().catch(() => ({}));
-      setSwimmerRows((prev) =>
-        prev.map(({ enrollment, response }) =>
-          enrollment.swimmerId === row.id
-            ? { enrollment: { ...enrollment, regularWeekdays: row.regularWeekdays }, response }
-            : { enrollment, response }
-        )
-      );
+      await Promise.all([loadSwimmerResponses(), loadTrainingDayList()]);
       const invNote =
         typeof data.invoiceCount === "number" ? ` Updated ${data.invoiceCount} invoice(s).` : "";
-      setStatusMsg(`Training days saved for ${row.swimmerName}.${invNote}`);
+      setStatusMsg(`Training days saved for ${row.swimmerName}.${invNote}${data.billingNotice ? ` ${data.billingNotice}` : ""}`);
     } finally {
       setSavingTrainingDayId(null);
     }
@@ -1389,11 +1387,11 @@ function TuitionV2PlanContent() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Swimmer training days
+                  Training start and weekday changes
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Default weekdays each swimmer trains (used for tuition calculation). Stored in V2
-                  enrollment only — does not use V1 swimmer config.
+                  For existing swimmers, weekday changes take effect next month. New swimmers use these days from their first training date.
+                  Set each new swimmer’s first training date; no sessions or tuition are generated before that date.
                 </p>
               </CardHeader>
               <CardContent>
@@ -1419,10 +1417,13 @@ function TuitionV2PlanContent() {
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
+                      <caption className="text-left text-sm text-muted-foreground mb-3">Weekday checkboxes set next month’s defaults, or the initial plan for a new swimmer.</caption>
                       <thead>
                         <tr className="text-left border-b text-muted-foreground">
                           <th className="p-2 font-semibold">Swimmer</th>
-                          <th className="p-2 font-semibold">Level</th>
+                          <th className="p-2 font-semibold">Default level</th>
+                          <th className="p-2 font-semibold">First training date</th>
+                          <th className="p-2 font-semibold">{monthLabel(selectedMonth)} plan</th>
                           {WEEKDAYS.map((d) => (
                             <th key={d} className="p-1 text-center font-semibold w-12">
                               {d.slice(0, 2)}
@@ -1436,6 +1437,19 @@ function TuitionV2PlanContent() {
                           <tr key={row.id} className="border-b">
                             <td className="p-2 font-medium">{row.swimmerName}</td>
                             <td className="p-2">{row.level}</td>
+                            <td className="p-2">
+                              <Input type="date" aria-label={`First training date for ${row.swimmerName}`}
+                                value={row.trainingStartDate}
+                                onChange={(e) => setTrainingDayList((rows) => rows.map((r) =>
+                                  r.id === row.id ? { ...r, trainingStartDate: e.target.value } : r))} />
+                              {!row.trainingStartDate && <p className="text-xs text-muted-foreground mt-1">
+                                {row.trainingStartRequired ? "Required before training or billing" : "Existing swimmer — start date not recorded"}
+                              </p>}
+                            </td>
+                            <td className="p-2 text-xs">
+                              {row.monthEnrollment?.level}<br />
+                              {row.monthEnrollment?.regularWeekdays.map((wd) => WEEKDAYS[wd]).join(", ") || "none"}
+                            </td>
                             {WEEKDAYS.map((_, wd) => (
                               <td key={wd} className="p-1 text-center">
                                 <Checkbox
@@ -1448,7 +1462,7 @@ function TuitionV2PlanContent() {
                               <Button
                                 size="sm"
                                 onClick={() => void saveTrainingDays(row)}
-                                disabled={savingTrainingDayId === row.id}
+                                disabled={savingTrainingDayId === row.id || (row.trainingStartRequired && !row.trainingStartDate)}
                               >
                                 {savingTrainingDayId === row.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1516,7 +1530,7 @@ function TuitionV2PlanContent() {
                         {enrollment.swimmerName} — {enrollment.level}
                       </CardTitle>
                       <span className="text-xs text-muted-foreground">
-                        Regular:{" "}
+                        {monthLabel(selectedMonth)}:{" "}
                         {enrollment.regularWeekdays.map((wd) => WEEKDAYS[wd]).join(", ") || "none"}
                       </span>
                     </div>
@@ -1524,6 +1538,8 @@ function TuitionV2PlanContent() {
                   {open && (
                     <CardContent className="space-y-4 border-t pt-4">
                       <div>
+                        <p className="text-sm mb-2">First training date: {enrollment.trainingStartDate ||
+                          (enrollment.trainingStartRequired ? "Not set — training and billing paused" : "Not recorded (existing swimmer)")}</p>
                         <Label className="text-sm">Billable sessions (preview)</Label>
                         <p className="text-xs text-muted-foreground mt-1">
                           Schedule-period override dates bill even when not on regular training days.

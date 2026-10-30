@@ -1,3 +1,4 @@
+import { isFinalizedTuitionInvoice } from "./invoice-protection";
 import type { Firestore } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import {
@@ -139,6 +140,7 @@ export type RecalculateInvoicesOptions = {
    * Default false — auto-refresh after plan saves must not scan all swimmers.
    */
   syncRoster?: boolean;
+  preserveFinalizedInvoices?: boolean;
 };
 
 export async function recalculateInvoices(
@@ -207,7 +209,10 @@ export async function recalculateInvoices(
       periodCoverage.explicit,
       periodCoverage.periodDatesByLevel
     );
-    if (billable.length === 0) continue;
+    // Keep an existing invoice's audit/payment metadata, but clear automatic
+    // charges when a first training date removes all of its sessions.
+    if (billable.length === 0 && !(existingById.has(enrollment.swimmerId) &&
+      (enrollment.trainingStartDate || enrollment.trainingStartRequired))) continue;
     const lineItems = buildLineItems(billable, rate.ratePerHour);
     const tuition = lineItems.reduce((sum, li) => sum + li.amount, 0);
     preSibling.push({
@@ -263,6 +268,10 @@ export async function recalculateInvoices(
     const disc = discountedById.get(enrollment.swimmerId);
     const computedAmount = disc?.tuition ?? row.tuition;
     const existing = existingById.get(enrollment.swimmerId);
+    if (options.preserveFinalizedInvoices && isFinalizedTuitionInvoice(existing)) {
+      invoices.push(existing!);
+      continue;
+    }
 
     let amount = computedAmount;
     let baseAmount = disc?.baseTuition ?? computedAmount;
@@ -350,6 +359,7 @@ export async function recalculateInvoices(
   const rewrittenIds = new Set(preSibling.map((row) => row.enrollment.swimmerId));
   const enrollmentByIdForLevel = new Map(enrollments.map((enrollment) => [enrollment.swimmerId, enrollment]));
   for (const existing of existingInvoices) {
+    if (options.preserveFinalizedInvoices && isFinalizedTuitionInvoice(existing)) continue;
     if (swimmerFilter && !swimmerFilter.has(existing.swimmerId)) continue;
     if (rewrittenIds.has(existing.swimmerId)) continue;
     const enrollment = enrollmentByIdForLevel.get(existing.swimmerId);

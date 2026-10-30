@@ -232,7 +232,7 @@ function TrainingScheduleContent() {
               <Link href="/admin/attendance" className="text-blue-600 hover:underline">
                 ← Mark attendance
               </Link>
-              <Link href="/admin/tuition-v2/plan" className="text-blue-600 hover:underline">
+              <Link href={`/admin/tuition-v2/plan?month=${encodeURIComponent(selectedMonth)}`} className="text-blue-600 hover:underline">
                 V2 Monthly Plan
               </Link>
             </div>

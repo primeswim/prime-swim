@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { authErrorResponse, requireTuitionV2Admin } from "@/lib/tuition-v2/admin-auth";
+import { enrollmentForMonth } from "@/lib/tuition-v2/enrollment-schedule";
 import { listSwimmerEnrollments, syncActiveSwimmerEnrollments } from "@/lib/tuition-v2/enrollment-service";
 import {
   openBillingMonths,
@@ -34,6 +35,10 @@ export async function GET(req: Request) {
       swimmerName: e.swimmerName,
       level: e.level,
       regularWeekdays: e.regularWeekdays,
+      trainingStartDate: e.trainingStartDate ?? "",
+      trainingStartRequired: e.trainingStartRequired === true,
+      monthEnrollment: /^\d{4}-\d{2}$/.test(url.searchParams.get("month") ?? "")
+        ? enrollmentForMonth(e, url.searchParams.get("month")!) : undefined,
     }));
     return NextResponse.json({ swimmers });
   } catch (e) {

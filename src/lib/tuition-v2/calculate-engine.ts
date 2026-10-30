@@ -61,7 +61,11 @@ export function getBillableSessionsForSwimmer(
   explicit: ExplicitTrainingRefs = { sessionIds: new Set(), dateLevelKeys: new Set() },
   periodDatesByLevel: Map<string, Set<string>> = new Map()
 ): TuitionV2Session[] {
-  const levelSessions = allSessions.filter(
+  if (enrollment.trainingStartRequired && !enrollment.trainingStartDate) return [];
+  const eligibleSessions = allSessions.filter((s) =>
+    !enrollment.trainingStartDate || s.date >= enrollment.trainingStartDate
+  );
+  const levelSessions = eligibleSessions.filter(
     (s) => s.level === enrollment.level && !s.cancelled
   );
   const byId = new Map(levelSessions.map((s) => [s.id, s]));
@@ -109,13 +113,13 @@ export function getBillableSessionsForSwimmer(
   for (const id of addIds) {
     if (byId.has(id)) billableIds.add(id);
     else {
-      const s = allSessions.find((x) => x.id === id && !x.cancelled);
+      const s = eligibleSessions.find((x) => x.id === id && !x.cancelled);
       if (s) billableIds.add(s.id);
     }
   }
 
   return [...billableIds]
-    .map((id) => byId.get(id) ?? allSessions.find((s) => s.id === id))
+    .map((id) => byId.get(id) ?? eligibleSessions.find((s) => s.id === id))
     .filter((s): s is TuitionV2Session => Boolean(s))
     .sort((a, b) => a.date.localeCompare(b.date));
 }

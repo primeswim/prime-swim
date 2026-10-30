@@ -11,6 +11,8 @@ import { currentCalendarMonth } from "@/lib/tuition-v2/shared-ui";
 import type { TuitionV2SwimmerEnrollment } from "@/lib/tuition-v2/types";
 import { isAssignedSwimmerLevel } from "@/lib/swimmer-levels";
 
+import { validTrainingStartDate } from "./enrollment-schedule";
+
 function normalizeWeekdays(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((n): n is number => typeof n === "number" && n >= 0 && n <= 6).sort((a, b) => a - b);
@@ -72,6 +74,8 @@ export function parseEnrollmentDoc(
     parentName: typeof raw.parentName === "string" ? raw.parentName : "",
     parentEmail: typeof raw.parentEmail === "string" ? raw.parentEmail : "",
     regularWeekdays: normalizeWeekdays(raw.regularWeekdays),
+    trainingStartDate: validTrainingStartDate(raw.trainingStartDate) ? raw.trainingStartDate : undefined,
+    trainingStartRequired: raw.trainingStartRequired === true,
     unavailableWeekdays: normalizeWeekdays(raw.unavailableWeekdays).length
       ? normalizeWeekdays(raw.unavailableWeekdays)
       : undefined,
@@ -144,18 +148,7 @@ export function weekdaysByMonthAfterChange(
   return weekdaysByMonth;
 }
 
-/** Months already underway keep the level and training days they had. */
-export function enrollmentForMonth(
-  enrollment: TuitionV2SwimmerEnrollment,
-  month: string
-): TuitionV2SwimmerEnrollment {
-  const level = enrollment.levelByMonth?.[month];
-  const days = enrollment.weekdaysByMonth?.[month];
-  const nextLevel = level && level !== enrollment.level ? level : enrollment.level;
-  const nextDays = days ?? enrollment.regularWeekdays;
-  if (nextLevel === enrollment.level && nextDays === enrollment.regularWeekdays) return enrollment;
-  return { ...enrollment, level: nextLevel, regularWeekdays: nextDays };
-}
+export { enrollmentForMonth } from "./enrollment-schedule";
 
 /**
  * Keep tuition_v2_swimmer_enrollment in sync with active team roster.
@@ -211,7 +204,7 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<Roste
       writes.push({
         type: "set",
         ref: db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(doc.id),
-        data: withoutUndefined({ ...fromRoster, updatedAt: now }),
+        data: withoutUndefined({ ...fromRoster, trainingStartRequired: true, updatedAt: now }),
       });
       created.push(doc.id);
       continue;
@@ -239,6 +232,9 @@ export async function syncActiveSwimmerEnrollments(db: Firestore): Promise<Roste
         siblingIds: fromRoster.siblingIds,
         enrollmentMillis: fromRoster.enrollmentMillis,
         active: true,
+        ...(shouldPinCurrentMonthLevel(existing.level, fromRoster.level, existing.levelByMonth?.[currentCalendarMonth()])
+          ? { levelByMonth: { ...(existing.levelByMonth ?? {}), [currentCalendarMonth()]: existing.level } }
+          : {}),
         updatedAt: now,
       },
       merge: true,
@@ -291,8 +287,23 @@ export async function upsertEnrollmentFromSwimmer(
 
   const fromRoster = enrollmentFromRoster(swimmerId, data);
   if (!fromRoster) return null;
-  await saveSwimmerEnrollment(db, { ...fromRoster, updatedAt: now });
-  return { ...fromRoster, updatedAt: now };
+  const existingSnap = await db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(swimmerId).get();
+  const previous = parseEnrollmentDoc(swimmerId, existingSnap.data());
+  // Preserve V2 training days, start date, pricing and month history when roster details change.
+  const merged: TuitionV2SwimmerEnrollment = {
+    ...previous,
+    ...fromRoster,
+    regularWeekdays: previous?.regularWeekdays ?? fromRoster.regularWeekdays,
+    trainingStartRequired: previous?.trainingStartRequired ?? !previous,
+    levelByMonth: previous?.levelByMonth,
+    updatedAt: now,
+  };
+  const month = currentCalendarMonth();
+  if (shouldPinCurrentMonthLevel(previous?.level, merged.level, previous?.levelByMonth?.[month])) {
+    merged.levelByMonth = { ...previous?.levelByMonth, [month]: previous!.level };
+  }
+  await saveSwimmerEnrollment(db, merged);
+  return merged;
 }
 
 /** Read enrollments only — no roster sync (cheap). */
@@ -336,7 +347,8 @@ export async function saveSwimmerEnrollment(
 export async function updateEnrollmentRegularWeekdays(
   db: Firestore,
   swimmerId: string,
-  regularWeekdays: number[]
+  regularWeekdays: number[],
+  trainingStartDate?: string
 ): Promise<TuitionV2SwimmerEnrollment | null> {
   const ref = db.collection(TUITION_V2_ENROLLMENT_COLLECTION).doc(swimmerId);
   const snap = await ref.get();
@@ -346,10 +358,15 @@ export async function updateEnrollmentRegularWeekdays(
   if (!parsed || parsed.active === false) return null;
 
   const sorted = normalizeWeekdays(regularWeekdays);
-  const weekdaysByMonth = weekdaysByMonthAfterChange(parsed, sorted, currentCalendarMonth());
+  // Initial training-day setup belongs to the first training date, including
+  // a start later this month; there is no prior training plan to preserve.
+  const weekdaysByMonth = parsed.trainingStartRequired && !parsed.trainingStartDate
+    ? { ...parsed.weekdaysByMonth, [currentCalendarMonth()]: sorted }
+    : weekdaysByMonthAfterChange(parsed, sorted, currentCalendarMonth());
   const updated: TuitionV2SwimmerEnrollment = {
     ...parsed,
     regularWeekdays: sorted,
+    ...(trainingStartDate !== undefined ? { trainingStartDate, trainingStartRequired: true } : {}),
     weekdaysByMonth,
   };
   await saveSwimmerEnrollment(db, updated);

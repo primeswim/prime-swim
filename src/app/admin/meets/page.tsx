@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import type { PnsSyncStatus } from "@/lib/meets/pns-sync";
 import type { ClubMeetSettings, Meet } from "@/lib/meets/types";
 import type { MeetPaymentRow } from "@/lib/meets/entries";
 import { adminMeetGuide, canExportHostPacket } from "@/lib/meets/workflow";
@@ -33,6 +34,8 @@ export default function AdminMeetsPage() {
   const [reportedPayments, setReportedPayments] = useState<MeetPaymentRow[]>([]);
   const [settings, setSettings] = useState<ClubMeetSettings | null>(null);
   const [omrUrl, setOmrUrl] = useState("");
+  const [scanStatus, setScanStatus] = useState<PnsSyncStatus | null>(null);
+  const [cronConfigured, setCronConfigured] = useState<boolean | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
   const [listFilter, setListFilter] = useState<AdminMeetListFilter>("upcoming");
@@ -57,12 +60,15 @@ export default function AdminMeetsPage() {
 
   async function reload() {
     const idToken = await token();
-    const [meetRes, setRes] = await Promise.all([
+    const [meetRes, setRes, scanRes] = await Promise.all([
       fetch("/api/admin/meets", { headers: { Authorization: `Bearer ${idToken}` } }),
       fetch("/api/admin/meets/settings", { headers: { Authorization: `Bearer ${idToken}` } }),
+      fetch("/api/admin/meets/pns", { headers: { Authorization: `Bearer ${idToken}` } }).catch(() => null),
     ]);
     const meetJson = await meetRes.json();
     const setJson = await setRes.json();
+    const scanJson = scanRes?.ok ? await scanRes.json().catch(() => null) : null;
+    if (scanJson?.ok) { setScanStatus(scanJson.status); setCronConfigured(scanJson.cronConfigured); }
     if (meetJson.ok) {
       setMeets(meetJson.meets || []);
       setReportedPayments(meetJson.reportedPayments || []);
@@ -127,6 +133,20 @@ export default function AdminMeetsPage() {
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       <Header />
       <main className="container mx-auto px-4 py-8 space-y-6">
+        <section className="rounded-xl border bg-white p-4 text-sm space-y-1">
+          <h2 className="font-semibold">PNS automatic updates</h2>
+          <p>Daily check: 15:00 UTC (8 AM Pacific daylight time / 7 AM standard time).</p>
+          <p>Last successful scan: {scanStatus?.lastSucceededAt
+            ? new Date(scanStatus.lastSucceededAt).toLocaleString()
+            : [...meets].map(m=>m.sourceLastCheckedAt).filter((v): v is string=>!!v).sort().pop()
+              ? new Date([...meets].map(m=>m.sourceLastCheckedAt).filter((v): v is string=>!!v).sort().pop()!).toLocaleString()
+              : "No recorded scan"}</p>
+          {scanStatus?.lastResult && <p>Last result: {scanStatus.lastResult.created} new, {scanStatus.lastResult.updated} with updates.</p>}
+          {scanStatus?.lastError && <p className="text-red-700">Scan failed: {scanStatus.lastError}</p>}
+          {scanStatus?.lastNotifiedAt && <p>Last admin email: {new Date(scanStatus.lastNotifiedAt).toLocaleString()}</p>}
+          {scanStatus?.notificationError && <p className="text-red-700">Admin email failed: {scanStatus.notificationError}. Pending updates will retry on the next check.</p>}
+          {cronConfigured === false && <p className="text-amber-800">Automatic checks need CRON_SECRET configured in the production deployment.</p>}
+        </section>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">Meet management</h1>
@@ -157,7 +177,8 @@ export default function AdminMeetsPage() {
                     `Checked PNS. ${json.count ?? 0} calendar items` +
                       (json.created ? `, ${json.created} new drafts` : "") +
                       (json.updated ? `, ${json.updated} existing meets have updates` : "") +
-                      `. Open Has updates to see announcement / file changes.`
+                      `. Open Has updates to see announcement / file changes.` +
+                      (json.notification === "failed" ? ` Admin email failed: ${json.notificationError}. The scan results were saved.` : json.notification === "sent" ? " Admin email sent." : "")
                   );
                 })
               }

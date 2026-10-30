@@ -1066,6 +1066,7 @@ export default function AdminSwimmerPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="mt-1 text-xs text-slate-500">Level changes apply next month; this month keeps its plan.</p>
                   </TableCell>
 
                   <TableCell>
