@@ -1,13 +1,14 @@
 .hero {
   position: relative;
   isolation: isolate;
-  min-height: clamp(540px, 43vw, 680px);
+  min-height: 540px;
+  aspect-ratio: 1672 / 941;
   overflow: hidden;
   background: #082b4d;
   color: #fff;
 }
 
-.photo { object-fit: cover; object-position: center 38%; z-index: -3; }
+.photo { position: absolute; top: 0; left: 0; width: 100%; height: auto; z-index: -3; }
 .shade {
   position: absolute;
   inset: 0;
@@ -43,10 +44,10 @@
 .benefits span { font-size: 18px; font-weight: 600; line-height: 1.25; }
 @media (min-width: 641px) and (max-width: 900px) { .benefits li { padding: 0 8px; } .benefits span { font-size: 14px; } .benefitIcon, .benefitLogo { width: 52px; height: 48px; } }
 @media (max-width: 640px) {
-  .hero { min-height: 600px; }
-  .photo { object-position: 90% center; }
+  .hero { min-height: 600px; aspect-ratio: auto; }
+  .photo { width: 100%; height: auto; }
   .shade { background: linear-gradient(0deg, #042448fa 5%, #042448b0 47%, #04244810 95%); }
-  .content { padding: 300px 20px 104px; }
+  .content { padding: max(200px, 53vw) 20px 104px; }
   .content h1 { font-size: clamp(32px, 8.4vw, 46px); margin-bottom: 18px; }
   .content p { font-size: 18px; margin-bottom: 22px; }
   .actions { gap: 10px; }

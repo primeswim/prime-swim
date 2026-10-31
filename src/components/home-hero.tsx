@@ -10,7 +10,8 @@ export default function HomeHero() {
         <Image
           src="/images/hero-butterfly-v2.jpg"
           alt="Female swimmer performing butterfly in a white Prime Swim cap"
-          fill
+          width={1672}
+          height={941}
           priority
           sizes="100vw"
           className={styles.photo}
