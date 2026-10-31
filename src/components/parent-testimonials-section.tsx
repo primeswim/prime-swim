@@ -46,7 +46,7 @@ export default function ParentTestimonialsSection() {
   return (
     <section className="bg-slate-50 py-20">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <MessageSquare className="w-8 h-8 text-blue-600" />
             <h2 className="text-4xl font-bold text-slate-800">What Parents Say</h2>
@@ -56,21 +56,21 @@ export default function ParentTestimonialsSection() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+        <div className="grid items-start md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
           {testimonials.map((testimonial) => (
             <Card
               key={testimonial.id}
-              className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white"
+              className="gap-0 border-0 py-0 shadow-sm hover:shadow-md transition-shadow duration-300 bg-white"
             >
-              <CardContent className="p-6">
-                <div className="mb-4">
-                  <Quote className="w-8 h-8 text-blue-200" />
+              <CardContent className="p-4">
+                <div className="mb-2">
+                  <Quote className="w-5 h-5 text-blue-200" />
                 </div>
-                <p className="text-slate-700 mb-4 leading-relaxed whitespace-pre-wrap">
+                <p className="text-sm text-slate-700 leading-6 whitespace-pre-wrap">
                   {normalizeCoachMoDisplay(testimonial.content)}
                 </p>
                 {testimonial.parentName && (
-                  <div className="text-sm text-slate-500 pt-4 border-t">
+                  <div className="text-xs text-slate-500 mt-3 pt-2 border-t">
                     <span className="font-medium">— {normalizeCoachMoDisplay(testimonial.parentName)}</span>
                   </div>
                 )}
