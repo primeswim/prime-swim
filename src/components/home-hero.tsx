@@ -17,7 +17,7 @@ export default function HomeHero() {
           className={styles.photo}
         />
         <div className={styles.shade} aria-hidden="true" />
-        <div className={styles.content}>
+        <div className={`container mx-auto px-4 ${styles.content}`}>
           <span className={styles.eyebrow}>Prime Swim Academy</span>
           <h1 id="home-hero-title">Better Technique.<br />Stronger Swimmers.</h1>
           <p>Structured coaching. Individual development.<br />A pathway to competitive swimming.</p>

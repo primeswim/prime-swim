@@ -15,9 +15,7 @@ export default function Home() {
       {/* Header */}
       <Header />
 
-      <div className="container mx-auto px-4">
-        <HomeHero />
-      </div>
+      <HomeHero />
 
       {/* Programs Section */}
       <section id="programs" className="container mx-auto px-4 py-20">
