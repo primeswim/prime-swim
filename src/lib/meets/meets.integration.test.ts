@@ -713,7 +713,7 @@ async function testPublishedPnsUpdateWaitsForAccept() {
   const waiting = await service.getAdminMeet(open.id);
   assert(waiting?.pendingSourceReview === true, "published meet flags a PNS update");
   assert(waiting?.announcementUrl !== "https://example.test/open-challenge-v2.pdf", "family page keeps the old announcement until Accept");
-  const queued = filterAdminMeetList([waiting!], "has_updates");
+  const queued = filterAdminMeetList([waiting!], "has_updates", "2026-09-14");
   assert(queued.length === 1, "Has updates list includes this meet");
   const accepted = await service.acceptSourceUpdate(open.id, "Updated Sep 14 — announcement replaced.");
   assert(accepted.announcementUrl === "https://example.test/open-challenge-v2.pdf", "Accept applies the new PDF");
@@ -1084,7 +1084,7 @@ async function testParentCardsAttendDeclineAndHasUpdates() {
   await service.ingestPns(hasUpdate, { isTestData: true });
   const waiting = await service.getAdminMeet(open.id, TEST_NOW);
   assert(waiting?.pendingSourceReview === true, "date + location + event file flag Has updates");
-  assert(filterAdminMeetList([waiting!], "has_updates").length === 1, "admin Has updates list includes this meet");
+  assert(filterAdminMeetList([waiting!], "has_updates", "2026-09-14").length === 1, "admin Has updates list includes this meet");
   const parentWhileWaiting = await service.getParentDetail({
     meetId: open.id,
     swimmerId: "test-swimmer-elena",

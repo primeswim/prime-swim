@@ -2,7 +2,7 @@ import { ageOnDate, detectInvitationRequired, eventMatchesSwimmer, extractEligib
 import { effectiveHostDeadline, isMeetPaymentOverdue, isPrimeDeadlinePassed, meetPaymentDueAt, addCalendarDays, suggestPrimeDeadline } from "./deadlines";
 import { computeHostFee, computeMeetEntryFee, exceedsEventLimits, extractFeeHints, typicalIndividualEventFee } from "./fees";
 import { loadComHalloweenHyv, loadMexicoSprintEv3, loadTestTacHyv, mockDraftMeets, TAC_ANNOUNCEMENT_TEXT, TEST_OMR_URL } from "./fixtures";
-import { applyPendingSourcePatch, applyTeamUnifyDetail, calendarItemToDraftMeet, inferHostClubFromTitle, mapTeamUnifyListRow, mergePnsUpdates, parentBannerForDayReselection, parentBannerForPnsDiffs, parsePnsCalendarHtml } from "./pns-calendar";
+import { fetchLivePnsCalendar, applyPendingSourcePatch, applyTeamUnifyDetail, calendarItemToDraftMeet, inferHostClubFromTitle, mapTeamUnifyListRow, mergePnsUpdates, parentBannerForDayReselection, parentBannerForPnsDiffs, parsePnsCalendarHtml } from "./pns-calendar";
 import { enrichCalendarItemWithAnnouncementFees, extractTextFromPdfBytes, sampleEntryFeeAnnouncementPdf } from "./announcement-pdf";
 import { pnsEventPageUrl, meetAnnouncementUrl } from "./pns-url";
 import { meetDayOptions, keepValidMeetDayIds, attendingNeedsNewDays, meetDateStamp, sessionNameForMeetDay } from "./sessions";
@@ -502,6 +502,13 @@ function testAdminMeetListFilter() {
   assert(classifyAdminMeetList({ startDate: "2026-09-14", endDate: "2026-09-15", status: "commitment_open" }, today) === "in_process", "meet weekend is in process");
   assert(classifyAdminMeetList({ startDate: "2026-09-05", endDate: "2026-09-06", status: "entries_confirmed" }, today) === "past", "ended meet is past");
   assert(classifyAdminMeetList({ startDate: "2026-09-20", endDate: "2026-09-20", status: "cancelled" }, today) === "past", "cancelled meets go to archive");
+  for (const status of ["draft", "admin_review", "invitation_pending", "ready_to_publish"] as const) {
+    assert(classifyAdminMeetList({ startDate: "2026-09-05", endDate: "", status }, today) === "past", "ended unpublished meet is archived");
+  }
+  const archived = { startDate: "2026-09-05", endDate: "2026-09-06", status: "admin_review" as const, name: "Old draft", pendingSourceReview: true };
+  assert(filterAdminMeetList([archived], "needs_review", today).length === 0, "old draft leaves review queue");
+  assert(filterAdminMeetList([archived], "has_updates", today).length === 0, "old updates leave active queue");
+  assert(countAdminMeetList([archived], today).past === 1, "old draft counted in archive");
   const listed = filterAdminMeetList(
     [
       { startDate: "2026-10-17", endDate: "2026-10-18", status: "entries_confirmed", name: "Open" },
@@ -902,7 +909,36 @@ async function testAnnouncementPdfFees() {
   assert(fromItem.surcharge === 25 && fromItem.individualEventFee === 4.5, "draft keeps PDF-extracted fees");
 }
 
+
+async function testPnsFetchSkipsPastMeets() {
+  const originalFetch = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    requested.push(url);
+    if (url.endsWith("/rawData")) {
+      return Response.json([
+        { id: 1, title: "Past", startDate: "2026-09-10", endDate: "2026-09-13" },
+        { id: 2, title: "Today", startDate: "2026-09-14", endDate: "2026-09-14" },
+        { id: 3, title: "Ongoing", startDate: "2026-09-13", endDate: "2026-09-15" },
+        { id: 4, title: "Future", startDate: "2026-09-20", endDate: "2026-09-21" },
+        { id: 5, title: "Corrected to past", startDate: "2026-09-20", endDate: "2026-09-21" },
+      ]);
+    }
+    if (url.endsWith("/5")) return Response.json({ startDateTime: "2026-09-10", endDateTime: "2026-09-13" });
+    return Response.json({});
+  };
+  try {
+    const items = await fetchLivePnsCalendar({ todayYmd: "2026-09-14" });
+    assert(items.map(i => i.name).join(",") === "Today,Ongoing,Future", "fetch retains today, ongoing, and future meets only");
+    assert(!requested.some(url => url.endsWith("/1")), "past meet detail is never fetched");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 async function run() {
+  await testPnsFetchSkipsPastMeets();
   testEligibility();
   testDeadlinesAndFees();
   testUsaSwimmingAndIsolation();

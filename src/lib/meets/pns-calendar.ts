@@ -282,7 +282,7 @@ export async function fetchLivePnsCalendar(opts?: { todayYmd?: string }): Promis
       const end = (item.endDate || item.startDate || "").slice(0, 10);
       return !end || end >= today;
     });
-  return mapPool(listed, 6, async (item) => {
+  const detailed = await mapPool(listed, 6, async (item) => {
     const id = item.sourceId.replace(/^pns-/, "");
     if (/^\d+$/.test(id)) {
       try {
@@ -292,8 +292,12 @@ export async function fetchLivePnsCalendar(opts?: { todayYmd?: string }): Promis
         // Keep the calendar row if the per-meet detail call fails.
       }
     }
+    // Detail dates can differ from the calendar row. Skip archived meets before fetching PDFs.
+    const end = (item.endDate || item.startDate || "").slice(0, 10);
+    if (end && end < today) return null;
     return enrichCalendarItemWithAnnouncementFees(item);
   });
+  return detailed.filter((item): item is PnsCalendarItem => item !== null);
 }
 
 function fileSignature(files?: PnsSourceFile[]): string {

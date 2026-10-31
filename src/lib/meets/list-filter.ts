@@ -18,10 +18,10 @@ export function classifyAdminMeetList(
   todayYmd: string
 ): AdminMeetListFilter {
   if (meet.status === "cancelled" || meet.status === "completed") return "past";
-  if (isPrePublishStatus(meet.status)) return "needs_review";
   const start = meetStartYmd(meet);
   const end = meetEndYmd(meet);
   if (end && end < todayYmd) return "past";
+  if (isPrePublishStatus(meet.status)) return "needs_review";
   if (start && start <= todayYmd && (!end || end >= todayYmd)) return "in_process";
   return "upcoming";
 }
@@ -40,7 +40,7 @@ export function filterAdminMeetList<T extends DatedMeet>(
 ): T[] {
   const rows =
     filter === "has_updates"
-      ? meets.filter((meet) => meetHasPnsUpdate(meet))
+      ? meets.filter((meet) => meetHasPnsUpdate(meet) && classifyAdminMeetList(meet, todayYmd) !== "past")
       : meets.filter((meet) => classifyAdminMeetList(meet, todayYmd) === filter);
   rows.sort((a, b) => {
     const sa = meetStartYmd(a) || "9999-99-99";
