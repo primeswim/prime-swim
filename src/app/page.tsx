@@ -222,7 +222,7 @@ export default function Home() {
                 <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={220} height={300} />
               </div>
               <div>
-                <p className={styles.role}>Director &amp; Coach</p>
+                <p className={styles.role}>Owner, Director &amp; Coach</p>
                 <h3>Coach Lara</h3>
                 <p className={styles.bio}>Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.</p>
               </div>
@@ -232,7 +232,6 @@ export default function Home() {
                   <li><strong>Technique &amp; Planning</strong><span>Individual and seasonal goals</span></li>
                 </ul>
                 <div className={styles.experiencePanel}>
-                <h4><BadgeCheck aria-hidden="true" />Certifications &amp; Experience</h4>
                 <ul className={styles.experience}>
                   <li><BadgeCheck aria-hidden="true" /><span>USA Swimming Certified Coach</span></li>
                   <li><BadgeCheck aria-hidden="true" /><span>Head Coach Certification</span></li>
@@ -251,7 +250,7 @@ export default function Home() {
                 <Image src="/images/coach-moe.jpg" alt="Coach Mo" width={220} height={300} />
               </div>
               <div>
-                <p className={styles.role}>Head Coach &amp; Performance Director</p>
+                <p className={styles.role}>Owner &amp; Head Coach</p>
                 <h3>Coach Mo</h3>
                 <p className={styles.bio}>Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique, mental preparation, and high-performance training.</p>
               </div>
@@ -261,7 +260,6 @@ export default function Home() {
                   <li><strong>Olympic Swimmer</strong><span>Experience at the highest level</span></li>
                 </ul>
                 <div className={styles.experiencePanel}>
-                <h4><BadgeCheck aria-hidden="true" />Achievements &amp; Experience</h4>
                 <ul className={styles.experience}>
                   <li><Medal aria-hidden="true" /><strong>Former Olympic Swimmer</strong></li>
                   <li><BadgeCheck aria-hidden="true" /><span>USA Swimming Certified Coach</span></li>

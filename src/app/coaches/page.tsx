@@ -60,7 +60,7 @@ export default function CoachesPage() {
                 />
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Coach Lara</CardTitle>
-              <CardDescription className="text-slate-600 text-lg font-medium">Director &amp; Coach</CardDescription>
+              <CardDescription className="text-slate-600 text-lg font-medium">Owner, Director &amp; Coach</CardDescription>
             </CardHeader>
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
@@ -70,7 +70,6 @@ export default function CoachesPage() {
               </p>
 
               <div className="space-y-4 mb-6">
-                <h4 className="font-semibold text-slate-800 mb-3">Certifications & Experience</h4>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-3 text-blue-600" />
@@ -128,7 +127,7 @@ export default function CoachesPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Coach Mo</CardTitle>
               <CardDescription className="text-slate-600 text-lg font-medium">
-                Head Coach & Performance Director
+                Owner &amp; Head Coach
               </CardDescription>
             </CardHeader>
             <CardContent className="px-8">
@@ -138,7 +137,6 @@ export default function CoachesPage() {
               </p>
 
               <div className="space-y-4 mb-6">
-                <h4 className="font-semibold text-slate-800 mb-3">Achievements & Experience</h4>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center">
                     <Medal className="w-4 h-4 mr-3 text-purple-600" />
