@@ -262,7 +262,9 @@ export function listParentMeetCards(opts: {
             attendance: c.attendance,
             events: commitmentSelectedEvents(meet, c),
           })),
-        estimatedFee: commitment?.estimatedFee,
+        estimatedFee: commitment?.attendance === "attend"
+          ? feeForMeetEvents(meet, commitment.selectedEventIds || [], commitment.swimmerId).total
+          : commitment?.estimatedFee,
         finalFee: label === "confirmed" ? commitment?.finalFee : undefined,
         paymentStatus: label === "confirmed" ? commitment?.paymentStatus : commitment?.attendance === "attend" ? "estimated" : "none",
         paymentDueAt: label === "confirmed" ? commitment?.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt) : undefined,

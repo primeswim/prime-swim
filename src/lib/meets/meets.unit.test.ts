@@ -975,6 +975,12 @@ function testHostDeadlineArchiveAndPricing() {
   assert(effectiveHostDeadline(draftMeet) === "2026-10-27", "announcement deadline takes priority over PNS");
   const merged = mergePnsUpdates({ ...draftMeet, feeSchedule: schedule }, { sourceId: "bbst", name: "BBST", hostClub: "BBST", startDate: "2026-11-06", endDate: "2026-11-08", location: "", individualEventFee: 5 });
   assert(merged.next.feeSchedule === schedule, "PNS fetch preserves reviewed custom rules");
+  const cards = listParentMeetCards({
+    meets: [{ ...draftMeet, surcharge: 25, status: "commitment_open", feeSchedule: { ...schedule, mode: "flat", flatFee: 42 } }],
+    commitments: [{ id: "c", meetId: draftMeet.id, swimmerId: "s1", parentUID: "p1", attendance: "attend", availableSessionIds: [], selectedEventIds: [], parentNotes: "", estimatedFee: 1, isTestData: true }],
+    viewerIsTestAccount: true, swimmerId: "s1", nowIso: "2026-10-20",
+  });
+  assert(cards[0].estimatedFee === 67, "dashboard estimate uses reviewed pricing rather than stale stored estimate");
 }
 
 async function run() {
