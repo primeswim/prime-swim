@@ -1,14 +1,13 @@
 import Image from "next/image"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Clock, Trophy, Waves } from "lucide-react"
+import { ArrowUpRight, Calendar, Clock, ShoppingBag, Trophy, Waves } from "lucide-react"
 import Header from "@/components/header";
 import HomeHero from "@/components/home-hero";
 import LatestNewsSection from "@/components/latest-news-section"
 import UpcomingEventsSection from "@/components/upcoming-events-section"
 import ParentTestimonialsSection from "@/components/parent-testimonials-section"
 import Footer from "@/components/footer";
+import styles from "./home.module.css";
 
 export default function Home() {
   return (
@@ -16,7 +15,9 @@ export default function Home() {
       {/* Header */}
       <Header />
 
-      <HomeHero />
+      <div className="container mx-auto px-4">
+        <HomeHero />
+      </div>
 
       {/* Programs Section */}
       <section id="programs" className="container mx-auto px-4 py-20">
@@ -188,29 +189,16 @@ export default function Home() {
       <ParentTestimonialsSection />
 
       {/* Team Suit / Team Store */}
-      <section id="team-store" className="container mx-auto px-4 py-20">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Team Suit &amp; Gear</h2>
-          <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-            Shop official Prime Swim Academy gear through our SwimOutlet team store—
-            including team suits and training essentials for the season.
-          </p>
-          <Button
-            asChild
-            size="lg"
-            className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
-          >
-            <Link
-              href="https://www.swimoutlet.com/collections/psa"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Shop Team Store
-            </Link>
-          </Button>
-          <p className="mt-6 text-base text-slate-500">
-            Purchases through our store support the team with SwimOutlet store credit.
-          </p>
+      <section id="team-store" className="container mx-auto px-4 py-10">
+        <div className={styles.store}>
+          <div className={styles.storeIcon}><ShoppingBag aria-hidden="true" /></div>
+          <div>
+            <h2>Team Suit &amp; Gear</h2>
+            <p>Official Prime Swim Academy suits and training essentials.</p>
+          </div>
+          <a href="https://www.swimoutlet.com/collections/psa" target="_blank" rel="noopener noreferrer" className={styles.storeLink}>
+            Shop Team Store <ArrowUpRight aria-hidden="true" />
+          </a>
         </div>
       </section>
 
@@ -224,60 +212,33 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-800 mb-4">Our Expert Coaches</h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              World-class instructors dedicated to your swimming excellence
+              Technical detail. Personal encouragement. A shared commitment.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto justify-items-center">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border">
-                  <Image
-                    src="/images/coach-lara.jpeg"
-                    alt="Coach Lara"
-                    width={96}
-                    height={96}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Lara</CardTitle>
-                <CardDescription className="text-slate-600">Director & Coach</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-base leading-relaxed">
-                  Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards and China, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.
-                </p>
-                <div className="mt-4 text-sm text-slate-500">
-                  <p>• USA Swimming Certified</p>
-                  <p>• Head Coach Certified</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-              <CardHeader className="text-center">
-                <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border">
-                  <Image
-                    src="/images/coach-moe.jpg"
-                    alt="Coach Mo"
-                    width={96}
-                    height={96}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800">Coach Mo</CardTitle>
-                <CardDescription className="text-slate-600">Head Coach</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-slate-600 text-base leading-relaxed">
-                  Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique and mental preparation.
-                </p>
-                <div className="mt-4 text-sm text-slate-500">
-                  <p>• USA Swimming Certified</p>
-                  <p>• Head Coach Certified</p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className={styles.coaches}>
+            <article className={styles.coach}>
+              <div className={styles.coachPhoto}>
+                <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={220} height={300} />
+              </div>
+              <div>
+                <p className={styles.role}>Director &amp; Coach</p>
+                <h3>Coach Lara</h3>
+                <p className={styles.bio}>Developing athletes through clear instruction, strong technique and thoughtful seasonal planning.</p>
+                <p className={styles.credential}>USA Swimming Certified</p>
+              </div>
+            </article>
+            <article className={styles.coach}>
+              <div className={styles.coachPhoto}>
+                <Image src="/images/coach-moe.jpg" alt="Coach Mo" width={220} height={300} />
+              </div>
+              <div>
+                <p className={styles.role}>Head Coach · Performance</p>
+                <h3>Coach Mo</h3>
+                <p className={styles.bio}>Competitive stroke technique, race preparation and the confidence to keep improving.</p>
+                <p className={styles.credential}>USA Swimming Certified</p>
+              </div>
+            </article>
           </div>
         </div>
       </section>

@@ -1,0 +1,27 @@
+.store { display: flex; align-items: center; gap: 20px; padding: 28px 32px; border: 1px solid #e3eaf0; border-radius: 16px; background: #f3f7fa; }
+.storeIcon { display: grid; place-items: center; width: 56px; height: 56px; flex-shrink: 0; border-radius: 14px; background: #fff; color: #087ac0; }
+.storeIcon svg { width: 26px; height: 26px; }
+.store h2 { margin: 0 0 6px; color: #1e3a5f; font-size: 26px; font-weight: 700; line-height: 1.2; }
+.store p { margin: 0; color: #526579; font-size: 16px; line-height: 1.6; }
+.storeLink { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; margin-left: auto; flex-shrink: 0; padding: 12px 20px; border-radius: 999px; background: #1e3a5f; color: #fff; font-size: 16px; font-weight: 500; text-decoration: none; }
+.storeLink svg { width: 18px; height: 18px; }
+.storeLink:hover { background: #087ac0; }
+.storeLink:focus-visible { outline: 3px solid #087ac0; outline-offset: 4px; }
+.coaches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; max-width: 1120px; margin: 0 auto; }
+.coach { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 24px; padding: 24px; background: #fff; border: 1px solid #e3eaf0; border-radius: 16px; }
+.coachPhoto { height: 160px; overflow: hidden; border-radius: 10px; background: #e3eaf0; }
+.coachPhoto img { width: 100%; height: 100%; object-fit: cover; }
+.role { margin: 0 0 8px; color: #087ac0; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.coach h3 { margin: 0 0 10px; color: #1e3a5f; font-size: 26px; font-weight: 700; line-height: 1.2; }
+.bio { margin: 0 0 14px; color: #526579; font-size: 16px; line-height: 1.65; }
+.credential { margin: 0; color: #087ac0; font-size: 14px; line-height: 1.5; }
+@media (max-width: 900px) { .coaches { grid-template-columns: minmax(0, 1fr); max-width: 640px; } }
+@media (max-width: 640px) {
+  .store { flex-wrap: wrap; gap: 16px; padding: 24px; }
+  .storeIcon { display: none; }
+  .store h2 { font-size: 24px; }
+  .storeLink { margin-left: 0; }
+  .coach { grid-template-columns: 90px minmax(0, 1fr); gap: 16px; padding: 20px 16px; }
+  .coachPhoto { height: 150px; }
+  .coach h3 { font-size: 24px; }
+}
