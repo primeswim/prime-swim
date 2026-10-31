@@ -222,7 +222,7 @@ export default function Home() {
                 <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={220} height={300} />
               </div>
               <div>
-                <p className={styles.role}>Coach</p>
+                <p className={styles.role}>Director &amp; Coach</p>
                 <h3>Coach Lara</h3>
                 <p className={styles.bio}>Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.</p>
               </div>

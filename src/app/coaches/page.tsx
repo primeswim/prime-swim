@@ -60,7 +60,7 @@ export default function CoachesPage() {
                 />
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Coach Lara</CardTitle>
-              <CardDescription className="text-slate-600 text-lg font-medium">Coach</CardDescription>
+              <CardDescription className="text-slate-600 text-lg font-medium">Director &amp; Coach</CardDescription>
             </CardHeader>
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
