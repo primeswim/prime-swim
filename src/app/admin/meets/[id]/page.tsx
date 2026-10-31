@@ -237,23 +237,7 @@ export default function AdminMeetDetailPage() {
               The host declined. This meet cannot be published.
             </p>
           )}
-          <section className={`rounded-xl border-2 p-4 space-y-2 ${hostEntryClosed(meet) ? "border-rose-300 bg-rose-50" : "border-amber-300 bg-amber-50"}`}>
-          <h2 className="font-bold text-lg">Host entry deadline: {adminHostDeadline(meet)?.slice(0, 10) || "Unknown — check announcement"}</h2>
-          <p className="font-semibold">{hostEntryClosed(meet) ? "Host registration closed. Unpublished meets are in Past archive." : "Check this deadline before reviewing or requesting an invitation."} All dates are Pacific time.</p>
-          <p className="text-sm">PNS: {meet.pnsPublishedDeadline?.slice(0, 10) || "Unknown"} · Announcement: {meet.announcementEntryDeadline?.slice(0, 10) || "Unknown"} · Prime: {meet.primeCommitmentDeadline?.slice(0, 10) || "Not set"}</p>
-          <label className="block text-sm">Host-confirmed deadline (use for extensions)
-            <Input aria-label="Host-confirmed entry deadline" type="date" value={hostDeadline} onChange={e => setHostDeadline(e.target.value)} />
-          </label>
-          <Button variant="outline" disabled={busy || !hostDeadline} onClick={async () => {
-            setBusy(true); setError("");
-            try {
-              const res = await fetch(`/api/admin/meets/${id}`, { method: "PATCH", headers: { Authorization: `Bearer ${await token()}`, "Content-Type": "application/json" }, body: JSON.stringify({ hostConfirmedDeadline: hostDeadline }) });
-              const json = await res.json(); if (!json.ok) throw new Error(json.error || "Could not save host deadline");
-              await reload(); setMessage("Host-confirmed deadline saved.");
-            } catch (e) { setError(e instanceof Error ? e.message : "Could not save host deadline"); }
-            finally { setBusy(false); }
-          }}>Save host-confirmed deadline</Button>
-        </section>
+
 
         {meet.status !== "cancelled" && (
             <Button
@@ -585,6 +569,24 @@ export default function AdminMeetDetailPage() {
             </div>
           </div>
         </div>
+
+          <section className={`rounded-xl border-2 p-4 space-y-2 ${hostEntryClosed(meet) ? "border-rose-300 bg-rose-50" : "border-amber-300 bg-amber-50"}`}>
+          <h2 className="font-bold text-lg">Host entry deadline: {adminHostDeadline(meet)?.slice(0, 10) || "Unknown — check announcement"}</h2>
+          <p className="font-semibold">{hostEntryClosed(meet) ? "Host registration closed. Unpublished meets are in Past archive." : "Check this deadline before reviewing or requesting an invitation."} All dates are Pacific time.</p>
+          <p className="text-sm">PNS: {meet.pnsPublishedDeadline?.slice(0, 10) || "Unknown"} · Announcement: {meet.announcementEntryDeadline?.slice(0, 10) || "Unknown"} · Prime: {meet.primeCommitmentDeadline?.slice(0, 10) || "Not set"}</p>
+          <label className="block text-sm">Host-confirmed deadline (use for extensions)
+            <Input aria-label="Host-confirmed entry deadline" type="date" value={hostDeadline} onChange={e => setHostDeadline(e.target.value)} />
+          </label>
+          <Button variant="outline" disabled={busy || !hostDeadline} onClick={async () => {
+            setBusy(true); setError("");
+            try {
+              const res = await fetch(`/api/admin/meets/${id}`, { method: "PATCH", headers: { Authorization: `Bearer ${await token()}`, "Content-Type": "application/json" }, body: JSON.stringify({ hostConfirmedDeadline: hostDeadline }) });
+              const json = await res.json(); if (!json.ok) throw new Error(json.error || "Could not save host deadline");
+              await reload(); setMessage("Host-confirmed deadline saved.");
+            } catch (e) { setError(e instanceof Error ? e.message : "Could not save host deadline"); }
+            finally { setBusy(false); }
+          }}>Save host-confirmed deadline</Button>
+        </section>
 
         {meet.status !== "cancelled" && (
           <Card className="border-0 shadow-md">
