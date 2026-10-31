@@ -8,7 +8,7 @@ export default function HomeHero() {
     <>
       <section className={styles.hero} aria-labelledby="home-hero-title">
         <Image
-          src="/images/hero-butterfly-v1.jpg"
+          src="/images/hero-butterfly-v2.jpg"
           alt="Female swimmer performing butterfly in a white Prime Swim cap"
           fill
           priority
