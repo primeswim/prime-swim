@@ -8,9 +8,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Menu } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 import { AdminNavMenu } from "@/components/admin-nav-menu";
 import styles from "./header-brand.module.css";
@@ -80,14 +79,14 @@ export default function Header() {
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden xl:flex items-center gap-5 text-sm text-slate-600">
+        <div className={`hidden xl:flex ${styles.desktopNav}`}>
           {mounted ? (
             <>
               <DropdownMenu>
-                <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
-                  About Us
+                <DropdownMenuTrigger className={styles.navItem}>
+                  About Us <ChevronDown aria-hidden="true" className={styles.chevron} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className={styles.dropdown}>
                   <DropdownMenuItem asChild>
                     <Link href="/mission">Mission &amp; Vision</Link>
                   </DropdownMenuItem>
@@ -104,10 +103,10 @@ export default function Header() {
               </DropdownMenu>
 
               <DropdownMenu>
-                <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
-                  Programs
+                <DropdownMenuTrigger className={styles.navItem}>
+                  Programs <ChevronDown aria-hidden="true" className={styles.chevron} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className={styles.dropdown}>
                   <DropdownMenuItem asChild>
                     <Link href="/#programs">Group Programs</Link>
                   </DropdownMenuItem>
@@ -122,35 +121,35 @@ export default function Header() {
             </>
           ) : (
             <>
-              <span className="hover:text-slate-800 transition-colors cursor-pointer">About Us</span>
-              <span className="hover:text-slate-800 transition-colors cursor-pointer">Programs</span>
+              <span className={styles.navItem}>About Us</span>
+              <span className={styles.navItem}>Programs</span>
             </>
           )}
 
-          <Link href="/safesport" className="hover:text-slate-800 transition-colors">
+          <Link href="/safesport" className={styles.navItem}>
             Safe Sport
           </Link>
-          <Link href="/events" className="hover:text-slate-800 transition-colors">
+          <Link href="/events" className={styles.navItem}>
             Events
           </Link>
-          <Link href="/news" className="hover:text-slate-800 transition-colors">
+          <Link href="/news" className={styles.navItem}>
             News
           </Link>
-          <Link href="/dashboard" className="hover:text-slate-800 transition-colors">
+          <Link href="/dashboard" className={styles.navItem}>
             Dashboard
           </Link>
           {isAdmin === true && (
             mounted ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="hover:text-slate-800 transition-colors cursor-pointer">
-                  Admin
+                <DropdownMenuTrigger className={styles.navItem}>
+                  Admin <ChevronDown aria-hidden="true" className={styles.chevron} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-[600px] overflow-y-auto">
+                <DropdownMenuContent className={`${styles.dropdown} max-h-[600px] overflow-y-auto`}>
                   <AdminNavMenu variant="desktop" />
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <span className="hover:text-slate-800 transition-colors cursor-pointer">Admin</span>
+              <span className={styles.navItem}>Admin</span>
             )
           )}
         </div>
@@ -159,15 +158,19 @@ export default function Header() {
         <button
           className={`xl:hidden text-slate-800 ${styles.menu}`}
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Open menu"
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="header-mobile-navigation"
         >
-          <Menu className="h-6 w-6" />
+          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </nav>
 
       {/* Mobile Dropdown */}
       {mobileOpen && (
-        <div className="xl:hidden mt-4 space-y-2 text-slate-700">
+        <div id="header-mobile-navigation" className={`xl:hidden mt-4 space-y-3 text-lg leading-relaxed ${styles.mobileNav}`} onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setMobileOpen(false);
+        }}>
           <div className="flex items-center gap-3 mb-2">
             <Image
               src="/images/usa-swimming.png"
