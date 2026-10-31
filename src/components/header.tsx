@@ -13,6 +13,7 @@ import {
 import { Menu } from "lucide-react";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 import { AdminNavMenu } from "@/components/admin-nav-menu";
+import styles from "./header-brand.module.css";
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,39 +25,39 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="container mx-auto px-4 py-6">
-      <nav className="flex items-center justify-between">
+    <header className={`container mx-auto px-4 ${styles.header}`}>
+      <nav className={`flex items-center justify-between ${styles.nav}`}>
         {/* Left: PSA logo + site title + affiliation logos */}
-        <div className="flex items-center gap-4">
+        <div className={styles.brandGroup}>
           {/* PSA brand (link to home) */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href="/" className={styles.brand}>
             <Image
               src="/images/psa-logo.png"
               alt="Prime Swim Academy Logo"
-              width={60}
-              height={60}
-              className="rounded-full"
+              width={76}
+              height={76}
+              className={styles.logo}
               priority
             />
-            <span className="text-xl font-bold text-slate-800">Prime Swim Academy</span>
+            <span className={styles.name}><span>Prime Swim</span><span>Academy</span></span>
           </Link>
 
           {/* Affiliation logos */}
-          <div className="flex items-center gap-3">
+          <div className={styles.partners}>
             <Link
               href="https://www.usaswimming.org/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="USA Swimming"
               title="USA Swimming Member Club"
-              className="block"
+              className={styles.partner}
             >
               <Image
                 src="/images/usa-swimming.png"
                 alt="USA Swimming"
-                width={56}
-                height={56}
-                className="h-10 w-auto object-contain"
+                width={76}
+                height={68}
+                className={styles.partnerLogo}
               />
             </Link>
             <Link
@@ -65,21 +66,21 @@ export default function Header() {
               rel="noopener noreferrer"
               aria-label="Pacific Northwest Swimming"
               title="Pacific Northwest Swimming (PNS)"
-              className="block"
+              className={styles.partner}
             >
               <Image
                 src="/images/pns-logo.JPG"
                 alt="Pacific Northwest Swimming (PNS)"
-                width={56}
-                height={56}
-                className="h-10 w-auto object-contain"
+                width={76}
+                height={68}
+                className={styles.partnerLogo}
               />
             </Link>
           </div>
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-8 text-slate-600">
+        <div className="hidden xl:flex items-center gap-5 text-sm text-slate-600">
           {mounted ? (
             <>
               <DropdownMenu>
@@ -156,7 +157,7 @@ export default function Header() {
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden text-slate-800"
+          className={`xl:hidden text-slate-800 ${styles.menu}`}
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Open menu"
         >
@@ -166,7 +167,7 @@ export default function Header() {
 
       {/* Mobile Dropdown */}
       {mobileOpen && (
-        <div className="md:hidden mt-4 space-y-2 text-slate-700">
+        <div className="xl:hidden mt-4 space-y-2 text-slate-700">
           <div className="flex items-center gap-3 mb-2">
             <Image
               src="/images/usa-swimming.png"

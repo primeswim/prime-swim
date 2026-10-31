@@ -19,7 +19,7 @@
   position: relative;
   width: min(100%, 1440px);
   margin: 0 auto;
-  padding: clamp(200px, 18vw, 300px) clamp(24px, 5vw, 72px) 64px;
+  padding: clamp(200px, 18vw, 300px) clamp(24px, 5vw, 72px) 128px;
 }
 .eyebrow { font-size: 12px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #c5eaff; }
 .content h1 { font-size: clamp(40px, 4.5vw, 68px); line-height: 1.06; font-weight: 750; letter-spacing: -0.04em; margin: 14px 0 22px; }
@@ -31,25 +31,33 @@
 .tryout:hover { background: #ffdb7c; box-shadow: 0 6px 22px #00000025; }
 .programs { border: 1px solid #d9efff; background: #06284d40; color: #fff; }
 .programs:hover { background: #ffffff1f; }
-.actions a:focus-visible, .affiliations a:focus-visible { outline: 3px solid #60a5fa; outline-offset: 5px; }
-.affiliations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 26px max(24px, calc((100% - 1100px) / 2)); background: #fff; border-bottom: 1px solid #e2e8f0; text-align: center; }
-.affiliations a { display: flex; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 4px 8px; text-decoration: none; color: #596b81; }
-.affiliations a:hover { color: #1e3a5f; }
-.affiliationName { font-size: 17px; font-weight: 650; }
-.affiliationDetail { font-size: 12px; font-weight: 400; }
+.actions a:focus-visible, .benefits a:focus-visible { outline: 3px solid #60a5fa; outline-offset: 5px; }
+.wave { position: absolute; bottom: -1px; left: 0; width: 100%; height: 104px; z-index: -1; pointer-events: none; }
+.benefits { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 18px max(24px, calc((100% - 1360px) / 2)) 32px; list-style: none; background: #fff; color: #123b66; text-align: center; }
+.benefits li { min-width: 0; padding: 0 16px; }
+.benefits li + li { border-left: 1px solid #63869e80; }
+.benefits a, .benefits li > div { display: flex; height: 100%; flex-direction: column; align-items: center; justify-content: flex-start; gap: 12px; color: inherit; text-decoration: none; }
+.benefits a:hover { color: #087ac0; }
+.benefitIcon, .benefitLogo { width: 64px; height: 56px; object-fit: contain; }
+.benefitIcon { stroke-width: 2.25; }
+.benefits span { font-size: 18px; font-weight: 600; line-height: 1.25; }
+@media (min-width: 641px) and (max-width: 900px) { .benefits li { padding: 0 8px; } .benefits span { font-size: 14px; } .benefitIcon, .benefitLogo { width: 52px; height: 48px; } }
 @media (max-width: 640px) {
   .hero { min-height: 600px; }
   .photo { object-position: 90% center; }
   .shade { background: linear-gradient(0deg, #042448fa 5%, #042448b0 47%, #04244810 95%); }
-  .content { padding: 300px 20px 36px; }
+  .content { padding: 300px 20px 104px; }
   .content h1 { font-size: clamp(32px, 8.4vw, 46px); margin-bottom: 18px; }
   .content p { font-size: 16px; margin-bottom: 22px; }
   .actions { gap: 10px; }
   .actions a { font-size: 16px; padding: 13px 17px; gap: 8px; }
   .actions svg { width: 17px; height: 17px; }
-  .affiliations { gap: 14px; padding: 20px 14px; }
-  .affiliations a { flex-direction: column; align-items: center; justify-content: flex-start; }
-  .affiliationName { font-size: 13px; line-height: 1.5; }
-  .affiliationDetail { font-size: 11px; }
+  .wave { height: 76px; }
+  .benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 24px; padding: 12px 20px 28px; }
+  .benefits li { padding: 0 10px; }
+  .benefits li:nth-child(odd) { border-left: 0; }
+  .benefits li:last-child { grid-column: 1 / -1; }
+  .benefits span { font-size: 16px; }
+  .benefitIcon, .benefitLogo { width: 56px; height: 48px; }
 }
 @media (prefers-reduced-motion: reduce) { .actions a { transition: none; } }

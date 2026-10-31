@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trophy, ChartNoAxesCombined, UsersRound, Medal } from "lucide-react";
 import styles from "./home-hero.module.css";
 
 export default function HomeHero() {
@@ -25,21 +25,20 @@ export default function HomeHero() {
             <a className={styles.programs} href="#programs">Explore Programs <ArrowRight aria-hidden="true" /></a>
           </div>
         </div>
+        <svg className={styles.wave} viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path fill="#087ac0" d="M0 80C200-8 340 116 700 94S1190 8 1440 0V120H0Z" />
+          <path fill="#19bce9" d="M0 100C230 22 390 130 760 100S1210 15 1440 18V120H0Z" />
+          <path fill="#c4edff" d="M0 107C240 42 370 138 780 110S1220 28 1440 30V120H0Z" />
+          <path fill="#ffffff" d="M0 111C240 46 400 136 800 115S1230 47 1440 48V120H0Z" />
+        </svg>
       </section>
-      <div className={styles.affiliations} aria-label="Club affiliations and team store">
-        <a href="https://www.usaswimming.org/" target="_blank" rel="noopener noreferrer">
-          <span className={styles.affiliationName}>USA Swimming</span>
-          <span className={styles.affiliationDetail}>Member Club</span>
-        </a>
-        <a href="https://www.pns.org/" target="_blank" rel="noopener noreferrer">
-          <span className={styles.affiliationName}>Pacific Northwest Swimming</span>
-          <span className={styles.affiliationDetail}>PNS</span>
-        </a>
-        <a href="https://www.swimoutlet.com/collections/psa" target="_blank" rel="noopener noreferrer">
-          <span className={styles.affiliationName}>SwimOutlet</span>
-          <span className={styles.affiliationDetail}>Team Store</span>
-        </a>
-      </div>
+      <ul className={styles.benefits} aria-label="Prime Swim club affiliations and coaching approach">
+        <li><a href="https://www.usaswimming.org/" target="_blank" rel="noopener noreferrer"><Trophy className={styles.benefitIcon} aria-hidden="true" /><span>USA Swimming<br />Club</span></a></li>
+        <li><a href="https://www.pns.org/" target="_blank" rel="noopener noreferrer"><Image src="/images/pns-logo.JPG" alt="Pacific Northwest Swimming" width={76} height={56} className={styles.benefitLogo} /><span>PNS<br />Member</span></a></li>
+        <li><div><ChartNoAxesCombined className={styles.benefitIcon} aria-hidden="true" /><span>Technique-First<br />Coaching</span></div></li>
+        <li><div><UsersRound className={styles.benefitIcon} aria-hidden="true" /><span>Individual<br />Attention</span></div></li>
+        <li><div><Medal className={styles.benefitIcon} aria-hidden="true" /><span>Competitive<br />Pathway</span></div></li>
+      </ul>
     </>
   );
 }
