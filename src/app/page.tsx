@@ -222,10 +222,26 @@ export default function Home() {
                 <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={220} height={300} />
               </div>
               <div>
-                <p className={styles.role}>Director &amp; Coach</p>
+                <p className={styles.role}>Director &amp; Head Coach</p>
                 <h3>Coach Lara</h3>
-                <p className={styles.bio}>Developing athletes through clear instruction, strong technique and thoughtful seasonal planning.</p>
-                <p className={styles.credential}>USA Swimming Certified</p>
+                <p className={styles.bio}>Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.</p>
+              </div>
+              <div className={styles.coachDetails}>
+                <ul className={styles.highlights} aria-label="Coach Lara highlights">
+                  <li><strong>Youth &amp; Competitive</strong><span>Swimmer development</span></li>
+                  <li><strong>Technique &amp; Planning</strong><span>Individual and seasonal goals</span></li>
+                </ul>
+                <h4>Certifications &amp; Experience</h4>
+                <ul className={styles.experience}>
+                  <li>USA Swimming Certified Coach</li>
+                  <li>Head Coach Certification</li>
+                  <li>Extensive experience coaching swimmers across different levels</li>
+                  <li>Expert in Youth &amp; Competitive Training</li>
+                </ul>
+                <h4>Specializations</h4>
+                <ul className={styles.specialties} aria-label="Coach Lara specializations">
+                  {['Stroke Technique', 'Building Training Plans', 'Season Development', 'Team Leadership', 'Competition Prep'].map(point => <li key={point}>{point}</li>)}
+                </ul>
               </div>
             </article>
             <article className={styles.coach}>
@@ -233,10 +249,27 @@ export default function Home() {
                 <Image src="/images/coach-moe.jpg" alt="Coach Mo" width={220} height={300} />
               </div>
               <div>
-                <p className={styles.role}>Head Coach · Performance</p>
+                <p className={styles.role}>Head Coach &amp; Performance Director</p>
                 <h3>Coach Mo</h3>
-                <p className={styles.bio}>Competitive stroke technique, race preparation and the confidence to keep improving.</p>
-                <p className={styles.credential}>USA Swimming Certified</p>
+                <p className={styles.bio}>Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique, mental preparation, and high-performance training.</p>
+              </div>
+              <div className={styles.coachDetails}>
+                <ul className={styles.highlights} aria-label="Coach Mo highlights">
+                  <li><strong>13+ Years</strong><span>Elite coaching experience</span></li>
+                  <li><strong>Olympic Swimmer</strong><span>Experience at the highest level</span></li>
+                </ul>
+                <h4>Achievements &amp; Experience</h4>
+                <ul className={styles.experience}>
+                  <li>Former Olympic Swimmer</li>
+                  <li>USA Swimming Certified Coach</li>
+                  <li>Head Coach Certification</li>
+                  <li>Expert in Youth &amp; Competitive Training</li>
+                  <li>13+ Years Elite Coaching</li>
+                </ul>
+                <h4>Specializations</h4>
+                <ul className={styles.specialties} aria-label="Coach Mo specializations">
+                  {['Elite Training', 'Building Training Plans', 'Season Development', 'Race Strategy', 'Mental Coaching'].map(point => <li key={point}>{point}</li>)}
+                </ul>
               </div>
             </article>
           </div>
