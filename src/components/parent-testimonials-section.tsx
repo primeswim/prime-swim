@@ -116,7 +116,7 @@ export default function ParentTestimonialsSection() {
           ))}
         </div>
         <div className="flex justify-center mt-6">
-          <Button asChild className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-6">
+          <Button asChild size="lg" className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-8 py-6 text-lg font-medium">
             <Link href="/tryout">Schedule a Tryout</Link>
           </Button>
         </div>

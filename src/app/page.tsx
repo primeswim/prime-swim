@@ -227,6 +227,8 @@ export default function Home() {
         </div>
       </section>
 
+      <ParentTestimonialsSection />
+
       {/* Team Suit / Team Store */}
       <section id="team-store" className="container mx-auto px-4 py-20">
         <div className="max-w-3xl mx-auto text-center">
@@ -255,8 +257,6 @@ export default function Home() {
       </section>
 
       <UpcomingEventsSection />
-
-      <ParentTestimonialsSection />
 
       <LatestNewsSection />
       
