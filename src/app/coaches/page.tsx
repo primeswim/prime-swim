@@ -40,7 +40,7 @@ export default function CoachesPage() {
       {/* Head Coaches Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Head Coaches</h2>
+          <h2 className="text-4xl font-bold text-slate-800 mb-4">Coaching Team</h2>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
             Meet our experienced leadership team who guide our academy to excellence
           </p>
@@ -60,7 +60,7 @@ export default function CoachesPage() {
                 />
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Coach Lara</CardTitle>
-              <CardDescription className="text-slate-600 text-lg font-medium">Director & Head Coach</CardDescription>
+              <CardDescription className="text-slate-600 text-lg font-medium">Coach</CardDescription>
             </CardHeader>
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
@@ -134,7 +134,7 @@ export default function CoachesPage() {
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
                 Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique,
-                mental preparation, and high-performance training.s
+                mental preparation, and high-performance training.
               </p>
 
               <div className="space-y-4 mb-6">
@@ -181,6 +181,7 @@ export default function CoachesPage() {
                   <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
                     Mental Coaching
                   </span>
+                  <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">Team Leadership</span>
                 </div>
               </div>
             </CardContent>

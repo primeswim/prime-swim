@@ -1,6 +1,6 @@
 import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowUpRight, Calendar, Clock, ShoppingBag, Trophy, Waves } from "lucide-react"
+import { ArrowUpRight, BadgeCheck, Calendar, Clock, Medal, ShoppingBag, Trophy, Waves } from "lucide-react"
 import Header from "@/components/header";
 import HomeHero from "@/components/home-hero";
 import LatestNewsSection from "@/components/latest-news-section"
@@ -222,7 +222,7 @@ export default function Home() {
                 <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={220} height={300} />
               </div>
               <div>
-                <p className={styles.role}>Director &amp; Head Coach</p>
+                <p className={styles.role}>Coach</p>
                 <h3>Coach Lara</h3>
                 <p className={styles.bio}>Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.</p>
               </div>
@@ -231,13 +231,15 @@ export default function Home() {
                   <li><strong>Youth &amp; Competitive</strong><span>Swimmer development</span></li>
                   <li><strong>Technique &amp; Planning</strong><span>Individual and seasonal goals</span></li>
                 </ul>
-                <h4>Certifications &amp; Experience</h4>
+                <div className={styles.experiencePanel}>
+                <h4><BadgeCheck aria-hidden="true" />Certifications &amp; Experience</h4>
                 <ul className={styles.experience}>
-                  <li>USA Swimming Certified Coach</li>
-                  <li>Head Coach Certification</li>
-                  <li>Extensive experience coaching swimmers across different levels</li>
-                  <li>Expert in Youth &amp; Competitive Training</li>
+                  <li><BadgeCheck aria-hidden="true" /><span>USA Swimming Certified Coach</span></li>
+                  <li><BadgeCheck aria-hidden="true" /><span>Head Coach Certification</span></li>
+                  <li><BadgeCheck aria-hidden="true" /><span>Extensive experience coaching swimmers across different levels</span></li>
+                  <li><BadgeCheck aria-hidden="true" /><span>Expert in Youth &amp; Competitive Training</span></li>
                 </ul>
+                </div>
                 <h4>Specializations</h4>
                 <ul className={styles.specialties} aria-label="Coach Lara specializations">
                   {['Stroke Technique', 'Building Training Plans', 'Season Development', 'Team Leadership', 'Competition Prep'].map(point => <li key={point}>{point}</li>)}
@@ -258,17 +260,19 @@ export default function Home() {
                   <li><strong>13+ Years</strong><span>Elite coaching experience</span></li>
                   <li><strong>Olympic Swimmer</strong><span>Experience at the highest level</span></li>
                 </ul>
-                <h4>Achievements &amp; Experience</h4>
+                <div className={styles.experiencePanel}>
+                <h4><BadgeCheck aria-hidden="true" />Achievements &amp; Experience</h4>
                 <ul className={styles.experience}>
-                  <li>Former Olympic Swimmer</li>
-                  <li>USA Swimming Certified Coach</li>
-                  <li>Head Coach Certification</li>
-                  <li>Expert in Youth &amp; Competitive Training</li>
-                  <li>13+ Years Elite Coaching</li>
+                  <li><Medal aria-hidden="true" /><strong>Former Olympic Swimmer</strong></li>
+                  <li><BadgeCheck aria-hidden="true" /><span>USA Swimming Certified Coach</span></li>
+                  <li><BadgeCheck aria-hidden="true" /><span>Head Coach Certification</span></li>
+                  <li><BadgeCheck aria-hidden="true" /><span>Expert in Youth &amp; Competitive Training</span></li>
+                  <li><Medal aria-hidden="true" /><strong>13+ Years Elite Coaching</strong></li>
                 </ul>
+                </div>
                 <h4>Specializations</h4>
                 <ul className={styles.specialties} aria-label="Coach Mo specializations">
-                  {['Elite Training', 'Building Training Plans', 'Season Development', 'Race Strategy', 'Mental Coaching'].map(point => <li key={point}>{point}</li>)}
+                  {['Elite Training', 'Building Training Plans', 'Season Development', 'Race Strategy', 'Mental Coaching', 'Team Leadership'].map(point => <li key={point}>{point}</li>)}
                 </ul>
               </div>
             </article>
