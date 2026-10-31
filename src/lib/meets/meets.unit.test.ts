@@ -1,6 +1,6 @@
 import { ageOnDate, detectInvitationRequired, eventMatchesSwimmer, extractEligibilityNotes, inferInvitationStatus, eventsForSwimmer } from "./eligibility";
-import { effectiveHostDeadline, isMeetPaymentOverdue, isPrimeDeadlinePassed, meetPaymentDueAt, addCalendarDays, suggestPrimeDeadline } from "./deadlines";
-import { computeHostFee, computeMeetEntryFee, exceedsEventLimits, extractFeeHints, typicalIndividualEventFee } from "./fees";
+import { extractAnnouncementEntryDeadline, effectiveHostDeadline, isMeetPaymentOverdue, isPrimeDeadlinePassed, meetPaymentDueAt, addCalendarDays, suggestPrimeDeadline } from "./deadlines";
+import { feeForMeetEvents, validateFeeSchedule, computeHostFee, computeMeetEntryFee, exceedsEventLimits, extractFeeHints, typicalIndividualEventFee } from "./fees";
 import { loadComHalloweenHyv, loadMexicoSprintEv3, loadTestTacHyv, mockDraftMeets, TAC_ANNOUNCEMENT_TEXT, TEST_OMR_URL } from "./fixtures";
 import { fetchLivePnsCalendar, applyPendingSourcePatch, applyTeamUnifyDetail, calendarItemToDraftMeet, inferHostClubFromTitle, mapTeamUnifyListRow, mergePnsUpdates, parentBannerForDayReselection, parentBannerForPnsDiffs, parsePnsCalendarHtml } from "./pns-calendar";
 import { enrichCalendarItemWithAnnouncementFees, extractTextFromPdfBytes, sampleEntryFeeAnnouncementPdf } from "./announcement-pdf";
@@ -937,7 +937,48 @@ async function testPnsFetchSkipsPastMeets() {
   }
 }
 
+
+function testHostDeadlineArchiveAndPricing() {
+  const today = "2026-10-30";
+  const draft = { startDate: "2026-11-06", endDate: "2026-11-08", status: "admin_review" as const, name: "BBST", announcementEntryDeadline: "2026-10-27" };
+  assert(classifyAdminMeetList(draft, today) === "past", "unpublished meet past host deadline is archived even before meet dates");
+  assert(filterAdminMeetList([draft], "needs_review", today).length === 0, "expired entry not in review");
+  assert(classifyAdminMeetList({ ...draft, hostConfirmedDeadline: "2026-11-01" }, today) === "needs_review", "host extension reopens review");
+  assert(classifyAdminMeetList({ ...draft, announcementEntryDeadline: today }, today) === "needs_review", "deadline day remains open");
+  assert(classifyAdminMeetList({ ...draft, status: "commitment_open" }, today) === "upcoming", "published work is retained");
+  assert(classifyAdminMeetList({ ...draft, announcementEntryDeadline: undefined }, today) === "needs_review", "unknown deadline not guessed");
+  assert(extractAnnouncementEntryDeadline("MEET ENTRY DEADLINE: TUESDAY, OCTOBER 27, 2026") === "2026-10-27", "BBST announcement deadline");
+  assert(!extractAnnouncementEntryDeadline("MEET ENTRY DEADLINE: FEBRUARY 30, 2026"), "invalid deadline rejected");
+  const meet = {
+    surcharge: 25, individualEventFee: 4.5,
+    events: [ev({ id: "one", eventNumber: 1, minAge: 12, maxAge: 99, eventFee: 4.5 }), ev({ id: "two", eventNumber: 2, minAge: 11, maxAge: 99, eventFee: 7 })],
+    sessions: [{ id: "sat", name: "Saturday", date: "2026-11-07" }],
+  };
+  assert(feeForMeetEvents(meet, ["one", "two"]).total === 36.5, "mixed file rates supported");
+  const schedule = { mode: "per_event" as const, flatFee: 0, eventPrices: [{ label: "Prelims/finals", eventNumbers: [2], amount: 7 }], charges: [] };
+  validateFeeSchedule(schedule);
+  assert(feeForMeetEvents({ ...meet, events: meet.events.map(e => ({ ...e, eventFee: undefined })), feeSchedule: schedule }, ["one", "two"]).total === 36.5, "BBST mixed overrides work without file prices");
+  assert(feeForMeetEvents({ ...meet, feeSchedule: { ...schedule, eventPrices: [{ label: "Free", eventNumbers: [2], amount: 0 }] } }, ["two"]).total === 25, "zero overrides supported");
+  assert(feeForMeetEvents({ ...meet, feeSchedule: { ...schedule, mode: "flat", flatFee: 50 } }, ["one", "two"]).total === 75, "flat fee replaces event charges");
+  const extras = { ...schedule, charges: [{ label: "Facility", unit: "day" as const, amount: 3 }, { label: "Credit", unit: "swimmer" as const, amount: -2 }, { label: "Processing", unit: "percent" as const, amount: 10 }] };
+  assert(feeForMeetEvents({ ...meet, feeSchedule: extras }, ["one", "two"]).total === 41.15, "daily fee once per day, credit, percent of base");
+  const targeted = { ...schedule, charges: [{ label: "Host waiver", unit: "swimmer" as const, amount: -7, swimmerIds: ["s1"] }] };
+  validateFeeSchedule(targeted);
+  assert(feeForMeetEvents({ ...meet, feeSchedule: targeted }, ["one", "two"], "s1").total === 29.5, "individual host waiver applies to selected swimmer");
+  assert(feeForMeetEvents({ ...meet, feeSchedule: targeted }, ["one", "two"], "s2").total === 36.5, "waiver never affects other swimmers");
+  assert(feeForMeetEvents({ ...meet, feeSchedule: schedule }, ["one", "one"]).total === 29.5, "duplicate event IDs never double charge");
+  const duplicate = { ...schedule, eventPrices: [...schedule.eventPrices, ...schedule.eventPrices] };
+  let rejected = false;
+  try { validateFeeSchedule(duplicate); } catch { rejected = true; }
+  assert(rejected, "overlapping price groups rejected");
+  const draftMeet = calendarItemToDraftMeet({ sourceId: "bbst", name: "BBST", hostClub: "BBST", startDate: "2026-11-06", endDate: "2026-11-08", location: "", registrationDeadline: "2026-10-28", announcementEntryDeadline: "2026-10-27" }, { isTestData: true });
+  assert(effectiveHostDeadline(draftMeet) === "2026-10-27", "announcement deadline takes priority over PNS");
+  const merged = mergePnsUpdates({ ...draftMeet, feeSchedule: schedule }, { sourceId: "bbst", name: "BBST", hostClub: "BBST", startDate: "2026-11-06", endDate: "2026-11-08", location: "", individualEventFee: 5 });
+  assert(merged.next.feeSchedule === schedule, "PNS fetch preserves reviewed custom rules");
+}
+
 async function run() {
+  testHostDeadlineArchiveAndPricing();
   await testPnsFetchSkipsPastMeets();
   testEligibility();
   testDeadlinesAndFees();

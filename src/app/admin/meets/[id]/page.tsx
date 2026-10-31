@@ -20,9 +20,12 @@ import type { Meet, MeetCommitment, MeetSwimmer } from "@/lib/meets/types";
 import { mailtoHref } from "@/lib/meets/mailto";
 import { meetDayOptions, meetDateStamp } from "@/lib/meets/sessions";
 import { displayMeetName } from "@/lib/meets/display-name";
+import { adminHostDeadline, hostEntryClosed } from "@/lib/meets/list-filter";
+import { MeetFeeScheduleEditor, emptyMeetFeeSchedule } from "@/components/meet-fee-schedule-editor";
+import type { MeetFeeSchedule } from "@/lib/meets/types";
 import { MeetDateStamp } from "@/components/meet-date-stamp";
 import { adminMeetGuide, canExportHostPacket, canPublishToFamilies, canReopenRsvp, parentEventLabel, type AdminMeetStepId } from "@/lib/meets/workflow";
-import { meetHasInvoiceRates } from "@/lib/meets/fees";
+import { validateFeeSchedule, meetHasInvoiceRates } from "@/lib/meets/fees";
 import { applyPendingSourcePatch, parentBannerForDayReselection, pnsDatesChanged } from "@/lib/meets/pns-calendar";
 import { attendingNeedsNewDays } from "@/lib/meets/sessions";
 
@@ -62,6 +65,9 @@ export default function AdminMeetDetailPage() {
   const [meet, setMeet] = useState<Meet | null>(null);
   const [commitments, setCommitments] = useState<MeetCommitment[]>([]);
   const [swimmers, setSwimmers] = useState<MeetSwimmer[]>([]);
+  const [feeSchedule, setFeeSchedule] = useState<MeetFeeSchedule>(emptyMeetFeeSchedule());
+  const [feeSessions, setFeeSessions] = useState<Meet["sessions"]>([]);
+  const [hostDeadline, setHostDeadline] = useState("");
   const [deadline, setDeadline] = useState("");
   const [surcharge, setSurcharge] = useState("");
   const [eventFee, setEventFee] = useState("");
@@ -106,6 +112,9 @@ export default function AdminMeetDetailPage() {
     setCommitments(json.commitments || []);
     setSwimmers(json.swimmers || []);
     setDeadline(json.meet.primeCommitmentDeadline || "");
+    setHostDeadline(adminHostDeadline(json.meet)?.slice(0, 10) || "");
+    setFeeSchedule(json.meet.feeSchedule || emptyMeetFeeSchedule());
+    setFeeSessions(json.meet.sessions || []);
     setSurcharge(json.meet.surcharge != null ? String(json.meet.surcharge) : "");
     setEventFee(json.meet.individualEventFee != null ? String(json.meet.individualEventFee) : "");
     setHostReply(json.meet.hostReplySummary || "");
@@ -228,7 +237,25 @@ export default function AdminMeetDetailPage() {
               The host declined. This meet cannot be published.
             </p>
           )}
-          {meet.status !== "cancelled" && (
+          <section className={`rounded-xl border-2 p-4 space-y-2 ${hostEntryClosed(meet) ? "border-rose-300 bg-rose-50" : "border-amber-300 bg-amber-50"}`}>
+          <h2 className="font-bold text-lg">Host entry deadline: {adminHostDeadline(meet)?.slice(0, 10) || "Unknown — check announcement"}</h2>
+          <p className="font-semibold">{hostEntryClosed(meet) ? "Host registration closed. Unpublished meets are in Past archive." : "Check this deadline before reviewing or requesting an invitation."} All dates are Pacific time.</p>
+          <p className="text-sm">PNS: {meet.pnsPublishedDeadline?.slice(0, 10) || "Unknown"} · Announcement: {meet.announcementEntryDeadline?.slice(0, 10) || "Unknown"} · Prime: {meet.primeCommitmentDeadline?.slice(0, 10) || "Not set"}</p>
+          <label className="block text-sm">Host-confirmed deadline (use for extensions)
+            <Input aria-label="Host-confirmed entry deadline" type="date" value={hostDeadline} onChange={e => setHostDeadline(e.target.value)} />
+          </label>
+          <Button variant="outline" disabled={busy || !hostDeadline} onClick={async () => {
+            setBusy(true); setError("");
+            try {
+              const res = await fetch(`/api/admin/meets/${id}`, { method: "PATCH", headers: { Authorization: `Bearer ${await token()}`, "Content-Type": "application/json" }, body: JSON.stringify({ hostConfirmedDeadline: hostDeadline }) });
+              const json = await res.json(); if (!json.ok) throw new Error(json.error || "Could not save host deadline");
+              await reload(); setMessage("Host-confirmed deadline saved.");
+            } catch (e) { setError(e instanceof Error ? e.message : "Could not save host deadline"); }
+            finally { setBusy(false); }
+          }}>Save host-confirmed deadline</Button>
+        </section>
+
+        {meet.status !== "cancelled" && (
             <Button
               variant="outline"
               disabled={busy}
@@ -564,7 +591,7 @@ export default function AdminMeetDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Host fees for family invoices</CardTitle>
               <CardDescription>
-                We pull these from the announcement PDF when the meet is fetched. Check them during review and save a correction if they are wrong. Final fee = surcharge + each confirmed event. If the Event File lists a fee on an event, that amount is used instead of the per-event rate.
+                Review the announcement and Event File before saving. Automatic extraction provides only a starting rate; mixed pricing requires review. Event price groups override file prices, which override the default rate. Estimates are subject to host confirmation.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
@@ -594,6 +621,14 @@ export default function AdminMeetDetailPage() {
                   />
                 </div>
               </div>
+              {meet.announcementFeeNotes && <p className="rounded border border-amber-300 bg-amber-50 p-3 whitespace-pre-line"><strong>Announcement fee information — verify pricing rules:</strong><br />{meet.announcementFeeNotes}</p>}
+              <MeetFeeScheduleEditor value={feeSchedule} onChange={setFeeSchedule} swimmers={swimmers} />
+              {feeSchedule.charges.some(c => c.unit === "day") && <div className="space-y-2">
+                <p className="font-semibold">Session dates for daily charges</p>
+                {feeSessions.map((session, i) => <label key={session.id} className="block">{session.name}
+                  <Input aria-label={`Date for ${session.name}`} type="date" value={session.date || ""} onChange={e => setFeeSessions(rows => rows.map((r, j) => j === i ? { ...r, date: e.target.value } : r))} />
+                </label>)}
+              </div>}
               <p className="text-xs text-slate-500">
                 Saving overwrites the extracted rates and recalculates invoices if families already see the confirmed lineup.
               </p>
@@ -607,6 +642,7 @@ export default function AdminMeetDetailPage() {
                     setError("Enter valid host fees.");
                     return;
                   }
+                  try { validateFeeSchedule(feeSchedule); } catch (e) { setError(e instanceof Error ? e.message : "Invalid pricing"); return; }
                   setBusy(true);
                   setError("");
                   try {
@@ -614,7 +650,7 @@ export default function AdminMeetDetailPage() {
                     const res = await fetch(`/api/admin/meets/${id}`, {
                       method: "PATCH",
                       headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
-                      body: JSON.stringify({ surcharge: surchargeN, individualEventFee: eventFeeN }),
+                      body: JSON.stringify({ surcharge: surchargeN, individualEventFee: eventFeeN, feeSchedule, sessions: feeSessions }),
                     });
                     const json = await res.json();
                     if (!json.ok) throw new Error(json.error || "Could not save fees");

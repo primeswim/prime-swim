@@ -1,4 +1,4 @@
-import { pacificYmd } from "./deadlines";
+import { effectiveHostDeadline, pacificYmd } from "./deadlines";
 import type { Meet } from "./types";
 import { isPrePublishStatus } from "./workflow";
 
@@ -12,21 +12,32 @@ export function meetEndYmd(meet: Pick<Meet, "startDate" | "endDate">): string {
   return (meet.endDate || meet.startDate || "").slice(0, 10);
 }
 
+export function adminHostDeadline(meet: Pick<Meet, "hostConfirmedDeadline" | "announcementEntryDeadline" | "pnsPublishedDeadline" | "effectiveHostDeadline">): string | undefined {
+  return effectiveHostDeadline(meet) || meet.effectiveHostDeadline;
+}
+
+type DeadlineFields = Partial<Pick<Meet, "hostConfirmedDeadline" | "announcementEntryDeadline" | "pnsPublishedDeadline" | "effectiveHostDeadline">>;
+
+export function hostEntryClosed(meet: DeadlineFields, todayYmd = pacificYmd()): boolean {
+  const day = adminHostDeadline(meet)?.slice(0, 10);
+  return !!day && /^\d{4}-\d{2}-\d{2}$/.test(day) && day < todayYmd;
+}
+
 /** Exclusive buckets: review queue, upcoming, in process, past archive. */
 export function classifyAdminMeetList(
-  meet: Pick<Meet, "startDate" | "endDate" | "status">,
+  meet: Pick<Meet, "startDate" | "endDate" | "status"> & DeadlineFields,
   todayYmd: string
 ): AdminMeetListFilter {
   if (meet.status === "cancelled" || meet.status === "completed") return "past";
   const start = meetStartYmd(meet);
   const end = meetEndYmd(meet);
   if (end && end < todayYmd) return "past";
-  if (isPrePublishStatus(meet.status)) return "needs_review";
+  if (isPrePublishStatus(meet.status)) return hostEntryClosed(meet, todayYmd) ? "past" : "needs_review";
   if (start && start <= todayYmd && (!end || end >= todayYmd)) return "in_process";
   return "upcoming";
 }
 
-type DatedMeet = Pick<Meet, "startDate" | "endDate" | "status" | "name"> &
+type DatedMeet = DeadlineFields & Pick<Meet, "startDate" | "endDate" | "status" | "name"> &
   Partial<Pick<Meet, "pendingSourceReview" | "pendingSourceDiffs">>;
 
 export function meetHasPnsUpdate(meet: Partial<Pick<Meet, "pendingSourceReview">>): boolean {

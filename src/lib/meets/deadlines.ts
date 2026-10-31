@@ -76,3 +76,16 @@ export function isMeetPaymentOverdue(dueAt?: string, nowIso?: string): boolean {
   if (!dueAt) return false;
   return pacificYmd(nowIso) > dueAt.slice(0, 10);
 }
+
+
+// Only parse explicitly labelled entry deadlines; never guess from meet dates.
+export function extractAnnouncementEntryDeadline(text: string): string | undefined {
+  const hit = /(?:meet\s+)?entry\s+deadline\s*:\s*(?:[a-z]+,?\s+)?([a-z]+)\s+(\d{1,2}),?\s+(20\d{2})/i.exec(text);
+  if (!hit) return undefined;
+  const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+  const month = months.findIndex(m => m === hit[1].toLowerCase());
+  if (month < 0) return undefined;
+  const ymd = `${hit[3]}-${String(month + 1).padStart(2, "0")}-${hit[2].padStart(2, "0")}`;
+  const d = new Date(ymd + "T12:00:00Z");
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === ymd ? ymd : undefined;
+}

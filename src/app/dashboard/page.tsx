@@ -705,7 +705,7 @@ export default function DashboardPage() {
                           <div className="mt-1 text-xs text-slate-600">{meet.hostCutNote}</div>
                         )}
                         {fee != null && !confirmed && (
-                          <div className="mt-1 text-xs text-slate-500">Estimated host fee ${fee.toFixed(2)}</div>
+                          <div className="mt-1 text-xs text-slate-500">Estimated host fee ${fee.toFixed(2)} · Final fees are determined by the meet host and confirmed by Prime.</div>
                         )}
                         {confirmed && (meet.finalFee || 0) > 0 && (
                           <div className="mt-2 space-y-2">

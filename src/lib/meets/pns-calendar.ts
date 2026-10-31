@@ -19,6 +19,8 @@ export interface PnsCalendarItem {
   announcementUrl?: string;
   announcementText?: string;
   registrationDeadline?: string;
+  announcementEntryDeadline?: string;
+  announcementFeeNotes?: string;
   hostEntryEmail?: string;
   sanctionNumber?: string;
   sourceFiles?: PnsSourceFile[];
@@ -208,6 +210,7 @@ export function calendarItemToDraftMeet(item: PnsCalendarItem, opts: { isTestDat
   const announcementText = `${item.name}\n${item.announcementText || ""}`.trim();
   const invitationStatus = inferInvitationStatus(announcementText);
   const hostDeadline = item.registrationDeadline;
+  const effectiveDeadline = effectiveHostDeadline({ pnsPublishedDeadline: hostDeadline, announcementEntryDeadline: item.announcementEntryDeadline });
   const name = opts.isTestData ? markTestName(item.name) : item.name;
   const hints = extractFeeHints(item.announcementText || "");
   return {
@@ -230,9 +233,10 @@ export function calendarItemToDraftMeet(item: PnsCalendarItem, opts: { isTestDat
     invitationStatus,
     eligibilityNotes: extractEligibilityNotes(announcementText),
     pnsPublishedDeadline: hostDeadline,
-    announcementEntryDeadline: hostDeadline,
-    effectiveHostDeadline: effectiveHostDeadline({ pnsPublishedDeadline: hostDeadline }),
-    primeCommitmentDeadline: suggestPrimeDeadline(hostDeadline),
+    announcementEntryDeadline: item.announcementEntryDeadline,
+    announcementFeeNotes: item.announcementFeeNotes,
+    effectiveHostDeadline: effectiveDeadline,
+    primeCommitmentDeadline: suggestPrimeDeadline(effectiveDeadline),
     deadlineTimezone: "America/Los_Angeles",
     hostEntryEmail: item.hostEntryEmail,
     surcharge: item.surcharge ?? hints.surcharge,
@@ -373,6 +377,14 @@ export function mergePnsUpdates(existing: Meet, incoming: PnsCalendarItem): { ch
     diffs.push(`pns deadline ${existing.pnsPublishedDeadline || "none"} → ${incoming.registrationDeadline}`);
     applyOrStash(applyNow, next, patch, "pnsPublishedDeadline", incoming.registrationDeadline);
   }
+  if (incoming.announcementEntryDeadline && incoming.announcementEntryDeadline !== existing.announcementEntryDeadline) {
+    diffs.push(`announcement entry deadline ${existing.announcementEntryDeadline || "unknown"} → ${incoming.announcementEntryDeadline}`);
+    applyOrStash(applyNow, next, patch, "announcementEntryDeadline", incoming.announcementEntryDeadline);
+  }
+  if (incoming.announcementFeeNotes && incoming.announcementFeeNotes !== existing.announcementFeeNotes) {
+    diffs.push("announcement fee information changed");
+    applyOrStash(applyNow, next, patch, "announcementFeeNotes", incoming.announcementFeeNotes);
+  }
   if (incoming.announcementUrl && incoming.announcementUrl !== existing.announcementUrl) {
     diffs.push(existing.announcementUrl ? "announcement PDF changed" : "announcement PDF posted");
     applyOrStash(applyNow, next, patch, "announcementUrl", incoming.announcementUrl);
@@ -442,6 +454,8 @@ export function applyPendingSourcePatch(meet: Meet): Meet {
     location: patch.location || meet.location,
     hostClub: patch.hostClub || meet.hostClub,
     pnsPublishedDeadline: patch.pnsPublishedDeadline || meet.pnsPublishedDeadline,
+    announcementEntryDeadline: patch.announcementEntryDeadline || meet.announcementEntryDeadline,
+    announcementFeeNotes: patch.announcementFeeNotes || meet.announcementFeeNotes,
     announcementUrl: patch.announcementUrl || meet.announcementUrl,
     announcementText: patch.announcementText || meet.announcementText,
     hostEntryEmail: patch.hostEntryEmail || meet.hostEntryEmail,

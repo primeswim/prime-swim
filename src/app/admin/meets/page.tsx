@@ -15,7 +15,7 @@ import type { PnsSyncStatus } from "@/lib/meets/pns-sync";
 import type { ClubMeetSettings, Meet } from "@/lib/meets/types";
 import type { MeetPaymentRow } from "@/lib/meets/entries";
 import { adminMeetGuide, canExportHostPacket } from "@/lib/meets/workflow";
-import { countAdminMeetList, filterAdminMeetList, type AdminMeetListFilter } from "@/lib/meets/list-filter";
+import { adminHostDeadline, hostEntryClosed, countAdminMeetList, filterAdminMeetList, type AdminMeetListFilter } from "@/lib/meets/list-filter";
 import { PnsMeetLink } from "@/components/pns-meet-link";
 import { MeetDateStamp } from "@/components/meet-date-stamp";
 import { displayMeetName } from "@/lib/meets/display-name";
@@ -278,7 +278,7 @@ export default function AdminMeetsPage() {
           <CardHeader>
             <CardTitle>Meets</CardTitle>
             <CardDescription>
-              New drafts stay in Needs review. Has updates is for meets we already fetched whose PNS announcement or files changed.
+              Unpublished meets past the host entry deadline go to Past archive. Needs review contains meets still open for entry (or with an unknown deadline). Has updates shows pending PNS changes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -333,6 +333,9 @@ export default function AdminMeetsPage() {
                     <div className="text-xs font-medium text-slate-700 mt-1">{meetDateStamp(meet.startDate, meet.endDate).rangeLabel}</div>
                     <div className="text-xs text-slate-500 mt-1">
                       {meet.hostClub} · {meet.meetType}
+                    </div>
+                    <div className={`mt-2 rounded border px-2 py-1 text-sm font-bold ${hostEntryClosed(meet) ? "bg-rose-50 border-rose-300 text-rose-900" : "bg-amber-50 border-amber-300 text-amber-950"}`}>
+                      Host entry deadline: {adminHostDeadline(meet)?.slice(0, 10) || "Unknown — check announcement"} (PT){hostEntryClosed(meet) ? " · CLOSED" : ""}
                     </div>
                     <div className="text-xs text-slate-700 mt-1">Next: {adminMeetGuide(meet).nextTitle}</div>
                     {meet.pendingSourceReview && (meet.pendingSourceDiffs || []).length > 0 && (

@@ -316,7 +316,7 @@ export function buildParentMeetDetail(opts: {
   const fee =
     opts.commitment?.attendance === "decline"
       ? { surcharge: 0, events: 0, total: 0 }
-      : feeForMeetEvents(opts.meet, selected);
+      : feeForMeetEvents(opts.meet, selected, opts.swimmer.id);
 
   return {
     meet: opts.meet,

@@ -1,3 +1,4 @@
+import { extractAnnouncementEntryDeadline } from "./deadlines";
 import { extractFeeHints } from "./fees";
 
 const SKIP_PDF_HOSTS = /(^|\.)example\.test$|^localhost$|^127\.0\.0\.1$/i;
@@ -49,22 +50,29 @@ export async function enrichCalendarItemWithAnnouncementFees<
     announcementUrl?: string;
     surcharge?: number;
     individualEventFee?: number;
+    announcementEntryDeadline?: string;
+    announcementFeeNotes?: string;
   },
 >(item: T): Promise<T> {
   const fromNotes = extractFeeHints(item.announcementText || "");
   let surcharge = item.surcharge ?? fromNotes.surcharge;
   let individualEventFee = item.individualEventFee ?? fromNotes.individualEventFee;
-  if ((surcharge == null || individualEventFee == null) && shouldFetchAnnouncementPdf(item.announcementUrl)) {
+  let announcementEntryDeadline = item.announcementEntryDeadline ?? extractAnnouncementEntryDeadline(item.announcementText || "");
+  let announcementFeeNotes = item.announcementFeeNotes;
+  if ((surcharge == null || individualEventFee == null || !announcementEntryDeadline || !announcementFeeNotes) && shouldFetchAnnouncementPdf(item.announcementUrl)) {
     try {
       const pdfText = await fetchAnnouncementPdfText(item.announcementUrl!);
       const fromPdf = extractFeeHints(pdfText);
+      announcementEntryDeadline = extractAnnouncementEntryDeadline(pdfText) || announcementEntryDeadline;
+      const section = /ENTRY FEES\s*:?([\s\S]{0,1200}?)(?:AWARDS|MEET RULES|WARM-UP|SAFETY|$)/i.exec(pdfText);
+      announcementFeeNotes = section?.[1]?.trim().slice(0, 1200) || announcementFeeNotes;
       surcharge = surcharge ?? fromPdf.surcharge;
       individualEventFee = individualEventFee ?? fromPdf.individualEventFee;
     } catch {
       // Calendar notes stay; admin can type fees on review.
     }
   }
-  return { ...item, surcharge, individualEventFee };
+  return { ...item, surcharge, individualEventFee, announcementEntryDeadline, announcementFeeNotes };
 }
 
 /** Tiny uncompressed PDF for tests. */

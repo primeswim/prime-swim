@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { extractEligibilityNotes, inferInvitationStatus } from "./eligibility";
 import { effectiveHostDeadline, isPrimeDeadlinePassed, meetPaymentDueAt, pacificYmd, suggestPrimeDeadline } from "./deadlines";
-import { exceedsEventLimits, feeForMeetEvents, resolveMeetFeeRates, typicalIndividualEventFee } from "./fees";
+import { validateFeeSchedule, exceedsEventLimits, feeForMeetEvents, resolveMeetFeeRates, typicalIndividualEventFee } from "./fees";
 import { eventLabel, parseHytekEventFile } from "./hytek-events";
 import { mailtoHref } from "./mailto";
 import { serializeMeetEntries, serializeMeetPayments, type MeetEntriesPayload, type MeetPaymentRow } from "./entries";
@@ -149,7 +149,7 @@ export class MeetService {
         meet.startDate, meet.endDate, meet.location, meet.announcementUrl,
         meet.announcementText, meet.sourceFiles, meet.eventFileUrl,
         meet.hostClub, meet.hostEntryEmail, meet.pnsPublishedDeadline,
-        meet.surcharge, meet.individualEventFee, meet.pendingSourcePatch,
+        meet.surcharge, meet.individualEventFee, meet.announcementEntryDeadline, meet.announcementFeeNotes, meet.pendingSourcePatch,
       ])).digest("hex");
       const summary = { id: meet.id, name: meet.name, diffs: meet.pendingSourceDiffs || [], revision };
       if (!known.has(key)) {
@@ -234,7 +234,18 @@ export class MeetService {
       next.status = "commitment_open";
       next.commitmentClosedAt = undefined;
     }
-    const feesInPatch = "surcharge" in patch || "individualEventFee" in patch;
+    if ("feeSchedule" in patch) {
+      try {
+        validateFeeSchedule(patch.feeSchedule);
+        const numbers = new Set(next.events.map(e => e.eventNumber));
+        const referenced = [...patch.feeSchedule.eventPrices.flatMap(r => r.eventNumbers), ...patch.feeSchedule.charges.flatMap(r => r.eventNumbers || [])];
+        if (numbers.size && referenced.some(n => !numbers.has(n))) throw new Error("A pricing rule references an event number not in this Event File.");
+        const pricingViewers = new Set([undefined, ...patch.feeSchedule.charges.flatMap(r => r.swimmerIds || [])]);
+        for (const viewer of pricingViewers) feeForMeetEvents(next, next.events.map(e => e.id), viewer);
+      }
+      catch (e) { throw new MeetServiceError(e instanceof Error ? e.message : "Invalid host pricing"); }
+    }
+    const feesInPatch = "surcharge" in patch || "individualEventFee" in patch || "feeSchedule" in patch;
     if ("surcharge" in patch) next.surcharge = Number(patch.surcharge) || 0;
     if ("individualEventFee" in patch) next.individualEventFee = Number(patch.individualEventFee) || 0;
     Object.assign(next, applyMeetVersionBump(next, reasonsForMeetShapeChange(meet, next)));
@@ -497,7 +508,7 @@ export class MeetService {
           commitment.paymentDueAt || meetPaymentDueAt(meet.entriesConfirmedAt || this.clock())
         );
       } else {
-        const fee = feeForMeetEvents(meet, working);
+        const fee = feeForMeetEvents(meet, working, commitment.swimmerId);
         commitment.estimatedFee = fee.total;
         if (meet.status === "host_reply_received") commitment.confirmedEventIds = working;
       }
@@ -506,7 +517,7 @@ export class MeetService {
   }
 
   private applyFinalInvoice(meet: Meet, commitment: MeetCommitment, eventIds: string[], dueAt?: string) {
-    const fee = feeForMeetEvents(meet, eventIds);
+    const fee = feeForMeetEvents(meet, eventIds, commitment.swimmerId);
     commitment.confirmedEventIds = eventIds;
     commitment.finalFee = fee.total;
     commitment.paymentDueAt = dueAt;
@@ -531,7 +542,7 @@ export class MeetService {
   private invoiceNeedsRepair(meet: Meet, commitment: MeetCommitment): boolean {
     if (parentEventLabel(meet.status) !== "confirmed") return false;
     if (commitment.attendance !== "attend") return false;
-    const fee = feeForMeetEvents(meet, this.invoiceEventIds(meet, commitment));
+    const fee = feeForMeetEvents(meet, this.invoiceEventIds(meet, commitment), commitment.swimmerId);
     const stored = Number(commitment.finalFee) || 0;
     if (stored !== fee.total) return true;
     return fee.total > 0 && (commitment.paymentStatus === "none" || !commitment.paymentStatus);
@@ -655,7 +666,7 @@ export class MeetService {
         "The host Event File is not posted yet. Write the events they want in Notes — for example: Saturday 50 Fly, 50 Free."
       );
     }
-    const fee = feeForMeetEvents(meet, opts.selectedEventIds);
+    const fee = feeForMeetEvents(meet, opts.selectedEventIds, opts.swimmerId);
     const incomplete =
       opts.attendance === "attend" && (opts.availableSessionIds.length === 0 || (hasFile && opts.selectedEventIds.length === 0));
 

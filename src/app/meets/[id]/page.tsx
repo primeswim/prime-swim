@@ -688,7 +688,7 @@ function ParentMeetDetailInner() {
 
               <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 Estimated fee: <span className="font-semibold">${detail.fee.total.toFixed(2)}</span>
-                <span className="text-slate-500"> · confirmed after the host lineup is published</span>
+                <span className="text-slate-500"> · estimate only; final fees are determined by the meet host and confirmed by Prime</span>
               </div>
 
               {detail.displayedEvents.length > 0 && (
@@ -805,11 +805,11 @@ function FinalizedParentCard({
         )}
         {!declined && (
           <div className="space-y-1">
-            {confirmed && detail.fee.surcharge > 0 && <div>Surcharge: ${detail.fee.surcharge.toFixed(2)}</div>}
+            {confirmed && detail.fee.surcharge > 0 && <div>Surcharge and additional host charges: ${detail.fee.surcharge.toFixed(2)}</div>}
             {confirmed && detail.fee.events > 0 && <div>Event fees: ${detail.fee.events.toFixed(2)}</div>}
             <div>
               {confirmed ? "Final" : "Estimated"} fee: ${detail.fee.total.toFixed(2)}
-              {!confirmed && " (confirmed after the host lineup is published)"}
+              {!confirmed && " (estimate only; final fees are determined by the meet host and confirmed by Prime)"}
             </div>
           </div>
         )}

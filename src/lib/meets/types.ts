@@ -46,11 +46,13 @@ export interface PnsSourceFile {
 }
 
 export interface PendingSourcePatch {
+  announcementEntryDeadline?: string;
   startDate?: string;
   endDate?: string;
   location?: string;
   hostClub?: string;
   pnsPublishedDeadline?: string;
+  announcementFeeNotes?: string;
   announcementUrl?: string;
   announcementText?: string;
   hostEntryEmail?: string;
@@ -82,6 +84,20 @@ export interface MeetSession {
   date?: string;
 }
 
+/** Admin-reviewed host pricing. Team/relay allocations must be confirmed explicitly. */
+export interface MeetFeeSchedule {
+  mode: "per_event" | "flat";
+  flatFee: number;
+  eventPrices: Array<{ label: string; eventNumbers: number[]; amount: number }>;
+  charges: Array<{
+    label: string;
+    amount: number;
+    unit: "swimmer" | "day" | "session" | "percent";
+    eventNumbers?: number[];
+    swimmerIds?: string[];
+  }>;
+}
+
 export interface Meet {
   id: string;
   /** Stable PNS/external key for ingest merge. URL / Firestore doc id is a GUID. */
@@ -103,6 +119,7 @@ export interface Meet {
   invitationStatus: InvitationStatus;
   eligibilityNotes: string[];
   pnsPublishedDeadline?: string;
+  announcementFeeNotes?: string;
   announcementEntryDeadline?: string;
   hostConfirmedDeadline?: string;
   effectiveHostDeadline?: string;
@@ -111,6 +128,7 @@ export interface Meet {
   hostEntryEmail?: string;
   surcharge?: number;
   individualEventFee?: number;
+  feeSchedule?: MeetFeeSchedule;
   maxEventsMeet?: number;
   maxEventsBySession?: Record<string, number>;
   status: MeetStatus;

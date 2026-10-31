@@ -1187,7 +1187,25 @@ async function testPublicCatalogHidesTestMeets() {
   assert(Boolean(detail.announcementUrl), "public detail keeps the announcement link");
 }
 
+
+async function testReviewedFeeScheduleSave() {
+  const { service } = await seedWorld();
+  const meets = await service.ingestPns(mockPnsCalendarItems(), { isTestData: true });
+  const meet = meets[0];
+  const schedule = { mode: "flat" as const, flatFee: 42, eventPrices: [], charges: [{ label: "Facility", amount: 3, unit: "swimmer" as const }] };
+  await service.updateMeet(meet.id, { feeSchedule: schedule });
+  assert((await service.getAdminMeet(meet.id))?.feeSchedule?.flatFee === 42, "reviewed fee schedule persists");
+  await service.ingestPns(mockPnsCalendarItems(), { isTestData: true });
+  assert((await service.getAdminMeet(meet.id))?.feeSchedule?.flatFee === 42, "repeat fetch retains custom pricing");
+  let rejected = false;
+  try { await service.updateMeet(meet.id, { feeSchedule: { ...schedule, flatFee: -1 } }); }
+  catch (e) { rejected = e instanceof MeetServiceError; }
+  assert(rejected, "invalid financial settings rejected");
+  assert((await service.getAdminMeet(meet.id))?.feeSchedule?.flatFee === 42, "failed validation never saves invalid pricing");
+}
+
 async function run() {
+  await testReviewedFeeScheduleSave();
   await testPnsIngestAndMeetTypes();
   await testRejectKeepsMeetOffFamilyList();
   await testPublishedPnsUpdateWaitsForAccept();
