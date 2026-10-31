@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Clock, Trophy, Waves } from "lucide-react"
 import Header from "@/components/header";
+import HomeHero from "@/components/home-hero";
 import LatestNewsSection from "@/components/latest-news-section"
 import UpcomingEventsSection from "@/components/upcoming-events-section"
 import ParentTestimonialsSection from "@/components/parent-testimonials-section"
@@ -15,51 +16,8 @@ export default function Home() {
       {/* Header */}
       <Header />
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={120}
-              height={120}
-              className="mx-auto mb-6 rounded-full shadow-lg"
-            />
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-800 mb-6 tracking-tight">Prime Swim Academy</h1>
-          <p className="text-2xl md:text-3xl text-slate-600 font-light">Swim with Confidence</p>
-        </div>
-      </section>
-      {/* 徽章：USA & PNS & Team Store —— 居中显示 */}
-      <div className="mt-4 md:mt-6 flex justify-center">
-        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-          <Image
-            src="/images/usa-swimming.png"
-            alt="USA Swimming"
-            width={120}
-            height={120}
-            className="w-[120px] h-[120px] object-contain"
-            title="USA Swimming Member Club"
-          />
-          <Image
-            src="/images/pns-logo.JPG"
-            alt="Pacific Northwest Swimming (PNS)"
-            width={120}
-            height={120}
-            className="w-[120px] h-[120px] object-contain"
-            title="Pacific Northwest Swimming"
-          />
-          <Image
-            src="/images/swimoutlet-logo.png"
-            alt="SwimOutlet.com"
-            width={320}
-            height={71}
-            unoptimized
-            className="h-10 w-auto object-contain md:h-12"
-          />
-        </div>
-      </div>
+      <HomeHero />
+
       {/* Programs Section */}
       <section id="programs" className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
