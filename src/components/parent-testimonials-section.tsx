@@ -1,7 +1,7 @@
 // components/parent-testimonials-section.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import styles from "./parent-testimonials-section.module.css";
@@ -28,6 +28,27 @@ function testimonialContent(content: string) {
 export default function ParentTestimonialsSection() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
+  const wallRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const wall = wallRef.current;
+    if (!wall) return;
+    let frame = 0;
+    const notes = Array.from(wall.querySelectorAll<HTMLElement>("article"));
+    const measure = () => {
+      for (const note of notes) {
+        note.parentElement!.style.gridRowEnd = `span ${Math.ceil((note.offsetHeight + 16) / 4)}`;
+      }
+      wall.dataset.measured = "true";
+    };
+    measure();
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    notes.forEach(note => observer.observe(note));
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [testimonials, loading]);
 
   useEffect(() => {
     loadTestimonials();
@@ -67,14 +88,31 @@ export default function ParentTestimonialsSection() {
           </p>
         </div>
 
-        <div className={`${styles.wall} max-w-7xl mx-auto`}>
-          {testimonials.map((testimonial) => (
-            <article key={testimonial.id} className={styles.note}>
+        <div ref={wallRef} className={`${styles.wall} max-w-7xl mx-auto`}>
+          {testimonials.map((testimonial, index) => (
+            <div key={testimonial.id} className={styles.item} data-palette={index % 7}
+              onPointerMove={(event) => {
+                if (event.pointerType !== "mouse") return;
+                const node = event.currentTarget;
+                const rect = node.getBoundingClientRect();
+                const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+                const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+                node.style.setProperty("--pointer-x", `${x * 100}%`);
+                node.style.setProperty("--pointer-y", `${y * 100}%`);
+                node.style.setProperty("--tilt-x", `${(0.5 - y) * 2}deg`);
+                node.style.setProperty("--tilt-y", `${(x - 0.5) * 2}deg`);
+              }}
+              onPointerLeave={(event) => {
+                event.currentTarget.style.setProperty("--tilt-x", "0deg");
+                event.currentTarget.style.setProperty("--tilt-y", "0deg");
+              }}>
+            <article className={styles.note}>
               <Quote className={styles.quote} aria-hidden="true" />
               <blockquote className="text-sm text-slate-700 leading-6 whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {testimonialContent(testimonial.content)}
               </blockquote>
             </article>
+            </div>
           ))}
         </div>
         <div className="flex justify-center mt-6">
