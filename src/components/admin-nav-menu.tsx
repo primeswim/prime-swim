@@ -52,9 +52,6 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
           <MobileLink href="/admin/tuition-v2/plan">V2 Monthly Plan</MobileLink>
           <MobileLink href="/admin/tuition-v2/review" nested>V2 Tuition Review</MobileLink>
           <MobileLink href="/admin/tuition-v2/email" nested>V2 Email</MobileLink>
-          <MobileLink href="/admin/monthly-tuition">Calculate Tuition (V1)</MobileLink>
-          <MobileLink href="/admin/tuition-billing">Send Tuition Email (V1)</MobileLink>
-          <MobileLink href="/admin/tuition">Manual Tuition Email</MobileLink>
         </MobileSection>
         <MobileSection title="Programs">
           <MobileLink href="/admin/activity">Activity</MobileLink>
@@ -131,15 +128,6 @@ export function AdminNavMenu({ variant }: AdminNavMenuProps) {
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/admin/tuition-v2/email">V2 Email</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/admin/monthly-tuition">Calculate Tuition (V1)</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/admin/tuition-billing">Send Tuition Email</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/admin/tuition">Manual Tuition Email</Link>
       </DropdownMenuItem>
 
       <DropdownMenuSeparator />
