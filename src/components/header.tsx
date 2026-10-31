@@ -156,7 +156,7 @@ export default function Header() {
 
         {/* Mobile Menu Button */}
         <button
-          className={`xl:hidden text-slate-800 ${styles.menu}`}
+          className={`flex xl:hidden text-slate-800 ${styles.menu}`}
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={mobileOpen}

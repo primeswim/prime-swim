@@ -52,7 +52,7 @@
 .dropdown { color: #1e3a5f; padding: 6px; }
 .dropdown [data-slot="dropdown-menu-item"] { min-height: 44px; padding: 10px 12px; font-size: 16px; cursor: pointer; }
 .dropdown [data-slot="dropdown-menu-item"]:focus { color: #087ac0; background: #edf7fc; }
-.menu { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #1e3a5f; }
+.menu { min-width: 44px; min-height: 44px; align-items: center; justify-content: center; border-radius: 8px; color: #1e3a5f; }
 .mobileNav { color: #1e3a5f; border-top: 1px solid #dce8f0; padding-top: 16px; }
 .mobileNav a { display: flex; align-items: center; min-height: 44px; border-radius: 6px; padding: 6px 8px; }
 .mobileNav a:hover { color: #087ac0; background: #edf7fc; }
