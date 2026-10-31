@@ -28,14 +28,7 @@ export default function Home() {
             />
           </div>
           <h1 className="text-5xl md:text-7xl font-bold text-slate-800 mb-6 tracking-tight">Prime Swim Academy</h1>
-          <p className="text-2xl md:text-3xl text-slate-600 mb-12 font-light">Swim with Confidence</p>
-          <Button
-            asChild
-            size="lg"
-            className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
-          >
-            <Link href="/tryout">Schedule Tryout</Link>
-          </Button>
+          <p className="text-2xl md:text-3xl text-slate-600 font-light">Swim with Confidence</p>
         </div>
       </section>
       {/* 徽章：USA & PNS & Team Store —— 居中显示 */}

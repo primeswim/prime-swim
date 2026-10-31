@@ -2,7 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import styles from "./parent-testimonials-section.module.css";
 import { MessageSquare, Quote } from "lucide-react";
 
 import { normalizeCoachMoDisplay } from "@/lib/coach-display-name";
@@ -12,6 +14,15 @@ interface Testimonial {
   content: string;
   parentName?: string;
   swimmerName?: string;
+}
+
+// Preserve the original words while emphasizing selected passages from current feedback.
+const highlightedPassages = /(first place in 2 heats|time improved for all\.|she really enjoys the swimming class\.|We fully trust your judgement|huge progress with his arm technique|improved cross the board\.|she really improved a loooot,|we recommended you to our friends\.|amazing progress, learning Freestyle and Backstroke in such a short time\.|believes in her and cheers her on)/gi;
+
+function testimonialContent(content: string) {
+  return normalizeCoachMoDisplay(content).split(highlightedPassages).map((part, index) =>
+    index % 2 ? <strong key={index} className={styles.emphasis}>{part}</strong> : part
+  );
 }
 
 export default function ParentTestimonialsSection() {
@@ -56,27 +67,20 @@ export default function ParentTestimonialsSection() {
           </p>
         </div>
 
-        <div className="grid items-start md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
+        <div className={`${styles.wall} max-w-7xl mx-auto`}>
           {testimonials.map((testimonial) => (
-            <Card
-              key={testimonial.id}
-              className="gap-0 border-0 py-0 shadow-sm hover:shadow-md transition-shadow duration-300 bg-white"
-            >
-              <CardContent className="p-4">
-                <div className="mb-2">
-                  <Quote className="w-5 h-5 text-blue-200" />
-                </div>
-                <p className="text-sm text-slate-700 leading-6 whitespace-pre-wrap">
-                  {normalizeCoachMoDisplay(testimonial.content)}
-                </p>
-                {testimonial.parentName && (
-                  <div className="text-xs text-slate-500 mt-3 pt-2 border-t">
-                    <span className="font-medium">— {normalizeCoachMoDisplay(testimonial.parentName)}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <article key={testimonial.id} className={styles.note}>
+              <Quote className={styles.quote} aria-hidden="true" />
+              <blockquote className="text-sm text-slate-700 leading-6 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {testimonialContent(testimonial.content)}
+              </blockquote>
+            </article>
           ))}
+        </div>
+        <div className="flex justify-center mt-6">
+          <Button asChild className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-6">
+            <Link href="/tryout">Schedule a Tryout</Link>
+          </Button>
         </div>
       </div>
     </section>
