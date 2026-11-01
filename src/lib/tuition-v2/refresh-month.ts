@@ -2,6 +2,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import { loadInvoices, recalculateInvoices } from "@/lib/tuition-v2/invoice-service";
 import {
   syncActiveSwimmerEnrollmentsIfStale,
+  listSwimmerEnrollments,
   shouldPinCurrentMonthLevel,
   upsertEnrollmentFromSwimmer,
 } from "@/lib/tuition-v2/enrollment-service";
@@ -129,15 +130,25 @@ export async function ensureMonthInvoicesCurrent(
 ): Promise<{ invoices: TuitionV2Invoice[]; refreshed: boolean }> {
   const rosterDelta = await syncActiveSwimmerEnrollmentsIfStale(db);
   const existing = await loadInvoices(db, month);
+  const enrollments = await listSwimmerEnrollments(db);
+  const missingIds = enrollmentIdsMissingInvoices(
+    enrollments.map((e) => e.swimmerId),
+    existing.map((i) => i.swimmerId)
+  );
   const rosterChanged =
     rosterDelta.created.length +
       rosterDelta.updated.length +
       rosterDelta.deactivated.length +
       rosterDelta.levelChanged.length >
     0;
-  if (!rosterChanged && existing.length > 0) {
-    return { invoices: existing, refreshed: false };
+  if (missingIds.length === 0) {
+    if (rosterChanged) await saveTrainingRoster(db, month, actor);
+    return { invoices: existing, refreshed: rosterChanged };
   }
-  const refreshed = await refreshMonthDerivedData(db, month, { actor, syncRoster: false });
+  // A single-swimmer save can seed only part of a future month. Fill the
+  // missing rows without recalculating bills staff have already reviewed.
+  const refreshed = await refreshMonthDerivedData(db, month, {
+    actor, syncRoster: false, swimmerIds: missingIds,
+  });
   return { invoices: refreshed.invoices, refreshed: true };
 }

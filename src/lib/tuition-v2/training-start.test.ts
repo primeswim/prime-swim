@@ -3,6 +3,7 @@ import { getBillableSessionsForSwimmer } from "./calculate-engine";
 import { enrollmentForMonth, validTrainingStartDate } from "./enrollment-schedule";
 import { upsertEnrollmentFromSwimmer, updateEnrollmentRegularWeekdays } from "./enrollment-service";
 import { recalculateInvoices } from "./invoice-service";
+import { ensureMonthInvoicesCurrent } from "./refresh-month";
 import type { TuitionV2Session, TuitionV2SwimmerEnrollment } from "./types";
 import type { Firestore } from "firebase-admin/firestore";
 import { currentCalendarMonth, getNextMonth } from "./shared-ui";
@@ -160,5 +161,26 @@ async function testExplicitDateUpdatesOnlySelectedSwimmer() {
     assert(JSON.stringify(data.get(path))===before[index],"Other swimmer data remains byte-for-byte unchanged");
     assert(!writes.includes(path),"No enrollment or invoice write for other swimmers");
   }
+  // A partial month already has two invoices, so the old `length > 0`
+  // shortcut would never generate the rest, even on repeated Review opens.
+  data.set("tuition_v2_settings/default", {lastRosterSyncAt:new Date().toISOString()});
+  data.set(`${enrollmentPath}/missing`, {...other,swimmerId:"missing",swimmerName:"Missing"});
+  data.set(`${enrollmentPath}/inactive`, {...other,swimmerId:"inactive",active:false});
+  data.set(`${enrollmentPath}/waiting`, {...other,swimmerId:"waiting",trainingStartDate:undefined,trainingStartRequired:true});
+  const existingInvoicePaths=["jasper","other"].map(id=>`tuition_v2_months/${month}/invoices/${id}`);
+  const originals=existingInvoicePaths.map(path=>JSON.stringify(data.get(path)));
+  writes.length=0;
+  const filled=await ensureMonthInvoicesCurrent(db,month,"test");
+  assert(filled.invoices.length===3 && filled.invoices.some(i=>i.swimmerId==="missing"),
+    "Review fills a partial month even when roster sync is skipped");
+  assert(!filled.invoices.some(i=>["inactive","waiting"].includes(i.swimmerId)),
+    "Inactive swimmers and swimmers awaiting a first date are not billed");
+  for(const [index,path] of existingInvoicePaths.entries()) {
+    assert(JSON.stringify(data.get(path))===originals[index] && !writes.includes(path),
+      "Backfill must not rewrite either existing invoice");
+  }
+  writes.length=0;
+  await ensureMonthInvoicesCurrent(db,month,"test");
+  assert(!writes.some(path=>path.includes("/invoices/")),"Repeated Review opens do not rewrite invoices");
 }
 Promise.all([testRosterSync(),testActualRoster(),testExplicitDateUpdatesOnlySelectedSwimmer()]).then(() => console.log("training-start tests passed")).catch(e=>{console.error(e);process.exitCode=1;});
