@@ -363,6 +363,16 @@ export async function updateEnrollmentRegularWeekdays(
   const weekdaysByMonth = parsed.trainingStartRequired && !parsed.trainingStartDate
     ? { ...parsed.weekdaysByMonth, [currentCalendarMonth()]: sorted }
     : weekdaysByMonthAfterChange(parsed, sorted, currentCalendarMonth());
+  // An explicitly supplied date applies the saved days from that month,
+  // including on a retry where the date itself has not changed. Otherwise a
+  // stale month pin silently defeats both Save and Recalculate.
+  if (trainingStartDate !== undefined && validTrainingStartDate(trainingStartDate)) {
+    const effectiveMonth = trainingStartDate.slice(0, 7);
+    for (const month of Object.keys(weekdaysByMonth)) {
+      if (month >= effectiveMonth) weekdaysByMonth[month] = sorted;
+    }
+    weekdaysByMonth[effectiveMonth] = sorted;
+  }
   const updated: TuitionV2SwimmerEnrollment = {
     ...parsed,
     regularWeekdays: sorted,

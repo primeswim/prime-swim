@@ -1,7 +1,8 @@
 import { computeTrainingRoster } from "../training-roster";
 import { getBillableSessionsForSwimmer } from "./calculate-engine";
 import { enrollmentForMonth, validTrainingStartDate } from "./enrollment-schedule";
-import { upsertEnrollmentFromSwimmer } from "./enrollment-service";
+import { upsertEnrollmentFromSwimmer, updateEnrollmentRegularWeekdays } from "./enrollment-service";
+import { recalculateInvoices } from "./invoice-service";
 import type { TuitionV2Session, TuitionV2SwimmerEnrollment } from "./types";
 import type { Firestore } from "firebase-admin/firestore";
 import { currentCalendarMonth, getNextMonth } from "./shared-ui";
@@ -108,4 +109,56 @@ async function testActualRoster() {
   assert(datesFor("matthew").join() === "2026-11-02,2026-11-09,2026-11-16,2026-11-23,2026-11-30","Actual November roster: Matthew Mondays from November 2");
   assert(datesFor("upgrade").length===8 && november.slots.filter(s=>s.levels.some(l=>l.attendees.some(a=>a.swimmerId==="upgrade"))).every(s=>s.timeSlot==="6:30-7:30PM"),"Actual November roster adopts new plan after upgrade");
 }
-Promise.all([testRosterSync(),testActualRoster()]).then(() => console.log("training-start tests passed")).catch(e=>{console.error(e);process.exitCode=1;});
+async function testExplicitDateUpdatesOnlySelectedSwimmer() {
+  const data = new Map<string, Record<string, unknown>>();
+  const month = "2026-11";
+  const enrollmentPath = "tuition_v2_swimmer_enrollment";
+  const jasper = {...swimmer, swimmerId: "jasper", swimmerName: "Jasper",
+    regularWeekdays: [1], trainingStartDate: "2026-11-01",
+    weekdaysByMonth: {"2026-10": [6], [month]: [1]}};
+  const other = {...jasper, swimmerId: "other", swimmerName: "Other"};
+  data.set(`${enrollmentPath}/jasper`, jasper);
+  data.set(`${enrollmentPath}/other`, other);
+  data.set(`tuition_v2_months/${month}`, {status:"computed",noTrainingDates:[]});
+  data.set(`tuition_v2_months/${month}/level_plans/${swimmer.level}`, {
+    weeklySlots:[1,5].map(weekday=>({weekday,timeSlot:"5-6PM",location:"Pool"})),
+  });
+  const snap=(path:string)=>({id:path.split("/").pop()!,exists:data.has(path),data:()=>data.get(path)});
+  const writes: string[] = [];
+  function set(path:string,value:Record<string,unknown>) {
+    writes.push(path); data.set(path,{...data.get(path),...value});
+  }
+  function collection(path:string):unknown { return {
+    doc:(id:string)=>({path:`${path}/${id}`,get:async()=>snap(`${path}/${id}`),
+      set:async(value:Record<string,unknown>)=>set(`${path}/${id}`,value),
+      collection:(name:string)=>collection(`${path}/${id}/${name}`)}),
+    get:async()=>({docs:[...data.keys()].filter(k=>k.startsWith(`${path}/`) &&
+      k.split("/").length===path.split("/").length+1).map(snap)}),
+  }; }
+  function batch() { const b = {
+    set(ref:{path:string},value:Record<string,unknown>){set(ref.path,value);return b;},
+    update(ref:{path:string},value:Record<string,unknown>){set(ref.path,value);return b;},
+    delete(ref:{path:string}){writes.push(ref.path);data.delete(ref.path);return b;},
+    async commit(){},
+  }; return b; }
+  const db={collection,batch} as unknown as Firestore;
+  await recalculateInvoices(db,month);
+  const otherPaths=[`${enrollmentPath}/other`,`tuition_v2_months/${month}/invoices/other`];
+  const before=otherPaths.map(path=>JSON.stringify(data.get(path)));
+  writes.length=0;
+  // Date already equals November 1: saving again must repair the stale pin.
+  const updated=await updateEnrollmentRegularWeekdays(db,"jasper",[1,5],"2026-11-01");
+  assert(updated && enrollmentForMonth(updated,month).regularWeekdays.join()==="1,5",
+    "Explicit November date replaces the old November pin even when unchanged");
+  assert(updated && enrollmentForMonth(updated,"2026-10").regularWeekdays.join()==="6",
+    "Prior month training days remain unchanged");
+  await recalculateInvoices(db,month,{swimmerIds:["jasper"]});
+  const invoice=data.get(`tuition_v2_months/${month}/invoices/jasper`)!;
+  assert(invoice.billableSessionCount===9,"Jasper bills all five Mondays and four Fridays in November");
+  assert((invoice.lineItems as {date:string}[]).every(item=>item.date>="2026-11-01"),"No sessions before effective date");
+  for (const [index,path] of otherPaths.entries()) {
+    assert(JSON.stringify(data.get(path))===before[index],"Other swimmer data remains byte-for-byte unchanged");
+    assert(!writes.includes(path),"No enrollment or invoice write for other swimmers");
+  }
+}
+Promise.all([testRosterSync(),testActualRoster(),testExplicitDateUpdatesOnlySelectedSwimmer()]).then(() => console.log("training-start tests passed")).catch(e=>{console.error(e);process.exitCode=1;});

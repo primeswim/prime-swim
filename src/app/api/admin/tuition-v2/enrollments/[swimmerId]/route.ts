@@ -48,6 +48,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 
     const months = new Set(openBillingMonths());
     if (refreshMonth) months.add(refreshMonth);
+    if (typeof body.trainingStartDate === "string") months.add(body.trainingStartDate.slice(0, 7));
     let invoiceCount = 0;
     let rosterSlotCount = 0;
     for (const month of months) {
