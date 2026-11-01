@@ -3,7 +3,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import Image from "next/image"
+import Header from "@/components/header"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -307,53 +307,31 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3">
-              <Image
-                src="/images/psa-logo.png"
-                alt="Prime Swim Academy Logo"
-                width={50}
-                height={50}
-                className="rounded-full"
-              />
-              <div>
-                <span className="text-lg font-bold text-slate-800">Prime Swim Academy</span>
-                <p className="text-sm text-slate-600">Parent Dashboard</p>
-              </div>
-            </Link>
-
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-2">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-slate-800">{parentEmail}</p>
-                </div>
-                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-slate-600" />
-                </div>
-              </div>
-
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 bg-transparent"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back!</h1>
-          <p className="text-slate-600">Manage your swimmers and stay updated with their progress.</p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back!</h1>
+            <p className="text-slate-600">Manage your swimmers and stay updated with their progress.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+              <User className="h-4 w-4 shrink-0" />
+              <span className="break-all">{parentEmail}</span>
+            </div>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="sm"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 bg-transparent"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Quick Actions */}

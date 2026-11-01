@@ -202,8 +202,6 @@ export default function Home() {
 
       <UpcomingEventsSection />
 
-      <LatestNewsSection />
-      
       {/* Coaches Section */}
       <section id="coaches" className="bg-slate-50 py-20">
         <div className="container mx-auto px-4">
@@ -275,6 +273,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <LatestNewsSection />
 
       {/* Schedule Section */}
       <section id="schedule" className="container mx-auto px-4 py-20">
