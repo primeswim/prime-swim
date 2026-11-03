@@ -23,10 +23,7 @@ export default function Home() {
       {/* Programs Section */}
       <section id="programs" className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Swimming Programs</h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Tailored training programs designed to elevate your swimming performance at every level
-          </p>
+          <h2 className="text-4xl font-bold text-slate-800 mb-4">Our Training Levels</h2>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
