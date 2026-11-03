@@ -6,7 +6,6 @@ import HomeHero from "@/components/home-hero";
 import WhyChoosePrime from "@/components/why-choose-prime";
 import LatestNewsSection from "@/components/latest-news-section"
 import UpcomingEventsSection from "@/components/upcoming-events-section"
-import ParentTestimonialsSection from "@/components/parent-testimonials-section"
 import Footer from "@/components/footer";
 import styles from "./home.module.css";
 
@@ -183,8 +182,6 @@ export default function Home() {
           </Card>
         </div>
       </section>
-
-      <ParentTestimonialsSection />
 
       {/* Team Suit / Team Store */}
       <section id="team-store" className="container mx-auto px-4 py-10">
