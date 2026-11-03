@@ -1,0 +1,22 @@
+.section { background: #e9f5fb; padding: clamp(56px, 6vw, 88px) 24px; }
+.inner { max-width: 1200px; margin: 0 auto; }
+.heading { max-width: 720px; margin: 0 auto 40px; text-align: center; }
+.heading h2 { margin: 0 0 18px; color: #102c49; font-size: clamp(30px, 3.4vw, 46px); font-weight: 750; line-height: 1.16; letter-spacing: -0.025em; }
+.heading p { margin: 0; color: #4b5969; font-size: clamp(18px, 2vw, 23px); line-height: 1.5; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.card { padding: clamp(20px, 2vw, 28px); border-radius: 24px; background: #fff; }
+.icon { display: flex; align-items: center; justify-content: flex-start; width: 64px; height: 64px; margin-bottom: 24px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 52px; line-height: 1; }
+.card h3 { margin: 0 0 12px; color: #102c49; font-size: clamp(21px, 2vw, 25px); font-weight: 700; line-height: 1.25; }
+.card p { margin: 0; color: #526071; font-size: 18px; line-height: 1.6; }
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .section { padding: 48px 16px; }
+  .heading { margin-bottom: 28px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card { padding: 20px 16px; border-radius: 20px; }
+  .icon { margin-bottom: 18px; width: 52px; height: 52px; font-size: 44px; }
+  .card h3 { font-size: 19px; overflow-wrap: anywhere; }
+  .card p { font-size: 15px; line-height: 1.5; }
+}

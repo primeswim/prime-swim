@@ -32,7 +32,7 @@
 .programs:hover { background: #ffffff1f; }
 .actions a:focus-visible, .benefits a:focus-visible { outline: 3px solid #60a5fa; outline-offset: 5px; }
 .wave { position: absolute; bottom: -1px; left: 0; width: 100%; height: 104px; z-index: -1; pointer-events: none; }
-.benefits { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 18px max(24px, calc((100% - 1360px) / 2)) 32px; list-style: none; background: #fff; color: #123b66; text-align: center; }
+.benefits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 18px max(24px, calc((100% - 720px) / 2)) 32px; list-style: none; background: #fff; color: #123b66; text-align: center; }
 .benefits li { min-width: 0; padding: 0 16px; }
 .benefits li + li { border-left: 1px solid #63869e80; }
 .benefits a, .benefits li > div { display: flex; height: 100%; flex-direction: column; align-items: center; justify-content: flex-start; gap: 12px; color: inherit; text-decoration: none; }
@@ -52,10 +52,10 @@
   .actions a { font-size: 16px; padding: 13px 17px; gap: 8px; }
   .actions svg { width: 17px; height: 17px; }
   .wave { height: 76px; }
-  .benefits { grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 12px 8px 24px; }
+  .benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 24px 28px; }
   .benefits li { padding: 0 4px; }
   .benefits a, .benefits li > div { gap: 8px; }
-  .benefits span { font-size: clamp(11px, 2.8vw, 14px); line-height: 1.35; overflow-wrap: anywhere; }
+  .benefits span { font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
   .benefitIcon, .benefitLogo { width: clamp(32px, 9vw, 48px); height: 40px; max-width: 100%; flex-shrink: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .actions a { transition: none; } }

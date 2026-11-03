@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Trophy, ChartNoAxesCombined, UsersRound, Medal } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import styles from "./home-hero.module.css";
 
 export default function HomeHero() {
@@ -22,7 +22,7 @@ export default function HomeHero() {
           <h1 id="home-hero-title">Better Technique.<br />Stronger Swimmers.</h1>
           <p>Structured coaching. Individual development.<br />A pathway to competitive swimming.</p>
           <div className={styles.actions}>
-            <Link className={styles.tryout} href="/tryout">Schedule a Tryout <ArrowRight aria-hidden="true" /></Link>
+            <Link prefetch={false} className={styles.tryout} href="/tryout">Schedule a Tryout <ArrowRight aria-hidden="true" /></Link>
             <a className={styles.programs} href="#programs">Explore Programs <ArrowRight aria-hidden="true" /></a>
           </div>
         </div>
@@ -33,12 +33,9 @@ export default function HomeHero() {
           <path fill="#ffffff" d="M0 111C240 46 400 136 800 115S1230 47 1440 48V120H0Z" />
         </svg>
       </section>
-      <ul className={styles.benefits} aria-label="Prime Swim club affiliations and coaching approach">
+      <ul className={styles.benefits} aria-label="Prime Swim club affiliations">
         <li><a href="https://www.usaswimming.org/" target="_blank" rel="noopener noreferrer"><Trophy className={styles.benefitIcon} aria-hidden="true" /><span>USA Swimming<br />Club</span></a></li>
         <li><a href="https://www.pns.org/" target="_blank" rel="noopener noreferrer"><Image src="/images/pns-logo.JPG" alt="Pacific Northwest Swimming" width={76} height={56} className={styles.benefitLogo} /><span>PNS<br />Member</span></a></li>
-        <li><div><ChartNoAxesCombined className={styles.benefitIcon} aria-hidden="true" /><span>Technique-First<br />Coaching</span></div></li>
-        <li><div><UsersRound className={styles.benefitIcon} aria-hidden="true" /><span>Individual<br />Attention</span></div></li>
-        <li><div><Medal className={styles.benefitIcon} aria-hidden="true" /><span>Competitive<br />Pathway</span></div></li>
       </ul>
     </>
   );

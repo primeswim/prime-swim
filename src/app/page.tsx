@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowUpRight, BadgeCheck, Calendar, Clock, Medal, ShoppingBag, Trophy, Waves } from "lucide-react"
 import Header from "@/components/header";
 import HomeHero from "@/components/home-hero";
+import WhyChoosePrime from "@/components/why-choose-prime";
 import LatestNewsSection from "@/components/latest-news-section"
 import UpcomingEventsSection from "@/components/upcoming-events-section"
 import ParentTestimonialsSection from "@/components/parent-testimonials-section"
@@ -16,6 +17,8 @@ export default function Home() {
       <Header />
 
       <HomeHero />
+
+      <WhyChoosePrime />
 
       {/* Programs Section */}
       <section id="programs" className="container mx-auto px-4 py-20">
