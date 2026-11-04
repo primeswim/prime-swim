@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Trophy } from "lucide-react";
+import HeroWater from "./hero-water";
 import styles from "./home-hero.module.css";
 
 export default function HomeHero() {
@@ -16,6 +17,7 @@ export default function HomeHero() {
           sizes="100vw"
           className={styles.photo}
         />
+        <HeroWater />
         <div className={styles.shade} aria-hidden="true" />
         <div className={`container mx-auto px-4 ${styles.content}`}>
           <span className={styles.eyebrow}>Prime Swim Academy</span>

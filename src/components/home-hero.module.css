@@ -8,6 +8,7 @@
 }
 
 .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; z-index: -3; }
+.water { z-index: -3; pointer-events: none; opacity: 0; }
 .shade {
   position: absolute;
   inset: 0;
