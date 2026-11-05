@@ -1,6 +1,6 @@
 import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowUpRight, BadgeCheck, Calendar, Clock, Medal, ShoppingBag, Trophy } from "lucide-react"
+import { ArrowUpRight, BadgeCheck, Calendar, Medal, ShoppingBag, Trophy } from "lucide-react"
 import Header from "@/components/header";
 import HomeHero from "@/components/home-hero";
 import WhyChoosePrime from "@/components/why-choose-prime";
@@ -179,6 +179,96 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Schedule Section */}
+      <section id="schedule" className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-slate-800 mb-4">Program Schedules</h2>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
+                <Calendar className="w-5 h-5 mr-2 text-amber-500" />
+                Bronze
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1 text-base text-slate-600">
+                <p>4:00-5:00 PM (Sun)</p>
+                <p>6:30-7:30 PM (Mon)</p>
+                <p>5:00-5:55 PM (Thu)</p>
+                <p>5:00-6:00 PM (Fri)</p>
+                <p>5:00-6:00 PM (Sat)</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
+                <Calendar className="w-5 h-5 mr-2 text-slate-600" />
+                Silver
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1 text-base text-slate-600">
+                <p>6:30-7:30 PM (Mon)</p>
+                <p>7:00-8:00 PM (Tue)</p>
+                <p>7:00-8:00 PM (Wed)</p>
+                <p>7:00-8:00 PM (Thu)</p>
+                <p>5:00-6:00 PM (Fri)</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
+                <Calendar className="w-5 h-5 mr-2 text-yellow-500" />
+                Gold
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1 text-base text-slate-600">
+                <p>8:00-9:00 PM (Mon)</p>
+                <p>7:00-8:15 PM (Tue)</p>
+                <p>7:00-8:15 PM (Thu)</p>
+                <p>7:45-9:00 PM (Fri)</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
+                <Calendar className="w-5 h-5 mr-2 text-purple-600" />
+                Platinum
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="pt-3 border-t">
+                <p className="text-sm text-slate-500">National meet preparation</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
+                <Calendar className="w-5 h-5 mr-2 text-red-600" />
+                Olympic
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="pt-3 border-t">
+                <p className="text-sm text-slate-500">Olympic trials focus</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* Team Suit / Team Store */}
       <section id="team-store" className="container mx-auto px-4 py-10">
         <div className={styles.store}>
@@ -269,118 +359,6 @@ export default function Home() {
 
       <LatestNewsSection />
 
-      {/* Schedule Section */}
-      <section id="schedule" className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Program Schedules</h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Find the perfect training schedule that fits your lifestyle
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
-                <Calendar className="w-5 h-5 mr-2 text-amber-500" />
-                Bronze Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-slate-600">
-                <Clock className="w-4 h-4 mr-2" />
-                <span className="text-base">Weekdays & Weekend</span>
-              </div>
-              <div className="space-y-1 text-base text-slate-600">
-                <p>4:00-5:00 PM (Sun)</p>
-                <p>6:30-7:30 PM (Mon)</p>
-                <p>5:00-5:55 PM (Thu)</p>
-                <p>5:00-6:00 PM (Fri)</p>
-                <p>5:00-6:00 PM (Sat)</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
-                <Calendar className="w-5 h-5 mr-2 text-slate-600" />
-                Silver Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-slate-600">
-                <Clock className="w-4 h-4 mr-2" />
-                <span className="text-base">Weekdays</span>
-              </div>
-              <div className="space-y-1 text-base text-slate-600">
-                <p>6:30-7:30 PM (Mon)</p>
-                <p>7:00-8:00 PM (Tue)</p>
-                <p>7:00-8:00 PM (Wed)</p>
-                <p>7:00-8:00 PM (Thu)</p>
-                <p>5:00-6:00 PM (Fri)</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
-                <Calendar className="w-5 h-5 mr-2 text-yellow-500" />
-                Gold Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-slate-600">
-                <Clock className="w-4 h-4 mr-2" />
-                <span className="text-base">Weekdays</span>
-              </div>
-              <div className="space-y-1 text-base text-slate-600">
-                <p>8:00-9:00 PM (Mon)</p>
-                <p>7:00-8:15 PM (Tue)</p>
-                <p>7:00-8:15 PM (Thu)</p>
-                <p>7:45-9:00 PM (Fri)</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
-                <Calendar className="w-5 h-5 mr-2 text-purple-600" />
-                Platinum Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-slate-600">
-                <Clock className="w-4 h-4 mr-2" />
-                <span className="text-base">Mon-Sat</span>
-              </div>
-              <div className="pt-3 border-t">
-                <p className="text-sm text-slate-500">National meet preparation</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg font-bold text-slate-800">
-                <Calendar className="w-5 h-5 mr-2 text-red-600" />
-                Olympic Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-slate-600">
-                <Clock className="w-4 h-4 mr-2" />
-                <span className="text-base">Daily</span>
-              </div>
-              <div className="pt-3 border-t">
-                <p className="text-sm text-slate-500">Olympic trials focus</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
 
     <Footer />
 
