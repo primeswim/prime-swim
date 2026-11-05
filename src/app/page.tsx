@@ -49,7 +49,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 1–2 sessions per week</p>
+                <p>• 1～2 sessions per week</p>
                 <p>• 60-minute sessions</p>
                 <p>• Small group instruction</p>
               </div>
@@ -79,7 +79,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 2–3 sessions per week</p>
+                <p>• 2～3 sessions per week</p>
                 <p>• 60-minute sessions</p>
                 <p>• Competition preparation</p>
               </div>
@@ -109,7 +109,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 3–4 sessions per week</p>
+                <p>• 3～4 sessions per week</p>
                 <p>• 75-minute sessions</p>
                 <p>• Competitive development focus</p>
               </div>
@@ -139,8 +139,8 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 5–6 sessions per week</p>
-                <p>• 1.5–2-hour sessions</p>
+                <p>• 5～6 sessions per week</p>
+                <p>• 1.5～2-hour sessions</p>
                 <p>• Advanced competitive development</p>
               </div>
             </CardContent>
@@ -165,13 +165,13 @@ export default function Home() {
                   </span>
                 </div>
                 <ul className="text-red-800 text-base font-medium space-y-1">
-                  <li>National level success</li>
-                  <li>Achieve state and national Qualifying times</li>
+                  <li>Achieve national qualifying times</li>
+                  <li>College swimming pathway</li>
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 8+ sessions per week</p>
-                <p>• 2.5-hour sessions</p>
+                <p>• 8 sessions per week</p>
+                <p>• 2-hour sessions</p>
                 <p>• Olympic trials preparation</p>
               </div>
             </CardContent>
