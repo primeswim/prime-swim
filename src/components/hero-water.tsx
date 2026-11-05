@@ -16,8 +16,8 @@ uniform sampler2D surface;
 void main() {
   vec2 point = vec2(uv.x, 1. - uv.y) * size;
   vec2 slope = (texture2D(surface, vec2(uv.x, 1. - uv.y)).rg - vec2(128. / 255.)) * 2.;
-  vec2 offset = slope * 32.;
-  float light = (slope.x - slope.y) * .055;
+  vec2 offset = slope * (imageSize * max(size.x / imageSize.x, size.y / imageSize.y)) * .04;
+  float light = pow(max(0., dot(slope, normalize(vec2(-.6, 1.)))), 4.);
   float scale = max(size.x / imageSize.x, size.y / imageSize.y);
   vec2 crop = imageSize * scale - size;
   vec2 samplePoint = (point + offset + vec2(crop.x * focusX, 0.)) / (imageSize * scale);
@@ -66,8 +66,7 @@ export default function HeroWater() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    // A continuous height field carries each stroke into its neighbours.
-    // Unlike isolated radial shader stamps, this preserves the drag's wake.
+    // Height and velocity propagate both click rings and lighter movement ripples.
     const surfaceTexture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, surfaceTexture);
@@ -80,23 +79,23 @@ export default function HeroWater() {
     let columns = 0;
     let rows = 0;
     let height = new Float32Array(0);
-    let previous = new Float32Array(0);
+    let velocity = new Float32Array(0);
+    let nextHeight = new Float32Array(0);
     let pixels = new Uint8Array(0);
-    let lastPoint: { x: number; y: number; time: number; id: number } | null = null;
     let frame = 0;
     let lastDrop = -100;
     let lastStep = 0;
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      const nextColumns = Math.max(2, Math.min(384, Math.round(rect.width / 3)));
+      const nextColumns = Math.max(2, Math.round(512 * rect.width / Math.max(rect.width, rect.height)));
       const nextRows = Math.max(2, Math.round(nextColumns * rect.height / Math.max(rect.width, 1)));
       if (columns !== nextColumns || rows !== nextRows) {
         columns = nextColumns;
         rows = nextRows;
         height = new Float32Array(columns * rows);
-        previous = new Float32Array(columns * rows);
+        velocity = new Float32Array(columns * rows);
+        nextHeight = new Float32Array(columns * rows);
         pixels = new Uint8Array(columns * rows * 4);
-        lastPoint = null;
       }
       return rect;
     };
@@ -104,10 +103,12 @@ export default function HeroWater() {
       for (let y = 1; y < rows - 1; y++) {
         for (let x = 1; x < columns - 1; x++) {
           const i = y * columns + x;
-          previous[i] = ((height[i - 1] + height[i + 1] + height[i - columns] + height[i + columns]) * .5 - previous[i]) * .985;
+          const average = (height[i - 1] + height[i + 1] + height[i - columns] + height[i + columns]) * .25;
+          velocity[i] = (velocity[i] + (average - height[i]) * 2) * .995;
+          nextHeight[i] = height[i] + velocity[i];
         }
       }
-      [height, previous] = [previous, height];
+      [height, nextHeight] = [nextHeight, height];
     };
     let ready = false;
     let visible = true;
@@ -118,25 +119,27 @@ export default function HeroWater() {
       frame = 0;
       canvas.style.opacity = "0";
       height.fill(0);
-      previous.fill(0);
-      lastPoint = null;
+      velocity.fill(0);
+      nextHeight.fill(0);
     };
     const draw = () => {
       frame = 0;
       const now = performance.now() / 1000;
-      if (!ready || !visible || document.hidden || motion.matches || now - lastDrop > 4) { stop(); return; }
+      if (!ready || !visible || document.hidden || motion.matches || now - lastDrop > 8) { stop(); return; }
       const rect = resize();
       if (!lastStep) lastStep = now;
       const steps = Math.min(3, Math.floor((now - lastStep) * 60));
       for (let i = 0; i < steps; i++) step();
-      if (steps) lastStep = now;
+      if (steps) lastStep += steps / 60;
+      if (now - lastStep > .1) lastStep = now;
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < columns; x++) {
           const i = y * columns + x;
-          const dx = height[y * columns + Math.max(0, x - 1)] - height[y * columns + Math.min(columns - 1, x + 1)];
-          const dy = height[Math.max(0, y - 1) * columns + x] - height[Math.min(rows - 1, y + 1) * columns + x];
-          pixels[i * 4] = Math.max(0, Math.min(255, 128 + dx * 64));
-          pixels[i * 4 + 1] = Math.max(0, Math.min(255, 128 + dy * 64));
+          const dx = (height[i] - height[y * columns + Math.min(columns - 1, x + 1)]) * 512;
+          const dy = (height[i] - height[Math.min(rows - 1, y + 1) * columns + x]) * 512;
+          const length = Math.hypot(dx, dy, 1);
+          pixels[i * 4] = Math.round(128 + dx / length * 127);
+          pixels[i * 4 + 1] = Math.round(128 + dy / length * 127);
           pixels[i * 4 + 3] = 255;
         }
       }
@@ -162,30 +165,22 @@ export default function HeroWater() {
       const rect = resize();
       const x = (event.clientX - rect.left) / rect.width * columns;
       const y = (event.clientY - rect.top) / rect.height * rows;
-      if (x < 0 || y < 0 || x >= columns || y >= rows) { lastPoint = null; return; }
-      const from = lastPoint;
-      lastPoint = { x, y, time: now, id: event.pointerId };
-      // Entering or clicking alone does not emit a ring; motion pushes the water.
-      if (!from || now - from.time > .15 || from.id !== event.pointerId) return;
-      const distance = Math.hypot(x - from.x, y - from.y);
-      if (distance < .15) return;
-      const samples = Math.ceil(distance / 1.5);
-      const radius = 5;
-      const strength = Math.min(.9, .22 + distance * .025);
-      for (let n = 1; n <= samples; n++) {
-        const px = from.x + (x - from.x) * n / samples;
-        const py = from.y + (y - from.y) * n / samples;
-        for (let sy = Math.max(1, Math.floor(py - radius)); sy <= Math.min(rows - 2, Math.ceil(py + radius)); sy++) {
-          for (let sx = Math.max(1, Math.floor(px - radius)); sx <= Math.min(columns - 2, Math.ceil(px + radius)); sx++) {
-            const d = Math.hypot(sx - px, sy - py) / radius;
-            if (d < 1) height[sy * columns + sx] -= (Math.cos(d * Math.PI) + 1) * .5 * strength / Math.sqrt(samples);
-          }
+      if (x < 0 || y < 0 || x >= columns || y >= rows) return;
+      if (event.target instanceof Element && event.target.closest("a, button")) return;
+      const click = event.type === "pointerdown";
+      const radius = (click ? 30 : 20) * columns / rect.width;
+      const strength = click ? .14 : .01;
+      // One soft circular impulse per pointer event, as in the reference.
+      // Avoid painting an interpolated trench along the drag path.
+      for (let sy = Math.max(1, Math.floor(y - radius)); sy <= Math.min(rows - 2, Math.ceil(y + radius)); sy++) {
+        for (let sx = Math.max(1, Math.floor(x - radius)); sx <= Math.min(columns - 2, Math.ceil(x + radius)); sx++) {
+          const d = Math.hypot(sx - x, sy - y) / radius;
+          if (d < 1) height[sy * columns + sx] += (Math.cos(d * Math.PI) + 1) * .5 * strength;
         }
       }
       lastDrop = now;
       if (!frame) { lastStep = now; frame = requestAnimationFrame(draw); }
     };
-    const leave = () => { lastPoint = null; };
     image.onload = () => {
       if (disposed) return;
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -196,8 +191,7 @@ export default function HeroWater() {
     const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (!visible) stop(); });
     observer.observe(host);
     host.addEventListener("pointermove", disturb, { passive: true });
-    host.addEventListener("pointerleave", leave);
-    host.addEventListener("pointercancel", leave);
+    host.addEventListener("pointerdown", disturb, { passive: true });
     motion.addEventListener("change", stop);
     document.addEventListener("visibilitychange", stop);
     canvas.addEventListener("webglcontextlost", stop);
@@ -206,8 +200,7 @@ export default function HeroWater() {
       stop();
       observer.disconnect();
       host.removeEventListener("pointermove", disturb);
-      host.removeEventListener("pointerleave", leave);
-      host.removeEventListener("pointercancel", leave);
+      host.removeEventListener("pointerdown", disturb);
       motion.removeEventListener("change", stop);
       document.removeEventListener("visibilitychange", stop);
       canvas.removeEventListener("webglcontextlost", stop);
