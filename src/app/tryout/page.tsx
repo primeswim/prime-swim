@@ -2,7 +2,6 @@
 
 import type React from "react";
 import { useState } from "react";
-import Image from "next/image";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -140,21 +139,9 @@ export default function TryoutPage() {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={100}
-              height={100}
-              className="mx-auto mb-6 rounded-full shadow-lg"
-            />
-          </div>
           <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">
             Schedule Your Tryout
           </h1>
-          <p className="text-xl md:text-2xl text-slate-600 mb-8 font-light">
-            Take the first step towards swimming excellence
-          </p>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Join Prime Swim Academy and discover your potential. Our tryout process helps us understand your current
             skill level and recommend the perfect program for your swimming journey.
