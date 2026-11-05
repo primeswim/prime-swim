@@ -95,7 +95,7 @@ export default function Home() {
             </CardHeader>
             <CardContent className="text-center">
               <CardDescription className="text-slate-600 text-base leading-relaxed mb-4">
-                Focusing on technique refinement, endurance, building, race skills and introduction to swim meet. Swimmers begin attending local competitions.
+                Building competitive skills and endurance, improving race technique, and learning starts as swimmers begin competing in swim meets.
               </CardDescription>
               <div className="flex flex-col items-center mb-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -105,15 +105,13 @@ export default function Home() {
                   </span>
                 </div>
                 <ul className="text-yellow-800 text-base font-medium space-y-1">
-                  <li>Legal strokes</li>
-                  <li>Flip turn</li>
-                  <li>Starts and consistent training habits</li>
+                  <li>Compete with confidence and show steady progress</li>
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 4 sessions per week</p>
-                <p>• 60–75-minute sessions</p>
-                <p>• Elite competition focus</p>
+                <p>• 3–4 sessions per week</p>
+                <p>• 75-minute sessions</p>
+                <p>• Competitive development focus</p>
               </div>
             </CardContent>
           </Card>
