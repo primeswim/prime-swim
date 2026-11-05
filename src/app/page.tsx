@@ -1,6 +1,6 @@
 import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowUpRight, BadgeCheck, Calendar, Clock, Medal, ShoppingBag, Trophy, Waves } from "lucide-react"
+import { ArrowUpRight, BadgeCheck, Calendar, Clock, Medal, ShoppingBag, Trophy } from "lucide-react"
 import Header from "@/components/header";
 import HomeHero from "@/components/home-hero";
 import WhyChoosePrime from "@/components/why-choose-prime";
@@ -45,12 +45,11 @@ export default function Home() {
                   </span>
                 </div>
                 <ul className="text-amber-800 text-base font-medium space-y-1">
-                  <li>Comfort in water</li>
-                  <li>Swim 25 yards independently</li>
+                  <li>Comfortable in the water and swim independently</li>
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 1-3 sessions per week</p>
+                <p>• 1–2 sessions per week</p>
                 <p>• 60-minute sessions</p>
                 <p>• Small group instruction</p>
               </div>
@@ -60,13 +59,13 @@ export default function Home() {
           <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-slate-50 to-slate-100">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Waves className="w-8 h-8 text-white" />
+                <Trophy className="w-8 h-8 text-white" />
               </div>
               <CardTitle className="text-xl font-bold text-slate-800">Silver</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <CardDescription className="text-slate-600 text-base leading-relaxed mb-4">
-                Focusing on stroke development, learning proper technique and lane etiquette.
+                Learning all four competitive strokes while improving endurance and technique.
               </CardDescription>
               <div className="flex flex-col items-center mb-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -80,7 +79,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 4 sessions per week</p>
+                <p>• 2–3 sessions per week</p>
                 <p>• 60-minute sessions</p>
                 <p>• Competition preparation</p>
               </div>
@@ -112,8 +111,8 @@ export default function Home() {
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 3 sessions per week</p>
-                <p>• 90-minute sessions</p>
+                <p>• 4 sessions per week</p>
+                <p>• 60–75-minute sessions</p>
                 <p>• Elite competition focus</p>
               </div>
             </CardContent>
