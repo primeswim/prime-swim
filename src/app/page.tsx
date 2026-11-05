@@ -183,7 +183,7 @@ export default function Home() {
       {/* Schedule Section */}
       <section id="schedule" className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Program Schedules</h2>
+          <h2 className="text-4xl font-bold text-slate-800 mb-4">Training Schedules</h2>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
@@ -197,10 +197,9 @@ export default function Home() {
             <CardContent className="px-4">
               <div className={styles.scheduleTimes}>
                 <p><strong>Mon</strong><span>6:30–7:30 PM</span></p>
-                <p><strong>Thu</strong><span>5:00–5:55 PM</span></p>
                 <p><strong>Fri</strong><span>5:00–6:00 PM</span></p>
-                <p><strong>Sat</strong><span>5:00–6:00 PM</span></p>
-                <p><strong>Sun</strong><span>4:00–5:00 PM</span></p>
+                <p><strong>Sat</strong><span>4:00–5:00 PM</span></p>
+                <p><strong>Sun</strong><span>5:00–6:00 PM</span></p>
               </div>
             </CardContent>
           </Card>
