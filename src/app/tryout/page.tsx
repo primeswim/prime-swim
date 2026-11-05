@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Users, Waves, CheckCircle, AlertCircle, Droplets } from "lucide-react";
+import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
 // Narrow string unions for stricter typing (optional but nice)
 type Program = "bronze" | "silver" | "gold" | "platinum" | "olympic" | "unsure" | "";
@@ -502,74 +502,6 @@ export default function TryoutPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-      </section>
-
-      {/* What to Bring Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-slate-800 mb-4">What to Bring</h2>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Come prepared for your tryout with these essential items
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Droplets className="w-6 h-6 text-white" />
-              </div>
-              <CardTitle className="text-lg font-bold text-slate-800">Swimwear</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm">
-                Appropriate swimsuit and swim cap (if you have one)
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
-              <CardTitle className="text-lg font-bold text-slate-800">Goggles</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm">
-                Well-fitting goggles for clear underwater vision
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <CardTitle className="text-lg font-bold text-slate-800">Towel</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm">
-                Large towel for drying off after the assessment
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                <AlertCircle className="w-6 h-6 text-white" />
-              </div>
-              <CardTitle className="text-lg font-bold text-slate-800">Positive Attitude</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <CardDescription className="text-slate-600 text-sm">
-                Come ready to learn and have fun in the water!
-              </CardDescription>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
