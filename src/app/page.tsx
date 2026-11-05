@@ -1,6 +1,7 @@
 import Image from "next/image"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowUpRight, BadgeCheck, Calendar, Medal, ShoppingBag, Trophy } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Calendar, ShoppingBag, Trophy } from "lucide-react"
 import Header from "@/components/header";
 import HomeHero from "@/components/home-hero";
 import WhyChoosePrime from "@/components/why-choose-prime";
@@ -286,74 +287,19 @@ export default function Home() {
       <UpcomingEventsSection />
 
       {/* Coaches Section */}
-      <section id="coaches" className="bg-slate-50 py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-800 mb-4">Our Expert Coaches</h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Technical detail. Personal encouragement. A shared commitment.
-            </p>
+      <section id="coaches" className="container mx-auto px-4 py-12" aria-labelledby="coaches-title">
+        <div className={styles.coachIntro}>
+          <div className={styles.coachFaces}>
+            <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={80} height={80} />
+            <Image src="/images/coach-moe.jpg" alt="Coach Mo" width={80} height={80} />
           </div>
-
-          <div className={styles.coaches}>
-            <article className={styles.coach}>
-              <div className={styles.coachPhoto}>
-                <Image src="/images/coach-lara.jpeg" alt="Coach Lara" width={220} height={300} />
-              </div>
-              <div>
-                <p className={styles.role}>Owner, Director &amp; Coach</p>
-                <h3>Coach Lara</h3>
-                <p className={styles.bio}>Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA Swimming standards, age-group progression, and seasonal planning. Strong communicator with swimmers, parents, and staff.</p>
-              </div>
-              <div className={styles.coachDetails}>
-                <ul className={styles.highlights} aria-label="Coach Lara highlights">
-                  <li><strong>Youth &amp; Competitive</strong><span>Swimmer development</span></li>
-                  <li><strong>Technique &amp; Planning</strong><span>Individual and seasonal goals</span></li>
-                </ul>
-                <div className={styles.experiencePanel}>
-                <ul className={styles.experience}>
-                  <li><BadgeCheck aria-hidden="true" /><span>USA Swimming Certified Coach</span></li>
-                  <li><BadgeCheck aria-hidden="true" /><span>Head Coach Certification</span></li>
-                  <li><BadgeCheck aria-hidden="true" /><span>Extensive experience coaching swimmers across different levels</span></li>
-                  <li><BadgeCheck aria-hidden="true" /><span>Expert in Youth &amp; Competitive Training</span></li>
-                </ul>
-                </div>
-                <h4>Specializations</h4>
-                <ul className={styles.specialties} aria-label="Coach Lara specializations">
-                  {['Stroke Technique', 'Building Training Plans', 'Season Development', 'Team Leadership', 'Competition Prep'].map(point => <li key={point}>{point}</li>)}
-                </ul>
-              </div>
-            </article>
-            <article className={styles.coach}>
-              <div className={styles.coachPhoto}>
-                <Image src="/images/coach-moe.jpg" alt="Coach Mo" width={220} height={300} />
-              </div>
-              <div>
-                <p className={styles.role}>Owner &amp; Head Coach</p>
-                <h3>Coach Mo</h3>
-                <p className={styles.bio}>Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique, mental preparation, and high-performance training.</p>
-              </div>
-              <div className={styles.coachDetails}>
-                <ul className={styles.highlights} aria-label="Coach Mo highlights">
-                  <li><strong>13+ Years</strong><span>Elite coaching experience</span></li>
-                  <li><strong>Olympic Swimmer</strong><span>Experience at the highest level</span></li>
-                </ul>
-                <div className={styles.experiencePanel}>
-                <ul className={styles.experience}>
-                  <li><Medal aria-hidden="true" /><strong>Former Olympic Swimmer</strong></li>
-                  <li><BadgeCheck aria-hidden="true" /><span>USA Swimming Certified Coach</span></li>
-                  <li><BadgeCheck aria-hidden="true" /><span>Head Coach Certification</span></li>
-                  <li><BadgeCheck aria-hidden="true" /><span>Expert in Youth &amp; Competitive Training</span></li>
-                  <li><Medal aria-hidden="true" /><strong>13+ Years Elite Coaching</strong></li>
-                </ul>
-                </div>
-                <h4>Specializations</h4>
-                <ul className={styles.specialties} aria-label="Coach Mo specializations">
-                  {['Elite Training', 'Building Training Plans', 'Season Development', 'Race Strategy', 'Mental Coaching', 'Team Leadership'].map(point => <li key={point}>{point}</li>)}
-                </ul>
-              </div>
-            </article>
+          <div className={styles.coachCopy}>
+            <h2 id="coaches-title"><Link href="/coaches">Our Coaches</Link></h2>
+            <p>Olympic experience. Personal guidance. Get to know the people behind your swimmer’s progress.</p>
           </div>
+          <Link href="/coaches" className={styles.coachCta}>
+            Meet Lara &amp; Mo <ArrowRight aria-hidden="true" />
+          </Link>
         </div>
       </section>
 
