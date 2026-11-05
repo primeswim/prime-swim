@@ -29,3 +29,8 @@
   .coachCopy { flex-basis: 100%; }
   .coachCopy h2 { font-size: 26px; }
 }
+
+.scheduleTimes { color: #526579; font-size: 14px; line-height: 1.6; }
+.scheduleTimes p { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; align-items: baseline; margin: 0; padding: 3px 0; }
+.scheduleTimes strong { color: #1e3a5f; font-weight: 600; }
+.scheduleTimes span { white-space: nowrap; font-variant-numeric: tabular-nums; }

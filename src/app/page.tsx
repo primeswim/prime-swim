@@ -181,87 +181,87 @@ export default function Home() {
       </section>
 
       {/* Schedule Section */}
-      <section id="schedule" className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
+      <section id="schedule" className="container mx-auto px-4 py-12">
+        <div className="text-center mb-8">
           <h2 className="text-4xl font-bold text-slate-800 mb-4">Program Schedules</h2>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
+          <Card className="gap-3 py-5 border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="px-4">
               <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                 <Calendar className="w-5 h-5 mr-2 text-amber-500" />
                 Bronze
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1 text-base text-slate-600">
-                <p>4:00-5:00 PM (Sun)</p>
-                <p>6:30-7:30 PM (Mon)</p>
-                <p>5:00-5:55 PM (Thu)</p>
-                <p>5:00-6:00 PM (Fri)</p>
-                <p>5:00-6:00 PM (Sat)</p>
+            <CardContent className="px-4">
+              <div className={styles.scheduleTimes}>
+                <p><strong>Mon</strong><span>6:30–7:30 PM</span></p>
+                <p><strong>Thu</strong><span>5:00–5:55 PM</span></p>
+                <p><strong>Fri</strong><span>5:00–6:00 PM</span></p>
+                <p><strong>Sat</strong><span>5:00–6:00 PM</span></p>
+                <p><strong>Sun</strong><span>4:00–5:00 PM</span></p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
+          <Card className="gap-3 py-5 border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="px-4">
               <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                 <Calendar className="w-5 h-5 mr-2 text-slate-600" />
                 Silver
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1 text-base text-slate-600">
-                <p>6:30-7:30 PM (Mon)</p>
-                <p>7:00-8:00 PM (Tue)</p>
-                <p>7:00-8:00 PM (Wed)</p>
-                <p>7:00-8:00 PM (Thu)</p>
-                <p>5:00-6:00 PM (Fri)</p>
+            <CardContent className="px-4">
+              <div className={styles.scheduleTimes}>
+                <p><strong>Mon</strong><span>6:30–7:30 PM</span></p>
+                <p><strong>Tue</strong><span>7:00–8:00 PM</span></p>
+                <p><strong>Wed</strong><span>7:00–8:00 PM</span></p>
+                <p><strong>Thu</strong><span>7:00–8:00 PM</span></p>
+                <p><strong>Fri</strong><span>5:00–6:00 PM</span></p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
+          <Card className="gap-3 py-5 border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="px-4">
               <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                 <Calendar className="w-5 h-5 mr-2 text-yellow-500" />
                 Gold
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1 text-base text-slate-600">
-                <p>8:00-9:00 PM (Mon)</p>
-                <p>7:00-8:15 PM (Tue)</p>
-                <p>7:00-8:15 PM (Thu)</p>
-                <p>7:45-9:00 PM (Fri)</p>
+            <CardContent className="px-4">
+              <div className={styles.scheduleTimes}>
+                <p><strong>Mon</strong><span>8:00–9:00 PM</span></p>
+                <p><strong>Tue</strong><span>7:00–8:15 PM</span></p>
+                <p><strong>Thu</strong><span>7:00–8:15 PM</span></p>
+                <p><strong>Fri</strong><span>7:45–9:00 PM</span></p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
+          <Card className="gap-3 py-5 border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="px-4">
               <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                 <Calendar className="w-5 h-5 mr-2 text-purple-600" />
                 Platinum
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="px-4">
               <div className="pt-3 border-t">
                 <p className="text-sm text-slate-500">National meet preparation</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader>
+          <Card className="gap-3 py-5 border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="px-4">
               <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                 <Calendar className="w-5 h-5 mr-2 text-red-600" />
                 Olympic
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="px-4">
               <div className="pt-3 border-t">
                 <p className="text-sm text-slate-500">Olympic trials focus</p>
               </div>
