@@ -125,7 +125,7 @@ export default function Home() {
             </CardHeader>
             <CardContent className="text-center">
               <CardDescription className="text-slate-600 text-base leading-relaxed mb-4">
-                Focusing on more advanced stroke technique, interval training and goal setting. Regular meet participation and USA swimming times.
+                Reach a higher level of performance and consistency through advanced stroke technique, race strategy and pacing. Preparing swimmers for the path to the elite level.
               </CardDescription>
               <div className="flex flex-col items-center mb-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -135,14 +135,13 @@ export default function Home() {
                   </span>
                 </div>
                 <ul className="text-purple-800 text-base font-medium space-y-1">
-                  <li>Qualify for large meets such as PNS champs</li>
-                  <li>Age Group Champs</li>
+                  <li>Achieve PNS Championship qualifying standards.</li>
                 </ul>
               </div>
               <div className="mt-4 space-y-1 text-sm text-slate-500">
-                <p>• 6 sessions per week</p>
-                <p>• 2-hour sessions</p>
-                <p>• National competition prep</p>
+                <p>• 5–6 sessions per week</p>
+                <p>• 1.5–2-hour sessions</p>
+                <p>• Advanced competitive development</p>
               </div>
             </CardContent>
           </Card>
