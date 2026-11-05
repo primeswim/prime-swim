@@ -270,20 +270,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Team Suit / Team Store */}
-      <section id="team-store" className="container mx-auto px-4 py-10">
-        <div className={styles.store}>
-          <div className={styles.storeIcon}><ShoppingBag aria-hidden="true" /></div>
-          <div>
-            <h2>Team Suit &amp; Gear</h2>
-            <p>Official Prime Swim Academy suits and training essentials.</p>
-          </div>
-          <a href="https://www.swimoutlet.com/collections/psa" target="_blank" rel="noopener noreferrer" className={styles.storeLink}>
-            Shop Team Store <ArrowUpRight aria-hidden="true" />
-          </a>
-        </div>
-      </section>
-
       <UpcomingEventsSection />
 
       {/* Coaches Section */}
@@ -304,6 +290,20 @@ export default function Home() {
       </section>
 
       <LatestNewsSection />
+
+      {/* Team Suit / Team Store */}
+      <section id="team-store" className="container mx-auto px-4 py-10">
+        <div className={styles.store}>
+          <div className={styles.storeIcon}><ShoppingBag aria-hidden="true" /></div>
+          <div>
+            <h2>Team Suit &amp; Gear</h2>
+            <p>Official Prime Swim Academy suits and training essentials.</p>
+          </div>
+          <a href="https://www.swimoutlet.com/collections/psa" target="_blank" rel="noopener noreferrer" className={styles.storeLink}>
+            Shop Team Store <ArrowUpRight aria-hidden="true" />
+          </a>
+        </div>
+      </section>
 
 
     <Footer />
