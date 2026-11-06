@@ -1,4 +1,3 @@
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,25 +23,7 @@ export default function MissionPage() {
         </nav>
       </div>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <Image
-              src="/images/psa-logo.png"
-              alt="Prime Swim Academy Logo"
-              width={120}
-              height={120}
-              className="mx-auto mb-6 rounded-full shadow-lg"
-            />
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-800 mb-6 tracking-tight">Mission & Vision</h1>
-          <p className="text-2xl md:text-3xl text-slate-600 mb-12 font-light">
-            Building Champions, One Stroke at a Time
-          </p>
-        </div>
-      </section>
-
+      {/* Add the team photo here when available. */}
 
       {/* Mission & Vision Cards */}
       <section className="container mx-auto px-4 py-20">

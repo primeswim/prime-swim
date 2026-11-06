@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Header from "@/components/header"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -204,6 +205,7 @@ export default function SchoolPoliciesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+      <Header />
       {/* Hero Section */}
       <section className="relative py-20 px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-cyan-600/10"></div>

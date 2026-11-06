@@ -91,13 +91,13 @@ export default function Header() {
                     <Link href="/mission">Mission &amp; Vision</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/coaches">Our Coaches</Link>
+                    <a href="/coaches#top">Our Coaches</a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/school-policy">Team Policy</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/#contact">Contact</Link>
+                    <a href="/#contact">Contact</a>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -191,9 +191,9 @@ export default function Header() {
           <div className="space-y-1">
             <p className="font-semibold">About Us</p>
             <Link href="/mission" className="block ml-4">Mission &amp; Vision</Link>
-            <Link href="/coaches" className="block ml-4">Our Coaches</Link>
+            <a href="/coaches#top" className="block ml-4">Our Coaches</a>
             <Link href="/school-policy" className="block ml-4">Team Policy</Link>
-            <Link href="/#contact" className="block ml-4">Contact</Link>
+            <a href="/#contact" className="block ml-4">Contact</a>
           </div>
 
           <div className="space-y-1">

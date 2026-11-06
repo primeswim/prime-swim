@@ -279,12 +279,12 @@ export default function Home() {
             <Image src="/images/coach-moe.jpg" alt="Coach Mo" width={80} height={80} />
           </div>
           <div className={styles.coachCopy}>
-            <h2 id="coaches-title"><Link href="/coaches">Our Coaches</Link></h2>
+            <h2 id="coaches-title"><a href="/coaches#top">Our Coaches</a></h2>
             <p>Olympic experience. Personal guidance. Get to know the people behind your swimmer’s progress.</p>
           </div>
-          <Link href="/coaches" className={styles.coachCta}>
+          <a href="/coaches#top" className={styles.coachCta}>
             Meet Lara &amp; Mo <ArrowRight aria-hidden="true" />
-          </Link>
+          </a>
         </div>
       </section>
 

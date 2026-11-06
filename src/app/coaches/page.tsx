@@ -2,12 +2,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Star, Trophy, Medal, Target, Heart, Mail, MapPin, Phone, CheckCircle } from "lucide-react"
+import { Star, Trophy, Medal, Target, Heart, Mail, MapPin, Phone, CheckCircle } from "lucide-react"
 import Header from "@/components/header";
 
 export default function CoachesPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
+    <div id="top" className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
       <Header />
 
@@ -22,28 +22,10 @@ export default function CoachesPage() {
         </nav>
       </div>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Users className="w-12 h-12 text-white" />
-            </div>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-800 mb-6 tracking-tight">Our Expert Coaches</h1>
-          <p className="text-2xl md:text-3xl text-slate-600 mb-12 font-light">
-            World-Class Instructors Dedicated to Your Swimming Excellence
-          </p>
-        </div>
-      </section>
-
       {/* Head Coaches Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">Coaching Team</h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Meet our experienced leadership team who guide our academy to excellence
-          </p>
+          <h1 className="text-4xl font-bold text-slate-800 mb-4">Meet Our Coaches</h1>
         </div>
 
         <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
@@ -65,8 +47,7 @@ export default function CoachesPage() {
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
                 Passionate and experienced swimming coach with a proven record of developing athletes. Expert in USA
-                Swimming standards, age-group progression, and seasonal planning. Strong communicator with swimmers,
-                parents, and staff.
+                Swimming standards, age-group progression, and seasonal planning.
               </p>
 
               <div className="space-y-4 mb-6">
@@ -133,7 +114,7 @@ export default function CoachesPage() {
             <CardContent className="px-8">
               <p className="text-slate-700 text-base leading-relaxed mb-6">
                 Former Olympic swimmer with 13+ years coaching experience. Specializes in competitive stroke technique,
-                mental preparation, and high-performance training.
+                mental preparation, and high-performance training. Strong communicator with swimmers, parents, and staff.
               </p>
 
               <div className="space-y-4 mb-6">
@@ -333,9 +314,9 @@ export default function CoachesPage() {
                 <Link href="/#programs" className="block text-sm hover:text-white transition-colors">
                   Programs
                 </Link>
-                <Link href="/coaches" className="block text-sm hover:text-white transition-colors">
+                <a href="/coaches#top" className="block text-sm hover:text-white transition-colors">
                   Our Coaches
-                </Link>
+                </a>
                 <Link href="/#schedule" className="block text-sm hover:text-white transition-colors">
                   Schedules
                 </Link>

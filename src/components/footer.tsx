@@ -52,15 +52,15 @@ export default function Footer() {
               <Link href="/tryout" className="block text-sm hover:text-white transition-colors">
                 Schedule Tryout
               </Link>
-              <Link href="#programs" className="block text-sm hover:text-white transition-colors">
+              <a href="/#programs" className="block text-sm hover:text-white transition-colors">
                 Programs
-              </Link>
-              <Link href="#coaches" className="block text-sm hover:text-white transition-colors">
+              </a>
+              <a href="/coaches#top" className="block text-sm hover:text-white transition-colors">
                 Our Coaches
-              </Link>
-              <Link href="#schedule" className="block text-sm hover:text-white transition-colors">
+              </a>
+              <a href="/#schedule" className="block text-sm hover:text-white transition-colors">
                 Schedules
-              </Link>
+              </a>
               <a
                 href="https://www.swimoutlet.com/collections/psa"
                 target="_blank"
