@@ -108,7 +108,7 @@ export default function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className={styles.dropdown}>
                   <DropdownMenuItem asChild>
-                    <Link href="/#programs">Group Programs</Link>
+                    <a href="/#programs">Team Practice</a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/private-lessons">Private Lessons</Link>
@@ -198,7 +198,7 @@ export default function Header() {
 
           <div className="space-y-1">
             <p className="font-semibold">Programs</p>
-            <Link href="/#programs" className="block ml-4">Group Programs</Link>
+            <a href="/#programs" className="block ml-4">Team Practice</a>
             <Link href="/private-lessons" className="block ml-4">Private Lessons</Link>
             <Link href="/clinics" className="block ml-4">Clinics</Link>
           </div>

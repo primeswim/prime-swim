@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
-import { emptyTryoutForm, swimmingDurations, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
+import { emptyTryoutForm, formatTryoutPhone, swimmingDurations, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
 
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
@@ -224,8 +224,11 @@ export default function TryoutPage() {
                       <Input
                         id="phone"
                         type="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        placeholder="206-555-0123"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        onChange={(e) => handleInputChange("phone", formatTryoutPhone(e.target.value))}
                         className="border-slate-300 focus:border-slate-500"
                         required
                       />
