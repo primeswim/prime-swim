@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import { describeTryoutExperience, emptyTryoutForm, normalizeTryout, validateTryout } from "./tryout-form";
+
+const valid = { ...emptyTryoutForm, firstName: "Test", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", liabilityAccepted: true };
+assert.equal(validateTryout(valid), null);
+for (const age of ["21", "99", "3", "", "4.5", "NaN"]) assert.ok(validateTryout({ ...valid, age }), age);
+assert.equal(validateTryout({ ...valid, age: "4" }), null);
+for (const field of ["firstName", "lastName", "email", "phone", "program", "experience"] as const) assert.ok(validateTryout({ ...valid, [field]: " " }), field);
+assert.ok(validateTryout({ ...valid, email: "not-an-email" }));
+assert.ok(validateTryout({ ...valid, liabilityAccepted: false }));
+const experienced = { ...valid, experience: "1-2-years" };
+assert.ok(validateTryout(experienced));
+assert.ok(validateTryout({ ...experienced, teamExperience: "yes" }));
+assert.equal(validateTryout({ ...experienced, teamExperience: "yes", teamName: "Example team" }), null);
+assert.ok(validateTryout({ ...experienced, teamExperience: "no" }));
+assert.equal(validateTryout({ ...experienced, teamExperience: "no", lessonNotes: "Private lessons for one year" }), null);
+assert.ok(validateTryout({ ...valid, experience: "made-up" }));
+const never = normalizeTryout({ ...valid, teamExperience: "yes", teamName: "Old team", lessonNotes: "Stale", preferredDate: "2026-11-07", location: "Old location", preferredTime: "evening" });
+assert.equal(never.teamName, ""); assert.equal(never.teamExperience, ""); assert.equal(never.lessonNotes, "");
+assert.equal("preferredDate" in never, false); assert.equal("location" in never, false); assert.equal("preferredTime" in never, false);
+assert.equal(normalizeTryout({ ...valid, age: 20 }).age, "20");
+assert.ok(validateTryout(normalizeTryout({ ...valid, liabilityAccepted: "true" })));
+assert.equal(normalizeTryout({ ...experienced, teamExperience: "yes", teamName: " Example ", lessonNotes: "stale" }).lessonNotes, "");
+assert.equal(normalizeTryout({ ...experienced, teamExperience: "no", teamName: "stale", lessonNotes: " Private lessons " }).teamName, "");
+assert.match(describeTryoutExperience({ ...experienced, teamExperience: "yes", teamName: "Example" }), /Swim team: Example/);
+assert.match(describeTryoutExperience({ ...experienced, teamExperience: "no", lessonNotes: "Private lessons" }), /Private lessons/);
+assert.equal(describeTryoutExperience({ ...valid }), "I have not learned to swim before");
+console.log("Tryout validation and conditional experience checks passed.");

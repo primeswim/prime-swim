@@ -1,5 +1,6 @@
 "use client";
 
+import { describeTryoutExperience } from "@/lib/tryout-form";
 import { Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -30,6 +31,9 @@ interface TryoutSwimmer {
   preferredDate?: string;  // yyyy-mm-dd（已在后端 normalize）
   program?: string;        // 已在后端转小写
   experience?: string;
+  teamExperience?: string;
+  teamName?: string;
+  lessonNotes?: string;
   location?: string;
   healthIssues?: string;
   notes?: string;
@@ -173,7 +177,7 @@ export default function TryoutSwimmersPage() {
                     <td className="p-3">{s.email}</td>
                     <td className="p-3">{s.phone}</td>
                     <td className="p-3">{s.program || "-"}</td>
-                    <td className="p-3">{s.experience || "-"}</td>
+                    <td className="p-3">{describeTryoutExperience({ experience: s.experience || "", teamExperience: s.teamExperience || "", teamName: s.teamName || "", lessonNotes: s.lessonNotes || "" }) || "-"}</td>
                     <td className="p-3">{s.preferredDate || "-"}</td>
                     <td className="p-3">{s.location || "-"}</td>
                     <td className="p-3">{s.healthIssues || "-"}</td>

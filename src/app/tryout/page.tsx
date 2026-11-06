@@ -15,52 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
-// Narrow string unions for stricter typing (optional but nice)
-type Program = "bronze" | "silver" | "gold" | "platinum" | "olympic" | "unsure" | "";
-type Experience =
-  | "beginner"
-  | "recreational"
-  | "competitive"
-  | "advanced"
-  | "elite"
-  | "";
-type Location = "Redmond" | "Mercer Island" | "Issaquah" | "";
-
-// Form data model
-interface TryoutFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  age: string; // keep as string since it's from <input type="number">
-  program: Program;
-  experience: Experience;
-  preferredDate: string; // yyyy-mm-dd
-  preferredTime: "morning" | "afternoon" | "evening" | "flexible" | "";
-  location: Location;
-  healthIssues: string;
-  notes: string;
-  liabilityAccepted: boolean;
-}
+import { emptyTryoutForm, swimmingDurations, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
 
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState<TryoutFormData>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    age: "",
-    program: "",
-    experience: "",
-    preferredDate: "",
-    preferredTime: "",
-    location: "",
-    healthIssues: "",
-    notes: "",
-    liabilityAccepted: false,
-  });
+  const [formData, setFormData] = useState<TryoutFormData>({ ...emptyTryoutForm });
 
   // Type-safe updater: value type depends on the field
   const handleInputChange = <K extends keyof TryoutFormData>(
@@ -70,23 +30,9 @@ export default function TryoutPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const validateBeforeSubmit = (): string | null => {
-    if (!formData.firstName || !formData.lastName) return "Please enter first and last name.";
-    if (!formData.email) return "Please enter your email.";
-    if (!formData.phone) return "Please enter your phone number.";
-    if (!formData.age) return "Please enter your age.";
-    if (!formData.program) return "Please select a program.";
-    if (!formData.location) return "Please select a location.";
-    if ((formData.program === "bronze" || formData.program === "silver") && !formData.preferredDate) {
-      return "Please choose a date for Bronze/Silver tryouts.";
-    }
-    if (!formData.liabilityAccepted) return "Please accept the liability waiver.";
-    return null;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const err = validateBeforeSubmit();
+    const err = validateTryout(formData);
     if (err) {
       alert(err);
       return;
@@ -105,27 +51,16 @@ export default function TryoutPage() {
         const msg =
           payload?.message ||
           payload?.error ||
-          "There was an error. Please try another date or try again later.";
+          "There was an error. Please try again later.";
         alert(`❌ ${msg}`);
         return;
       }
 
-      alert("✅ Your tryout request was submitted successfully!");
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        age: "",
-        program: "",
-        experience: "",
-        preferredDate: "",
-        preferredTime: "",
-        location: "",
-        healthIssues: "",
-        notes: "",
-        liabilityAccepted: false,
-      });
+      const result = await res.json();
+      alert(result.confirmationEmailSent
+        ? "✅ Your tryout request was received! A confirmation email has been sent. Our team will contact you to arrange your tryout."
+        : "✅ Your tryout request was received! We could not send the confirmation email, but your request is saved. Our team will contact you to arrange your tryout.");
+      setFormData({ ...emptyTryoutForm });
     } catch (error) {
       console.error(error);
       alert("❌ There was an error submitting the form.");
@@ -306,7 +241,7 @@ export default function TryoutPage() {
                         id="age"
                         type="number"
                         min="4"
-                        max="99"
+                        max="20"
                         value={formData.age}
                         onChange={(e) => handleInputChange("age", e.target.value)}
                         className="border-slate-300 focus:border-slate-500"
@@ -319,10 +254,11 @@ export default function TryoutPage() {
                         Interested Program *
                       </Label>
                       <Select
+                        required
                         value={formData.program}
-                        onValueChange={(value) => handleInputChange("program", value as Program)}
+                        onValueChange={(value) => handleInputChange("program", value)}
                       >
-                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
+                        <SelectTrigger id="program" className="border-slate-300 focus:border-slate-500">
                           <SelectValue placeholder="Select a program" />
                         </SelectTrigger>
                         <SelectContent>
@@ -337,88 +273,39 @@ export default function TryoutPage() {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="experience" className="text-slate-700 font-medium">
-                        Swimming Experience
-                      </Label>
-                      <Select
-                        value={formData.experience}
-                        onValueChange={(value) => handleInputChange("experience", value as Experience)}
-                      >
-                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                          <SelectValue placeholder="Select your experience level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="beginner">Beginner (Learning to swim)</SelectItem>
-                          <SelectItem value="recreational">Recreational swimmer</SelectItem>
-                          <SelectItem value="competitive">Some competitive experience</SelectItem>
-                          <SelectItem value="advanced">Advanced competitive swimmer</SelectItem>
-                          <SelectItem value="elite">Elite/National level</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="location" className="text-slate-700 font-medium">
-                        Preferred Location *
-                      </Label>
-                      <Select
-                        value={formData.location}
-                        onValueChange={(value) => handleInputChange("location", value as Location)}
-                      >
-                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                          <SelectValue placeholder="Select preferred location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Redmond">Redmond</SelectItem>
-                          <SelectItem value="Mercer Island">Mercer Island</SelectItem>
-                          <SelectItem value="Issaquah">Issaquah</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="experience">How long have you been learning to swim? *</Label>
+                    <Select required value={formData.experience} onValueChange={(experience) => setFormData(prev => ({ ...prev, experience, teamExperience: "", teamName: "", lessonNotes: "" }))}>
+                      <SelectTrigger id="experience"><SelectValue placeholder="Select swimming experience" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(swimmingDurations).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="preferredDate" className="text-slate-700 font-medium">
-                        Preferred Date {formData.program === "bronze" || formData.program === "silver" ? "*" : ""}
-                      </Label>
-                      <Input
-                        id="preferredDate"
-                        type="date"
-                        value={formData.preferredDate}
-                        onChange={(e) => handleInputChange("preferredDate", e.target.value)}
-                        required={formData.program === "bronze" || formData.program === "silver"}
-                        className="border-slate-300 focus:border-slate-500"
-                      />
+                  {formData.experience && formData.experience !== "none" && (
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="teamExperience">Have you trained with a swim team? *</Label>
+                        <Select required value={formData.teamExperience} onValueChange={(teamExperience) => setFormData(prev => ({ ...prev, teamExperience, teamName: "", lessonNotes: "" }))}>
+                          <SelectTrigger id="teamExperience"><SelectValue placeholder="Select an answer" /></SelectTrigger>
+                          <SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                      {formData.teamExperience === "yes" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="teamName">Which swim team were you on? *</Label>
+                          <Input id="teamName" required value={formData.teamName} onChange={e => handleInputChange("teamName", e.target.value)} placeholder="Swim team name" />
+                        </div>
+                      )}
+                      {formData.teamExperience === "no" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="lessonNotes">Tell us about your previous swimming lessons *</Label>
+                          <Textarea id="lessonNotes" required value={formData.lessonNotes} onChange={e => handleInputChange("lessonNotes", e.target.value)} placeholder="For example: private lessons, group classes, or learning with family. Where and for how long?" />
+                        </div>
+                      )}
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="preferredTime" className="text-slate-700 font-medium">
-                        Preferred Time
-                      </Label>
-                      <Select
-                        value={formData.preferredTime}
-                        onValueChange={(value) =>
-                          handleInputChange(
-                            "preferredTime",
-                            value as TryoutFormData["preferredTime"]
-                          )
-                        }
-                      >
-                        <SelectTrigger className="border-slate-300 focus:border-slate-500">
-                          <SelectValue placeholder="Select preferred time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="morning">Morning (8:00 AM - 12:00 PM)</SelectItem>
-                          <SelectItem value="afternoon">Afternoon (12:00 PM - 5:00 PM)</SelectItem>
-                          <SelectItem value="evening">Evening (5:00 PM - 8:00 PM)</SelectItem>
-                          <SelectItem value="flexible">Flexible</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="healthIssues" className="text-slate-700 font-medium">
@@ -479,10 +366,11 @@ export default function TryoutPage() {
                     </div>
                   </div>
 
+                  <p className="text-sm text-slate-500">Complete all required fields (*) and accept the waiver to submit. Our team will contact you to arrange your tryout.</p>
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={submitting}
+                    disabled={submitting || validateTryout(formData) !== null}
                     className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed text-white py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
                   >
                     {submitting ? "Submitting..." : "Schedule My Tryout"}
