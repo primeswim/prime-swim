@@ -1,5 +1,5 @@
 export const swimmingDurations = {
-  none: "I have not learned to swim before",
+  none: "No previous swimming lessons",
   "under-6-months": "Less than 6 months",
   "6-12-months": "6–12 months",
   "1-2-years": "1–2 years",

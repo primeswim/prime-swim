@@ -24,5 +24,5 @@ assert.equal(normalizeTryout({ ...experienced, teamExperience: "yes", teamName: 
 assert.equal(normalizeTryout({ ...experienced, teamExperience: "no", teamName: "stale", lessonNotes: " Private lessons " }).teamName, "");
 assert.match(describeTryoutExperience({ ...experienced, teamExperience: "yes", teamName: "Example" }), /Swim team: Example/);
 assert.match(describeTryoutExperience({ ...experienced, teamExperience: "no", lessonNotes: "Private lessons" }), /Private lessons/);
-assert.equal(describeTryoutExperience({ ...valid }), "I have not learned to swim before");
+assert.equal(describeTryoutExperience({ ...valid }), "No previous swimming lessons");
 console.log("Tryout validation and conditional experience checks passed.");

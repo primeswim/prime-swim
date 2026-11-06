@@ -274,7 +274,7 @@ export default function TryoutPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="experience">How long have you been learning to swim? *</Label>
+                    <Label htmlFor="experience">How long has the swimmer been taking swimming lessons? *</Label>
                     <Select required value={formData.experience} onValueChange={(experience) => setFormData(prev => ({ ...prev, experience, teamExperience: "", teamName: "", lessonNotes: "" }))}>
                       <SelectTrigger id="experience"><SelectValue placeholder="Select swimming experience" /></SelectTrigger>
                       <SelectContent>
@@ -286,7 +286,7 @@ export default function TryoutPage() {
                   {formData.experience && formData.experience !== "none" && (
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <Label htmlFor="teamExperience">Have you trained with a swim team? *</Label>
+                        <Label htmlFor="teamExperience">Has the swimmer trained with a swim team? *</Label>
                         <Select required value={formData.teamExperience} onValueChange={(teamExperience) => setFormData(prev => ({ ...prev, teamExperience, teamName: "", lessonNotes: "" }))}>
                           <SelectTrigger id="teamExperience"><SelectValue placeholder="Select an answer" /></SelectTrigger>
                           <SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent>
@@ -294,13 +294,13 @@ export default function TryoutPage() {
                       </div>
                       {formData.teamExperience === "yes" && (
                         <div className="space-y-2">
-                          <Label htmlFor="teamName">Which swim team were you on? *</Label>
+                          <Label htmlFor="teamName">Which swim team was the swimmer on? *</Label>
                           <Input id="teamName" required value={formData.teamName} onChange={e => handleInputChange("teamName", e.target.value)} placeholder="Swim team name" />
                         </div>
                       )}
                       {formData.teamExperience === "no" && (
                         <div className="space-y-2">
-                          <Label htmlFor="lessonNotes">Tell us about your previous swimming lessons *</Label>
+                          <Label htmlFor="lessonNotes">Tell us about the swimmer’s previous swimming lessons *</Label>
                           <Textarea id="lessonNotes" required value={formData.lessonNotes} onChange={e => handleInputChange("lessonNotes", e.target.value)} placeholder="For example: private lessons, group classes, or learning with family. Where and for how long?" />
                         </div>
                       )}

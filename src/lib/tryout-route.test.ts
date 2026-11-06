@@ -24,7 +24,12 @@ async function main() {
     assert.equal(writes.length, 3, "Identical program requests must all be accepted");
     assert.equal(emails.length, 6);
     const receipt = emails.find(email => email.to === "test@example.com")!;
-    assert.match(receipt.html, /has not been scheduled yet/);
+    assert.match(receipt.html, /reach out to finalize your tryout date, time, and location/);
+    assert.match(receipt.html, /Excellence in Aquatic Education/);
+    assert.match(receipt.html, /Swimsuit/);
+    assert.match(receipt.html, /Swim goggles/);
+    assert.match(receipt.html, /Swim cap, if you have one/);
+    assert.doesNotMatch(receipt.html, /towel|water bottle|confirmation email shortly/i);
     assert.match(receipt.html, /&lt;Test&gt;/);
     assert.doesNotMatch(receipt.html, /Health Issues|Notes:/);
     assert.match(emails[0].html, /&lt;Test&gt;/);

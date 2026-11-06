@@ -1,5 +1,6 @@
 export const runtime = "nodejs";
 
+import { buildTryoutReceipt, tryoutEmailSubject } from "@/lib/tryout-email";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminDb } from "@/lib/firebaseAdmin";
@@ -42,10 +43,10 @@ export async function POST(request: Request) {
         from: "Prime Swim Academy <noreply@primeswimacademy.com>",
         to: recipient === "admin" ? "prime.swim.us@gmail.com" : data.email,
         replyTo: recipient === "admin" ? data.email : "prime.swim.us@gmail.com",
-        subject: recipient === "admin" ? "*** New Tryout Submission ***" : "We received your tryout request — Prime Swim Academy",
+        subject: recipient === "admin" ? "*** New Tryout Submission ***" : tryoutEmailSubject,
         html: recipient === "admin"
           ? `<h2>New Tryout Submission</h2><p>Please contact the family to arrange their tryout.</p>${Object.entries(fields).map(([label, value]) => `<p><strong>${label}:</strong> ${escapeHtml(value)}</p>`).join("")}`
-          : `<h2>We received your tryout request</h2><p>Thank you for registering ${escapeHtml(data.firstName)} ${escapeHtml(data.lastName)} for a tryout with Prime Swim Academy.</p><p>Our coaching team will contact you to arrange the date, time and location. Your tryout appointment has not been scheduled yet.</p><p>Questions? Reply to this email or contact <a href="mailto:prime.swim.us@gmail.com">prime.swim.us@gmail.com</a>.</p><p>We look forward to meeting your swimmer!<br>Prime Swim Academy</p>`,
+          : buildTryoutReceipt(data.firstName, data.lastName),
       });
       if (result.error) { console.error(`Tryout ${recipient} notification failed:`, result.error.name); return false; }
       return true;
