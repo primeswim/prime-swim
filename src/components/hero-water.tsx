@@ -25,12 +25,12 @@ void main() {
 }`;
 
 /** Decorative refraction layer; the accessible Next image remains underneath. */
-export default function HeroWater() {
+export default function HeroWater({ src = "/images/hero-butterfly-v2.jpg", className }: { src?: string; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current;
-    const host = canvas?.closest("section");
+    const host = canvas?.parentElement;
     if (!canvas || !host) return;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const gl = canvas.getContext("webgl", { alpha: true, antialias: false, depth: false });
@@ -187,7 +187,7 @@ export default function HeroWater() {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
       ready = true;
     };
-    image.src = "/images/hero-butterfly-v2.jpg";
+    image.src = src;
     const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (!visible) stop(); });
     observer.observe(host);
     host.addEventListener("pointermove", disturb, { passive: true });
@@ -211,7 +211,7 @@ export default function HeroWater() {
       gl.deleteProgram(program);
       shaders.forEach(shader => gl.deleteShader(shader));
     };
-  }, []);
+  }, [src]);
 
-  return <canvas ref={ref} className={`${styles.photo} ${styles.water}`} aria-hidden="true" />;
+  return <canvas ref={ref} className={className ?? `${styles.photo} ${styles.water}`} aria-hidden="true" />;
 }

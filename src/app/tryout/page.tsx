@@ -1,6 +1,9 @@
 "use client";
 
 import type React from "react";
+import Image from "next/image";
+import HeroWater from "@/components/hero-water";
+import styles from "./tryout.module.css";
 import { useState } from "react";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
@@ -137,18 +140,17 @@ export default function TryoutPage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-bold text-slate-800 mb-6 tracking-tight">
-            Schedule Your Tryout
-          </h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Join Prime Swim Academy and discover your potential. Our tryout process helps us understand your current
-            skill level and recommend the perfect program for your swimming journey.
-          </p>
-          <p className="text-sm text-amber-600 font-medium mt-2">
-            ⚠️ Please note: Tryouts are only for group lessons and are not applicable to private lessons.
-          </p>
+      <section className="container mx-auto px-4" aria-labelledby="tryout-title">
+        <div className={styles.hero}>
+          <div className={styles.heroCopy}>
+            <h1 id="tryout-title">Schedule Your Tryout</h1>
+            <p>Our coaches will get to know your swimmer and help find the right training level for their next step.</p>
+            <a className={styles.heroLink} href="#tryout-registration">Book a Tryout <span aria-hidden="true">→</span></a>
+          </div>
+          <div className={styles.heroPhoto}>
+            <Image src="/images/tryout-coaching.jpg" alt="A coach guiding a young swimmer with kickboards in the pool" width={1168} height={874} priority sizes="(max-width: 767px) 100vw, 55vw" />
+            <HeroWater src="/images/tryout-coaching.jpg" className={styles.water} />
+          </div>
         </div>
       </section>
 
@@ -221,7 +223,7 @@ export default function TryoutPage() {
       </section>
 
       {/* Tryout Form Section */}
-      <section className="bg-slate-50 py-20">
+      <section id="tryout-registration" className="bg-slate-50 py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
