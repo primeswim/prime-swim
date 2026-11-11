@@ -6,7 +6,7 @@ export const swimmingDurations = {
   "over-2-years": "More than 2 years",
 } as const;
 
-export const tryoutWaiverVersion = "2026-11-11-v1";
+export const tryoutWaiverVersion = "2026-11-11-v2";
 
 export interface TryoutFormData {
   firstName: string;
@@ -23,7 +23,6 @@ export interface TryoutFormData {
   notes: string;
   signerName: string;
   signerRole: string;
-  swimmerRiskAcknowledged: boolean;
   liabilityAccepted: boolean;
 }
 
@@ -31,7 +30,7 @@ export const emptyTryoutForm: TryoutFormData = {
   firstName: "", lastName: "", email: "", phone: "", age: "", program: "",
   experience: "", teamExperience: "", teamName: "", lessonNotes: "",
   healthIssues: "", notes: "", signerName: "", signerRole: "",
-  swimmerRiskAcknowledged: false, liabilityAccepted: false,
+  liabilityAccepted: false,
 };
 
 export function validateTryout(data: TryoutFormData): string | null {
@@ -60,14 +59,13 @@ export function validateTryout(data: TryoutFormData): string | null {
 export function normalizeTryout(input: Record<string, unknown>): TryoutFormData {
   const data = { ...emptyTryoutForm };
   for (const key of Object.keys(emptyTryoutForm) as (keyof TryoutFormData)[]) {
-    if (key === "liabilityAccepted" || key === "swimmerRiskAcknowledged") data[key] = input[key] === true;
+    if (key === "liabilityAccepted") data[key] = input[key] === true;
     else data[key] = typeof input[key] === "string" ? input[key].trim() : key === "age" && typeof input[key] === "number" ? String(input[key]) : "";
   }
   if (data.experience === "none") {
     data.teamExperience = ""; data.teamName = ""; data.lessonNotes = "";
   } else if (data.teamExperience === "yes") data.lessonNotes = "";
   else if (data.teamExperience === "no") data.teamName = "";
-  if (Number(data.age) >= 18) data.swimmerRiskAcknowledged = false;
   return data;
 }
 

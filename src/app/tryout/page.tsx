@@ -2,6 +2,7 @@
 
 import type React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import HeroWater from "@/components/hero-water";
 import styles from "./tryout.module.css";
 import { useState } from "react";
@@ -32,7 +33,6 @@ export default function TryoutPage() {
       if (field === "age") {
         next.signerName = "";
         next.signerRole = "";
-        next.swimmerRiskAcknowledged = false;
       }
       if (["age", "firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
         next.liabilityAccepted = false;
@@ -191,6 +191,11 @@ export default function TryoutPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  <p className="text-sm text-slate-600">
+                    A parent or legal guardian must fill out the form for a swimmer under 13. Swimmers ages 13–17 may
+                    fill out the registration details, then hand this form to a parent or legal guardian to sign.
+                    For swimmers 18 or older, a parent may help fill out the details and the swimmer signs for themselves.
+                  </p>
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="firstName" className="text-slate-700 font-medium">
@@ -253,7 +258,7 @@ export default function TryoutPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="age" className="text-slate-700 font-medium">
-                        Age *
+                        Swimmer Age *
                       </Label>
                       <Input
                         id="age"
@@ -378,27 +383,30 @@ export default function TryoutPage() {
                         those activities.
                       </p>
                       <p>
+                        <strong>Right to report misconduct.</strong> This release does not apply to sexual harassment, sexual assault,
+                        sexual abuse, or any other form of abuse. Nothing in these terms limits anyone’s right to
+                        report suspected misconduct or abuse to law enforcement, the U.S. Center for SafeSport,
+                        or another appropriate authority, or to cooperate with an investigation. See our
+                        {" "}<Link href="/safesport#report" target="_blank" rel="noopener noreferrer" className="font-medium underline">Safe Sport reporting resources</Link>.
+                      </p>
+                      <p>
                         <strong>3. Health and Safety Disclosure.</strong> To the best of my knowledge, I have shared
                         with Prime Swim Academy any health conditions,
                         allergies, or accommodations relevant to the swimmer’s safe participation in the tryout.
                       </p>
+                      <div>
+                        <p className="mb-1"><strong>4. Swimmer Conduct and Pool Safety.</strong></p>
+                        <ul className="list-disc space-y-1 pl-5">
+                          <li>Treat coaches, instructors, staff, and other swimmers with respect.</li>
+                          <li>Bullying, harassment, pushing, and rough play are prohibited in the water and on the pool deck.</li>
+                          <li>Follow coaches’ and lifeguards’ safety instructions. Enter the water only when directed.</li>
+                        </ul>
+                        <p className="mt-2">If I am signing for a minor swimmer, I agree to review these rules with them before the tryout.</p>
+                      </div>
                     </div>
                     {validAge ? (
                       <div className="space-y-4 text-sm text-amber-900">
-                        {isMinor && (
-                          <>
-                            <label className="flex items-start gap-2">
-                              <input
-                                type="checkbox"
-                                checked={formData.swimmerRiskAcknowledged}
-                                onChange={(e) => handleInputChange("swimmerRiskAcknowledged", e.target.checked)}
-                                className="mt-1"
-                              />
-                              <span>Swimmer acknowledgment (optional): I am the swimmer and understand the tryout risks in section 1.</span>
-                            </label>
-                            <p>A parent or legal guardian must complete the signature below for a swimmer under 18.</p>
-                          </>
-                        )}
+                        <p>{isMinor ? "A parent or legal guardian must sign this section for a swimmer under 18." : "The swimmer must sign this section. A parent may help fill out the registration details."}</p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="signerName">Signer Full Name *</Label>
@@ -427,7 +435,7 @@ export default function TryoutPage() {
                             className="mt-1"
                             required
                           />
-                          <span>I have read and understand these terms and agree to them in the role selected above.</span>
+                          <span>I have read and understand these terms and electronically sign them using the name and role entered above.</span>
                         </label>
                         <p>Terms version: {tryoutWaiverVersion}</p>
                       </div>
@@ -436,7 +444,7 @@ export default function TryoutPage() {
                     )}
                   </div>
 
-                  <p className="text-sm text-slate-500">Complete all required fields (*) and accept the waiver to submit. Our team will contact you to arrange your tryout.</p>
+                  <p className="text-sm text-slate-500">Complete all required fields (*) and signatures to submit. Our team will contact you to arrange your tryout.</p>
                   <Button
                     type="submit"
                     size="lg"

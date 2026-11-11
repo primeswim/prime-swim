@@ -7,7 +7,10 @@ for (const age of ["21", "99", "3", "", "4.5", "NaN"]) assert.ok(validateTryout(
 assert.equal(validateTryout({ ...valid, age: "18" }), null);
 assert.equal(validateTryout({ ...valid, age: "4", signerRole: "parent" }), null);
 assert.equal(validateTryout({ ...valid, age: "17", signerRole: "legal-guardian" }), null);
-assert.ok(validateTryout({ ...valid, age: "17", swimmerRiskAcknowledged: true }));
+for (const age of ["12", "13", "17"]) {
+  assert.equal(validateTryout({ ...valid, age, signerRole: "parent" }), null);
+  assert.ok(validateTryout({ ...valid, age, signerRole: "swimmer" }));
+}
 assert.ok(validateTryout({ ...valid, age: "18", signerRole: "parent" }));
 assert.ok(validateTryout({ ...valid, signerName: " " }));
 for (const field of ["firstName", "lastName", "email", "phone", "program", "experience"] as const) assert.ok(validateTryout({ ...valid, [field]: " " }), field);

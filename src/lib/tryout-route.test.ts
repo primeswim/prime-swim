@@ -40,7 +40,7 @@ async function main() {
     assert.equal((await POST(request({ ...data, age: 17, signerName: " Guardian Name ", signerRole: "legal-guardian", swimmerRiskAcknowledged: true }))).status, 200);
     assert.equal(writes[3].signerName, "Guardian Name");
     assert.equal(writes[3].signerRole, "legal-guardian");
-    assert.equal(writes[3].swimmerRiskAcknowledged, true);
+    assert.equal("swimmerRiskAcknowledged" in writes[3], false);
     const before = writes.length;
     for (const invalid of [{ ...data, age: 21 }, { ...data, age: 17, swimmerRiskAcknowledged: true }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
       assert.equal((await POST(request(invalid))).status, 400);
