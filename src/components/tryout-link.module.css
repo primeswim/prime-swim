@@ -1,0 +1,11 @@
+.link {
+  border-radius: 999px;
+  background: #ffd15c;
+  color: #102c49;
+  box-shadow: 0 4px 16px #00000016;
+}
+
+.link:hover {
+  background: #ffdb7c;
+  box-shadow: 0 6px 22px #00000025;
+}

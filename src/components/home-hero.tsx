@@ -1,7 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowRight, Trophy } from "lucide-react";
 import HeroWater from "./hero-water";
+import TryoutLink from "./tryout-link";
 import styles from "./home-hero.module.css";
 
 export default function HomeHero() {
@@ -24,7 +24,7 @@ export default function HomeHero() {
           <h1 id="home-hero-title">Better Technique.<br />Stronger Swimmers.</h1>
           <p>Structured coaching. Individual development.<br />A pathway to competitive swimming.</p>
           <div className={styles.actions}>
-            <Link prefetch={false} className={styles.tryout} href="/tryout">Schedule a Tryout <ArrowRight aria-hidden="true" /></Link>
+            <TryoutLink />
             <a className={styles.programs} href="#programs">Explore Programs <ArrowRight aria-hidden="true" /></a>
           </div>
         </div>

@@ -27,8 +27,6 @@
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
 .actions a { display: inline-flex; align-items: center; justify-content: center; gap: 14px; padding: 15px 24px; min-height: 52px; border-radius: 999px; font-size: 18px; font-weight: 600; text-decoration: none; transition: background-color 180ms ease, box-shadow 180ms ease; }
 .actions svg { width: 20px; height: 20px; flex-shrink: 0; }
-.tryout { background: #ffd15c; color: #102c49; box-shadow: 0 4px 16px #00000016; }
-.tryout:hover { background: #ffdb7c; box-shadow: 0 6px 22px #00000025; }
 .programs { border: 1px solid #d9efff; background: #06284d40; color: #fff; }
 .programs:hover { background: #ffffff1f; }
 .actions a:focus-visible, .benefits a:focus-visible { outline: 3px solid #60a5fa; outline-offset: 5px; }
