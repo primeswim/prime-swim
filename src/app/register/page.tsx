@@ -289,7 +289,7 @@ export default function RegisterPage() {
                     <a href="https://swimssupport.usaswimming.org/support/solutions/articles/48001280368-how-to-request-a-transfer-to-a-different-club" target="_blank" rel="noreferrer" className="font-medium text-blue-700 underline underline-offset-2">
                       Request a transfer
                     </a>{" "}
-                    to Prime early to avoid meet entry delays.
+                    to Prime Swim Academy early to avoid meet entry delays.
                   </li>
                 </ul>
               </div>
