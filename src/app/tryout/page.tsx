@@ -243,47 +243,50 @@ export default function TryoutPage() {
                       aria-invalid={Boolean(ageError)}
                       aria-describedby={ageError ? "tryout-birth-date-error" : undefined}
                       value={formData.birthDate}
-                      onChange={(e) => handleInputChange("birthDate", e.target.value)}
+                      onInput={(e) => handleInputChange("birthDate", e.currentTarget.value)}
+                      onBlur={(e) => {
+                        if (e.currentTarget.value !== formData.birthDate) {
+                          handleInputChange("birthDate", e.currentTarget.value);
+                        }
+                      }}
                       className="border-slate-300 focus:border-slate-500"
                       required
                     />
                     {ageError && <p id="tryout-birth-date-error" className="text-sm text-red-600">{ageError}</p>}
                   </div>
 
-                  {validAge && (
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-slate-700 font-medium">
-                          {isMinor ? "Parent or Guardian Email" : "Swimmer Email"} *
-                        </Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          autoComplete="email"
-                          value={formData.email}
-                          onChange={(e) => handleInputChange("email", e.target.value)}
-                          className="border-slate-300 focus:border-slate-500"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-slate-700 font-medium">
-                          {isMinor ? "Parent or Guardian Phone" : "Swimmer Phone"} *
-                        </Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          autoComplete="tel"
-                          inputMode="tel"
-                          placeholder="206-555-0123"
-                          value={formData.phone}
-                          onChange={(e) => handleInputChange("phone", formatUSPhone(e.target.value))}
-                          className="border-slate-300 focus:border-slate-500"
-                          required
-                        />
-                      </div>
+                  <fieldset disabled={!validAge} className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-slate-700 font-medium">
+                        {validAge ? (isMinor ? "Parent or Guardian Email" : "Swimmer Email") : "Contact Email"} *
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        className="border-slate-300 focus:border-slate-500"
+                        required
+                      />
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="text-slate-700 font-medium">
+                        {validAge ? (isMinor ? "Parent or Guardian Phone" : "Swimmer Phone") : "Contact Phone"} *
+                      </Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        placeholder="206-555-0123"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", formatUSPhone(e.target.value))}
+                        className="border-slate-300 focus:border-slate-500"
+                        required
+                      />
+                    </div>
+                  </fieldset>
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
