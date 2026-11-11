@@ -36,16 +36,31 @@ export default function TryoutPage() {
   ) => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
-      if (field === "birthDate") {
-        next.signerName = "";
-        next.signerRole = "";
-      }
-      if (["birthDate", "firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
+      if (["firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
         next.liabilityAccepted = false;
       }
       return next;
     });
   };
+
+  function updateBirthDate(part: number, value: string) {
+    setFormData((prev) => {
+      const [year = "", month = "", day = ""] = prev.birthDate.split("-");
+      const parts = [year, month, day];
+      parts[part] = value;
+      const birthDate = parts.join("-");
+      const { age } = checkSwimmerBirthDate(birthDate);
+      const incompatibleRole = age !== null && prev.signerRole !== "" &&
+        (age < 18 ? prev.signerRole === "swimmer" : prev.signerRole !== "swimmer");
+      return {
+        ...prev,
+        birthDate,
+        signerName: incompatibleRole ? "" : prev.signerName,
+        signerRole: incompatibleRole ? "" : prev.signerRole,
+        liabilityAccepted: false,
+      };
+    });
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,9 +110,9 @@ export default function TryoutPage() {
     timeZone: "America/Los_Angeles", year: "numeric",
   }).format());
   const birthDateFields = [
-    { label: "Month", value: birthMonth, options: Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")) },
-    { label: "Day", value: birthDay, options: Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")) },
-    { label: "Year", value: birthYear, options: Array.from({ length: maxSwimmerAge + 2 }, (_, i) => String(currentYear - i)) },
+    { label: "Month", part: 1, value: birthMonth, options: Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")) },
+    { label: "Day", part: 2, value: birthDay, options: Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")) },
+    { label: "Year", part: 0, value: birthYear, options: Array.from({ length: maxSwimmerAge + 2 }, (_, i) => String(currentYear - i)) },
   ];
 
   return (
@@ -241,18 +256,13 @@ export default function TryoutPage() {
                   <fieldset disabled={!formReady} className="space-y-2" aria-describedby={ageError ? "tryout-birth-date-error" : undefined}>
                     <legend className="text-slate-700 font-medium">Swimmer Date of Birth *</legend>
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                      {birthDateFields.map(({ label, value, options }, index) => (
+                      {birthDateFields.map(({ label, part, value, options }) => (
                         <select
                           key={label}
                           aria-label={`Birth ${label.toLowerCase()}`}
                           aria-invalid={Boolean(ageError)}
                           value={value}
-                          onChange={(event) => {
-                            const parts = [birthMonth, birthDay, birthYear];
-                            parts[index] = event.target.value;
-                            const [month, day, year] = parts;
-                            handleInputChange("birthDate", `${year}-${month}-${day}`);
-                          }}
+                          onChange={(event) => updateBirthDate(part, event.target.value)}
                           className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"
                           required
                         >
@@ -267,7 +277,7 @@ export default function TryoutPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-slate-700 font-medium">
-                        {validAge ? (isMinor ? "Parent or Guardian Email" : "Swimmer Email") : "Contact Email"} *
+                        {validAge ? (isMinor ? "Parent or Guardian Email" : "Swimmer Email") : "Email Address"} *
                       </Label>
                       <Input
                         id="email"
@@ -281,7 +291,7 @@ export default function TryoutPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone" className="text-slate-700 font-medium">
-                        {validAge ? (isMinor ? "Parent or Guardian Phone" : "Swimmer Phone") : "Contact Phone"} *
+                        {validAge ? (isMinor ? "Parent or Guardian Phone" : "Swimmer Phone") : "Phone Number"} *
                       </Label>
                       <Input
                         id="phone"
@@ -434,7 +444,7 @@ export default function TryoutPage() {
                       <h5 className="font-bold">Electronic Signature</h5>
                       <p>
                         {!validAge
-                          ? "Complete the swimmer’s date of birth above to choose who is signing."
+                          ? "A parent or legal guardian signs for swimmers under 18. Swimmers 18 or older sign for themselves."
                           : isMinor
                             ? "A parent or legal guardian must sign for the swimmer."
                             : "The swimmer must sign. A parent may help fill out the registration details."}
@@ -446,16 +456,11 @@ export default function TryoutPage() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="signerRole">Signing As *</Label>
-                          <select id="signerRole" value={formData.signerRole} disabled={!validAge} onChange={(e) => handleInputChange("signerRole", e.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3" required>
+                          <select id="signerRole" value={formData.signerRole} disabled={!formReady} onChange={(e) => handleInputChange("signerRole", e.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3" required>
                             <option value="">Select signing role</option>
-                            {validAge && (isMinor ? (
-                              <>
-                                <option value="parent">Parent</option>
-                                <option value="legal-guardian">Legal guardian</option>
-                              </>
-                            ) : (
-                              <option value="swimmer">Swimmer (18 or older)</option>
-                            ))}
+                            <option value="parent" disabled={validAge && !isMinor}>Parent</option>
+                            <option value="legal-guardian" disabled={validAge && !isMinor}>Legal guardian</option>
+                            <option value="swimmer" disabled={isMinor}>Swimmer (18 or older)</option>
                           </select>
                         </div>
                       </div>
