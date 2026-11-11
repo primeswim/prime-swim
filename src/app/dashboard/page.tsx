@@ -337,14 +337,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-blue-100">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Plus className="w-8 h-8 text-white" />
               </div>
               <CardTitle className="text-xl font-bold text-slate-800">Register New Swimmer</CardTitle>
-              <CardDescription className="text-slate-600">Add another child to your account</CardDescription>
+              <CardDescription className="text-slate-600">Add a swimmer to your account</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <Link href="/register">
@@ -352,27 +352,6 @@ export default function DashboardPage() {
                   Start Registration
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-green-100">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <CardTitle className="text-xl font-bold text-slate-800">My Swimmers</CardTitle>
-              <CardDescription className="text-slate-600">
-                {swimmers.length} active swimmer{swimmers.length !== 1 ? "s" : ""}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <Button
-                onClick={() => document.getElementById("swimmers-section")?.scrollIntoView({ behavior: "smooth" })}
-                variant="outline"
-                className="border-green-600 text-green-600 hover:bg-green-50 rounded-full px-6"
-              >
-                View Details
-              </Button>
             </CardContent>
           </Card>
 

@@ -67,7 +67,7 @@ function ClinicRegisterPageContent() {
 
     // Validation
     if (!childFirstName || !childLastName || !dateOfBirth || !gender) {
-      setError("Please fill in all required child information fields.");
+      setError("Please fill in all required swimmer information fields.");
       return;
     }
 

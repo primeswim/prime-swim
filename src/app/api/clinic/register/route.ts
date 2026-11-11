@@ -175,7 +175,7 @@ export async function POST(request: Request) {
 
     // Validate required fields
     if (!childFirstName || !childLastName || !dateOfBirth || !gender) {
-      return NextResponse.json({ error: "Missing required child information" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required swimmer information" }, { status: 400 });
     }
 
     if (!parentFirstName || !parentLastName || !parentEmail || !parentPhoneRaw) {
