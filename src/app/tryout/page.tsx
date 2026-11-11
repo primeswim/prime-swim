@@ -346,11 +346,11 @@ export default function TryoutPage() {
                       </p>
                       <p>
                         <strong>2.</strong> I release Prime Swim Academy and its staff from any and all liability for
-                        injury, illness, or damages that may occur as a result of my or my child’s participation in
+                        injury, illness, or damages that may occur as a result of the swimmer’s participation in
                         tryouts.
                       </p>
                       <p>
-                        <strong>3.</strong> I certify that I or my child is physically fit to participate in the
+                        <strong>3.</strong> I certify that the swimmer is physically fit to participate in the
                         swimming tryout and that I have disclosed any relevant health conditions.
                       </p>
                     </div>

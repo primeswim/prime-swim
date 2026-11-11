@@ -692,9 +692,9 @@ export default function RenewPage() {
                     <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
                       <p className="mb-2">
                         I acknowledge that swimming and related activities involve inherent risks. I voluntarily accept these
-                        risks on behalf of my child and agree not to hold Prime Swim Academy, its staff, or affiliates liable for
+                        risks as the swimmer or, if signing as their parent or legal guardian, on the swimmer’s behalf. I agree not to hold Prime Swim Academy, its staff, or affiliates liable for
                         any injury arising from ordinary participation in the program. This waiver does not apply in cases of
-                        intentional misconduct. I further understand that I am responsible for my child&apos;s behavior and compliance with safety rules, and that Prime Swim Academy is not liable for lost or stolen belongings.
+                        intentional misconduct. I further understand that I am responsible for the swimmer’s behavior and compliance with safety rules, and that Prime Swim Academy is not liable for lost or stolen belongings.
                       </p>
                       <p className="mt-2 text-blue-600">
                         <Link href="/school-policy" target="_blank" className="underline hover:text-blue-800">
@@ -724,7 +724,7 @@ export default function RenewPage() {
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
                       <p className="mb-2">
-                        I authorize Prime Swim Academy staff to seek emergency medical treatment for my child if I cannot be
+                        I authorize Prime Swim Academy staff to seek emergency medical treatment for the swimmer if I cannot be
                         reached immediately. I understand that every effort will be made to contact me or the emergency contact
                         before seeking treatment. I authorize the administration of first aid and emergency medical care by
                         qualified personnel.
@@ -752,7 +752,7 @@ export default function RenewPage() {
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
                       <p className="mb-2">
-                        I grant Prime Swim Academy permission to use photographs, videos, or other media of my child for
+                        I grant Prime Swim Academy permission to use photographs, videos, or other media of the swimmer for
                         promotional purposes including but not limited to websites, social media, brochures, and advertisements. I
                         understand that no compensation will be provided for such use.
                       </p>
@@ -779,7 +779,7 @@ export default function RenewPage() {
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 max-h-32 overflow-y-auto">
                       <p className="mb-2">
-                        I agree that my child will conduct themselves in a respectful manner at all times. This includes
+                        I agree that the swimmer will conduct themselves in a respectful manner at all times. This includes
                         showing respect to coaches, staff, other swimmers, and parents. Inappropriate behavior, including but not
                         limited to bullying, harassment, or disruptive conduct, may result in suspension or termination from the
                         program without refund.
@@ -797,7 +797,7 @@ export default function RenewPage() {
                         onCheckedChange={(checked) => updateField("codeOfConduct", checked as boolean)}
                       />
                       <Label htmlFor="codeOfConduct" className="text-sm">
-                        I agree my athlete will follow the Athlete Code of Conduct *
+                        I agree that the swimmer will follow the Athlete Code of Conduct *
                       </Label>
                     </div>
                   </div>

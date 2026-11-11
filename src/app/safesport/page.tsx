@@ -315,7 +315,7 @@ export default function SafeSportPage() {
               {
                 label: "Parent Resources",
                 href: "https://www.usaswimming.org/swimmers-parents",
-                desc: "Guides, FAQs, and best practices for supporting your athlete.",
+                desc: "Guides, FAQs, and best practices for supporting swimmers.",
               },
               {
                 label: "Athlete Protection Training (APT)",
