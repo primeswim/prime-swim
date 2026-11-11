@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
-import { emptyTryoutForm, formatTryoutPhone, swimmingDurations, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
+import { emptyTryoutForm, formatTryoutPhone, swimmingDurations, tryoutWaiverVersion, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
 
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
@@ -27,7 +27,18 @@ export default function TryoutPage() {
     field: K,
     value: TryoutFormData[K]
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "age") {
+        next.signerName = "";
+        next.signerRole = "";
+        next.swimmerRiskAcknowledged = false;
+      }
+      if (["age", "firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
+        next.liabilityAccepted = false;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,7 +54,7 @@ export default function TryoutPage() {
       const res = await fetch("/api/tryout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, waiverVersion: tryoutWaiverVersion }),
       });
 
       if (!res.ok) {
@@ -68,6 +79,10 @@ export default function TryoutPage() {
       setSubmitting(false);
     }
   };
+
+  const age = Number(formData.age);
+  const validAge = Number.isInteger(age) && age >= 4 && age <= 20;
+  const isMinor = age < 18;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -179,7 +194,7 @@ export default function TryoutPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="firstName" className="text-slate-700 font-medium">
-                        First Name *
+                        Swimmer First Name *
                       </Label>
                       <Input
                         id="firstName"
@@ -191,7 +206,7 @@ export default function TryoutPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName" className="text-slate-700 font-medium">
-                        Last Name *
+                        Swimmer Last Name *
                       </Label>
                       <Input
                         id="lastName"
@@ -312,61 +327,113 @@ export default function TryoutPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="healthIssues" className="text-slate-700 font-medium">
-                      Any Health Issues or Special Considerations
+                      Swimmer Health and Safety (optional)
                     </Label>
+                    <p id="healthIssues-help" className="text-sm text-slate-600">
+                      Share any health conditions, allergies, or accommodations relevant to the swimmer’s safety during the tryout.
+                    </p>
                     <Textarea
                       id="healthIssues"
+                      aria-describedby="healthIssues-help"
                       value={formData.healthIssues}
                       onChange={(e) => handleInputChange("healthIssues", e.target.value)}
-                      placeholder="Please share any medical conditions, allergies, or special needs we should be aware of..."
                       className="border-slate-300 focus:border-slate-500 min-h-[80px]"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="text-slate-700 font-medium">
-                      Additional Notes
+                      Additional Notes About the Swimmer (optional)
                     </Label>
+                    <p id="notes-help" className="text-sm text-slate-600">
+                      Tell us about the swimmer’s goals or anything else the coaches should know before the tryout.
+                    </p>
                     <Textarea
                       id="notes"
+                      aria-describedby="notes-help"
                       value={formData.notes}
                       onChange={(e) => handleInputChange("notes", e.target.value)}
-                      placeholder="Tell us about your swimming goals, any medical conditions, or special requirements..."
                       className="border-slate-300 focus:border-slate-500 min-h-[100px]"
                     />
                   </div>
 
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <h4 className="font-bold text-amber-800 mb-3">ASSUMPTION OF RISK AND RELEASE OF LIABILITY</h4>
-                    <div className="text-amber-800 text-sm max-h-40 overflow-y-auto space-y-2 mb-4">
+                    <h4 className="font-bold text-amber-800 mb-3">TRYOUT RISKS, PARTICIPATION CONSENT, AND RELEASE OF LIABILITY</h4>
+                    <div className="text-amber-800 text-sm space-y-3 mb-4">
                       <p>
-                        <strong>1.</strong> I understand that swimming tryouts involve physical activity and the
-                        inherent risk of injury. I voluntarily accept full responsibility for any risk or harm that may
-                        arise during participation.
+                        <strong>1. Acknowledgment of Risks and Consent to Participate.</strong> I understand that the
+                        tryout includes warm-up, an in-water swimming assessment, and related pool-deck activities.
+                        Risks include fatigue from physical exertion, slips on wet surfaces, collisions with swimmers or equipment,
+                        and water-related injuries, including drowning. I acknowledge these risks. If I am signing
+                        as the minor swimmer’s parent or legal guardian, I give permission for the swimmer to
+                        participate. If I am the swimmer and am 18 or older, I voluntarily agree to participate.
                       </p>
                       <p>
-                        <strong>2.</strong> I release Prime Swim Academy and its staff from any and all liability for
-                        injury, illness, or damages that may occur as a result of the swimmer’s participation in
-                        tryouts.
+                        <strong>2. Release of Liability for Ordinary Negligence.</strong> To the extent permitted by
+                        Washington law, I release Prime Swim Academy and its coaches and staff from my own claims
+                        arising out of the swimmer’s participation in this tryout that I have the legal right to
+                        waive. This includes, without limitation, claims for injury, illness, or other loss arising
+                        from warm-up, in-water assessment, or related pool-deck activities, including claims based
+                        on the ordinary negligence of Prime Swim Academy or its coaches or staff in conducting
+                        those activities.
                       </p>
                       <p>
-                        <strong>3.</strong> I certify that the swimmer is physically fit to participate in the
-                        swimming tryout and that I have disclosed any relevant health conditions.
+                        <strong>3. Health and Safety Disclosure.</strong> To the best of my knowledge, I have shared
+                        with Prime Swim Academy any health conditions,
+                        allergies, or accommodations relevant to the swimmer’s safe participation in the tryout.
                       </p>
                     </div>
-                    <div className="flex items-start space-x-2">
-                      <input
-                        type="checkbox"
-                        id="liabilityAccepted"
-                        checked={formData.liabilityAccepted}
-                        onChange={(e) => handleInputChange("liabilityAccepted", e.target.checked)}
-                        className="mt-1"
-                        required
-                      />
-                      <label htmlFor="liabilityAccepted" className="text-sm text-amber-800 font-medium">
-                        I have read and agree to the above waiver of liability.
-                      </label>
-                    </div>
+                    {validAge ? (
+                      <div className="space-y-4 text-sm text-amber-900">
+                        {isMinor && (
+                          <>
+                            <label className="flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={formData.swimmerRiskAcknowledged}
+                                onChange={(e) => handleInputChange("swimmerRiskAcknowledged", e.target.checked)}
+                                className="mt-1"
+                              />
+                              <span>Swimmer acknowledgment (optional): I am the swimmer and understand the tryout risks in section 1.</span>
+                            </label>
+                            <p>A parent or legal guardian must complete the signature below for a swimmer under 18.</p>
+                          </>
+                        )}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="signerName">Signer Full Name *</Label>
+                            <Input id="signerName" value={formData.signerName} onChange={(e) => handleInputChange("signerName", e.target.value)} className="bg-white" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="signerRole">Signing As *</Label>
+                            <select id="signerRole" value={formData.signerRole} onChange={(e) => handleInputChange("signerRole", e.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3" required>
+                              <option value="">Select signing role</option>
+                              {isMinor ? (
+                                <>
+                                  <option value="parent">Parent</option>
+                                  <option value="legal-guardian">Legal guardian</option>
+                                </>
+                              ) : (
+                                <option value="swimmer">Swimmer (18 or older)</option>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                        <label className="flex items-start gap-2 font-medium">
+                          <input
+                            type="checkbox"
+                            checked={formData.liabilityAccepted}
+                            onChange={(e) => handleInputChange("liabilityAccepted", e.target.checked)}
+                            className="mt-1"
+                            required
+                          />
+                          <span>I have read and understand these terms and agree to them in the role selected above.</span>
+                        </label>
+                        <p>Terms version: {tryoutWaiverVersion}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-900">Enter the swimmer’s age to see who must sign.</p>
+                    )}
                   </div>
 
                   <p className="text-sm text-slate-500">Complete all required fields (*) and accept the waiver to submit. Our team will contact you to arrange your tryout.</p>

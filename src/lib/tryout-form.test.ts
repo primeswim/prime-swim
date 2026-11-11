@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { describeTryoutExperience, emptyTryoutForm, normalizeTryout, validateTryout } from "./tryout-form";
 
-const valid = { ...emptyTryoutForm, firstName: "Test", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", liabilityAccepted: true };
+const valid = { ...emptyTryoutForm, firstName: "Test", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", signerName: "Test Swimmer", signerRole: "swimmer", liabilityAccepted: true };
 assert.equal(validateTryout(valid), null);
 for (const age of ["21", "99", "3", "", "4.5", "NaN"]) assert.ok(validateTryout({ ...valid, age }), age);
-assert.equal(validateTryout({ ...valid, age: "4" }), null);
+assert.equal(validateTryout({ ...valid, age: "18" }), null);
+assert.equal(validateTryout({ ...valid, age: "4", signerRole: "parent" }), null);
+assert.equal(validateTryout({ ...valid, age: "17", signerRole: "legal-guardian" }), null);
+assert.ok(validateTryout({ ...valid, age: "17", swimmerRiskAcknowledged: true }));
+assert.ok(validateTryout({ ...valid, age: "18", signerRole: "parent" }));
+assert.ok(validateTryout({ ...valid, signerName: " " }));
 for (const field of ["firstName", "lastName", "email", "phone", "program", "experience"] as const) assert.ok(validateTryout({ ...valid, [field]: " " }), field);
 assert.ok(validateTryout({ ...valid, email: "not-an-email" }));
 assert.ok(validateTryout({ ...valid, liabilityAccepted: false }));

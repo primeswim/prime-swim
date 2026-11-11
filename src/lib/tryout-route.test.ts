@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import Module from "node:module";
-import { emptyTryoutForm } from "./tryout-form";
+import { emptyTryoutForm, tryoutWaiverVersion } from "./tryout-form";
 
 async function main() {
   const writes: Record<string, unknown>[] = [];
@@ -18,7 +18,7 @@ async function main() {
   };
   const { POST } = await import("../app/api/tryout/route");
   const request = (data: unknown) => new Request("http://localhost/api/tryout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-  const data = { ...emptyTryoutForm, firstName: "<Test>", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", liabilityAccepted: true };
+  const data = { ...emptyTryoutForm, firstName: "<Test>", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", signerName: "Test Swimmer", signerRole: "swimmer", liabilityAccepted: true, waiverVersion: tryoutWaiverVersion };
   try {
     for (let i = 0; i < 3; i++) assert.equal((await POST(request(data))).status, 200);
     assert.equal(writes.length, 3, "Identical program requests must all be accepted");
@@ -34,10 +34,19 @@ async function main() {
     assert.doesNotMatch(receipt.html, /Health Issues|Notes:/);
     assert.match(emails[0].html, /&lt;Test&gt;/);
     assert.doesNotMatch(emails[0].html, /Preferred Date|Preferred Time|Preferred Location/);
+    assert.equal(writes[0].signerRole, "swimmer");
+    assert.equal(writes[0].waiverVersion, tryoutWaiverVersion);
+    assert.ok(writes[0].submittedAt);
+    assert.equal((await POST(request({ ...data, age: 17, signerName: " Guardian Name ", signerRole: "legal-guardian", swimmerRiskAcknowledged: true }))).status, 200);
+    assert.equal(writes[3].signerName, "Guardian Name");
+    assert.equal(writes[3].signerRole, "legal-guardian");
+    assert.equal(writes[3].swimmerRiskAcknowledged, true);
     const before = writes.length;
-    for (const invalid of [{ ...data, age: 21 }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
+    for (const invalid of [{ ...data, age: 21 }, { ...data, age: 17, swimmerRiskAcknowledged: true }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
       assert.equal((await POST(request(invalid))).status, 400);
     }
+    assert.equal((await POST(request({ ...data, waiverVersion: "old" }))).status, 409);
+    assert.equal((await POST(request({ ...data, waiverVersion: undefined }))).status, 409);
     assert.equal(writes.length, before, "Invalid requests must not be saved");
     assert.equal((await POST(new Request("http://localhost/api/tryout", { method: "POST", body: "{" }))).status, 400);
     failEmail = "admin";

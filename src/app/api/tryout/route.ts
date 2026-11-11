@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
-import { describeTryoutExperience, normalizeTryout, validateTryout } from "@/lib/tryout-form";
+import { describeTryoutExperience, normalizeTryout, tryoutWaiverVersion, validateTryout } from "@/lib/tryout-form";
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
@@ -18,14 +18,19 @@ export async function POST(request: Request) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return NextResponse.json({ error: "INVALID_FORM", message: "Invalid form submission." }, { status: 400 });
   }
-  const data = normalizeTryout(input as Record<string, unknown>);
+  const payload = input as Record<string, unknown>;
+  if (payload.waiverVersion !== tryoutWaiverVersion) {
+    return NextResponse.json({ error: "WAIVER_VERSION_MISMATCH", message: "Please reload the form and review the current tryout terms before submitting." }, { status: 409 });
+  }
+  const data = normalizeTryout(payload);
   const message = validateTryout(data);
   if (message) return NextResponse.json({ error: "INVALID_FORM", message }, { status: 400 });
 
   // Scheduling is arranged manually. Every valid request gets its own record;
   // do not query availability or acquire the former program/date capacity lock.
   try {
-    await adminDb.collection("tryouts").add({ ...data, submittedAt: Timestamp.now() });
+    const submittedAt = Timestamp.now();
+    await adminDb.collection("tryouts").add({ ...data, waiverVersion: tryoutWaiverVersion, submittedAt });
   } catch (error) {
     console.error("Error saving tryout:", error);
     return NextResponse.json({ error: "FAILED_SAVE", message: "Failed to save tryout form." }, { status: 500 });

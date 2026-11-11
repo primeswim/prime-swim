@@ -6,6 +6,8 @@ export const swimmingDurations = {
   "over-2-years": "More than 2 years",
 } as const;
 
+export const tryoutWaiverVersion = "2026-11-11-v1";
+
 export interface TryoutFormData {
   firstName: string;
   lastName: string;
@@ -19,17 +21,21 @@ export interface TryoutFormData {
   lessonNotes: string;
   healthIssues: string;
   notes: string;
+  signerName: string;
+  signerRole: string;
+  swimmerRiskAcknowledged: boolean;
   liabilityAccepted: boolean;
 }
 
 export const emptyTryoutForm: TryoutFormData = {
   firstName: "", lastName: "", email: "", phone: "", age: "", program: "",
   experience: "", teamExperience: "", teamName: "", lessonNotes: "",
-  healthIssues: "", notes: "", liabilityAccepted: false,
+  healthIssues: "", notes: "", signerName: "", signerRole: "",
+  swimmerRiskAcknowledged: false, liabilityAccepted: false,
 };
 
 export function validateTryout(data: TryoutFormData): string | null {
-  if (!data.firstName.trim() || !data.lastName.trim()) return "Please enter first and last name.";
+  if (!data.firstName.trim() || !data.lastName.trim()) return "Please enter the swimmer’s first and last name.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) return "Please enter a valid email address.";
   if (!data.phone.trim()) return "Please enter your phone number.";
   const age = Number(data.age);
@@ -41,7 +47,12 @@ export function validateTryout(data: TryoutFormData): string | null {
     if (data.teamExperience === "yes" && !data.teamName.trim()) return "Please enter your swim team's name.";
     if (data.teamExperience === "no" && !data.lessonNotes.trim()) return "Please describe your previous swimming lessons.";
   }
-  if (data.liabilityAccepted !== true) return "Please accept the liability waiver.";
+  if (!data.signerName.trim()) return "Please enter the signer’s full name.";
+  if (age < 18 && data.signerRole !== "parent" && data.signerRole !== "legal-guardian") {
+    return "A parent or legal guardian must sign for a swimmer under 18.";
+  }
+  if (age >= 18 && data.signerRole !== "swimmer") return "The swimmer must sign for themselves.";
+  if (data.liabilityAccepted !== true) return "Please review and agree to the tryout terms.";
   return null;
 }
 
@@ -49,13 +60,14 @@ export function validateTryout(data: TryoutFormData): string | null {
 export function normalizeTryout(input: Record<string, unknown>): TryoutFormData {
   const data = { ...emptyTryoutForm };
   for (const key of Object.keys(emptyTryoutForm) as (keyof TryoutFormData)[]) {
-    if (key === "liabilityAccepted") data[key] = input[key] === true;
+    if (key === "liabilityAccepted" || key === "swimmerRiskAcknowledged") data[key] = input[key] === true;
     else data[key] = typeof input[key] === "string" ? input[key].trim() : key === "age" && typeof input[key] === "number" ? String(input[key]) : "";
   }
   if (data.experience === "none") {
     data.teamExperience = ""; data.teamName = ""; data.lessonNotes = "";
   } else if (data.teamExperience === "yes") data.lessonNotes = "";
   else if (data.teamExperience === "no") data.teamName = "";
+  if (Number(data.age) >= 18) data.swimmerRiskAcknowledged = false;
   return data;
 }
 

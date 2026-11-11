@@ -26,6 +26,10 @@ interface TryoutSwimmer {
   email?: string;
   phone?: string;
   submittedAt?: Timestamp;
+  signerName?: string;
+  signerRole?: string;
+  waiverVersion?: string;
+  swimmerRiskAcknowledged?: boolean;
   tryoutFinished?: boolean;
   willContinue?: boolean;
   preferredDate?: string;  // yyyy-mm-dd（已在后端 normalize）
@@ -161,7 +165,7 @@ export default function TryoutSwimmersPage() {
                   <th className="p-3 border-b">Location</th>
                   <th className="p-3 border-b">Health</th>
                   <th className="p-3 border-b">Notes</th>
-                  <th className="p-3 border-b">Submitted</th>
+                  <th className="p-3 border-b">Submission & Signature</th>
                   <th className="p-3 border-b">Tryout?</th>
                   <th className="p-3 border-b">Enroll?</th>
                   <th className="p-3 border-b">Delete</th>
@@ -184,6 +188,13 @@ export default function TryoutSwimmersPage() {
                     <td className="p-3 max-w-xs">{s.notes || "-"}</td>
                     <td className="p-3 whitespace-nowrap">
                       {s.submittedAt?.toDate().toLocaleString() || "N/A"}
+                      {s.waiverVersion && (
+                        <div className="mt-1 text-xs text-slate-600">
+                          <div className="whitespace-normal">{s.signerName} ({s.signerRole?.replace("-", " ")})</div>
+                          <div>Terms version: {s.waiverVersion}</div>
+                          {s.swimmerRiskAcknowledged && <div>Swimmer acknowledgment recorded</div>}
+                        </div>
+                      )}
                     </td>
                     <td className="p-3">
                       <Button
