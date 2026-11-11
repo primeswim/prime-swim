@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { getSwimmerBirthDateError } from "@/lib/swimmer-age";
 import { upsertEnrollmentFromSwimmer } from "@/lib/tuition-v2/enrollment-service";
 import { openBillingMonths, refreshMonthDerivedData } from "@/lib/tuition-v2/refresh-month";
 
@@ -38,6 +39,10 @@ export async function POST(req: Request) {
 
     // Separate flag control from actual payload
     const { maappAckAt, ...rest } = body || {};
+    const birthDateError = getSwimmerBirthDateError(rest.childDateOfBirth);
+    if (birthDateError) {
+      return NextResponse.json({ ok: false, error: birthDateError }, { status: 400 });
+    }
 
     const payload = {
       ...rest,

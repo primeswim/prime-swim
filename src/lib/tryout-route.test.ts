@@ -42,7 +42,7 @@ async function main() {
     assert.equal(writes[3].signerRole, "legal-guardian");
     assert.equal("swimmerRiskAcknowledged" in writes[3], false);
     const before = writes.length;
-    for (const invalid of [{ ...data, age: 21 }, { ...data, age: 17, swimmerRiskAcknowledged: true }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
+    for (const invalid of [{ ...data, age: 27 }, { ...data, age: 4, signerRole: "parent" }, { ...data, age: 17, swimmerRiskAcknowledged: true }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
       assert.equal((await POST(request(invalid))).status, 400);
     }
     assert.equal((await POST(request({ ...data, waiverVersion: "old" }))).status, 409);

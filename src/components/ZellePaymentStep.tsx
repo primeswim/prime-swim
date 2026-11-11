@@ -57,7 +57,7 @@ export default function ZellePaymentStep({
 
   const handleConfirm = async () => {
     if (!paymentData.paymentName.trim()) {
-      setError("Please fill in all required fields")
+      setError("Enter the name on the account that sent the Zelle payment.")
       return
     }
 
@@ -258,20 +258,10 @@ export default function ZellePaymentStep({
 
               {/* Confirmation Form */}
               <div className="space-y-4">
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm mb-6">
-                  <p className="text-sm text-yellow-800 font-medium">
-                    ⚠️ After sending your Zelle payment, don’t forget to:
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-yellow-800 mt-2 space-y-1">
-                    <li><strong>Fill in</strong> the <span className="underline">Name Used on Zelle Payment</span></li>
-                    <li><strong>Click</strong> the <em>“I’ve Completed the Payment”</em> button</li>
-                  </ul>
-                  <p className="text-xs text-yellow-700 mt-2">
-                    This helps us confirm and match your payment for review.
-                  </p>
-                </div>
-
-                <h4 className="text-lg font-semibold text-slate-800 mb-4">Payment Confirmation</h4>
+                <h4 className="text-lg font-semibold text-slate-800">Confirm Your Zelle Transfer</h4>
+                <p className="text-sm text-slate-600">
+                  After sending the payment in your banking app, enter the sender’s details so we can match the transfer to the swimmer’s registration or renewal.
+                </p>
 
                 {error && (
                   <Alert className="border-red-200 bg-red-50">
@@ -289,26 +279,27 @@ export default function ZellePaymentStep({
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="paymentName" className="font-semibold text-red-600 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1 text-red-600" />
-                      Name Used on Zelle Payment (Required)
-                    </Label>
+                    <Label htmlFor="paymentName">Zelle Sender’s Name *</Label>
                     <Input
                       id="paymentName"
+                      aria-describedby="zelle-sender-help"
                       value={paymentData.paymentName}
                       onChange={(e) => handleInputChange("paymentName", e.target.value)}
-                      placeholder="Enter the name used for the Zelle payment"
+                      placeholder="Full name on the sender’s account"
                       required
                     />
+                    <p id="zelle-sender-help" className="text-sm text-slate-600">
+                      Enter the name shown on the transfer. If a parent or someone else paid, enter their name.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="paymentMemo">Memo/Note (Optional)</Label>
+                    <Label htmlFor="paymentMemo">Zelle Memo (optional)</Label>
                     <Input
                       id="paymentMemo"
                       value={paymentData.paymentMemo}
                       onChange={(e) => handleInputChange("paymentMemo", e.target.value)}
-                      placeholder="Any memo or note included in the transfer"
+                      placeholder="Copy the memo from the transfer"
                     />
                   </div>
                 </div>

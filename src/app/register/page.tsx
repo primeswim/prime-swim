@@ -3,6 +3,8 @@
 import ZellePaymentStep from "@/components/ZellePaymentStep"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
+import { getSwimmerBirthDateError } from "@/lib/swimmer-age"
+import { formatUSPhone } from "@/lib/us-phone"
 import type { User as FirebaseUser } from "firebase/auth"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -21,7 +23,6 @@ import Footer from "@/components/footer";
 import {
   User,
   Users,
-  GraduationCap,
   Heart,
   Phone,
   AlertTriangle,
@@ -32,8 +33,29 @@ import {
   ShieldCheck,
 } from "lucide-react"
 
+const usStates = [
+  ["AL", "Alabama"], ["AK", "Alaska"], ["AZ", "Arizona"], ["AR", "Arkansas"],
+  ["CA", "California"], ["CO", "Colorado"], ["CT", "Connecticut"], ["DE", "Delaware"],
+  ["DC", "District of Columbia"], ["FL", "Florida"], ["GA", "Georgia"], ["HI", "Hawaii"],
+  ["ID", "Idaho"], ["IL", "Illinois"], ["IN", "Indiana"], ["IA", "Iowa"],
+  ["KS", "Kansas"], ["KY", "Kentucky"], ["LA", "Louisiana"], ["ME", "Maine"],
+  ["MD", "Maryland"], ["MA", "Massachusetts"], ["MI", "Michigan"], ["MN", "Minnesota"],
+  ["MS", "Mississippi"], ["MO", "Missouri"], ["MT", "Montana"], ["NE", "Nebraska"],
+  ["NV", "Nevada"], ["NH", "New Hampshire"], ["NJ", "New Jersey"], ["NM", "New Mexico"],
+  ["NY", "New York"], ["NC", "North Carolina"], ["ND", "North Dakota"], ["OH", "Ohio"],
+  ["OK", "Oklahoma"], ["OR", "Oregon"], ["PA", "Pennsylvania"], ["RI", "Rhode Island"],
+  ["SC", "South Carolina"], ["SD", "South Dakota"], ["TN", "Tennessee"], ["TX", "Texas"],
+  ["UT", "Utah"], ["VT", "Vermont"], ["VA", "Virginia"], ["WA", "Washington"],
+  ["WV", "West Virginia"], ["WI", "Wisconsin"], ["WY", "Wyoming"],
+]
+
+const emergencyRelationships = [
+  "Parent", "Legal guardian", "Stepparent", "Foster parent", "Grandparent",
+  "Sibling", "Aunt or uncle", "Cousin", "Other relative", "Spouse or partner",
+  "Friend or family friend", "Neighbor", "Caregiver or babysitter", "Other",
+]
+
 export default function RegisterPage() {
-  const [, setShowZelleStep] = useState(false)
   const [swimmerId, setSwimmerId] = useState<string | null>(null)
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const router = useRouter()
@@ -71,10 +93,6 @@ export default function RegisterPage() {
     parentState: "",
     parentZip: "",
 
-    // School & Grade
-    schoolName: "",
-    grade: "",
-
     // Health Info
     physicianName: "",
     physicianPhone: "",
@@ -105,7 +123,8 @@ export default function RegisterPage() {
     safeSportPoliciesAck: false,   // optional combined ack for reference docs
   })
 
-  const totalSteps = 8
+  const totalSteps = 7
+  const birthDateError = getSwimmerBirthDateError(formData.childDateOfBirth)
 
   const createSwimmer = async (opts?: { setMaappAckAt?: boolean }) => {
     if (!user) throw new Error("Not signed in")
@@ -150,23 +169,6 @@ export default function RegisterPage() {
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
-    }
-  }
-
-  const handleSubmit = async () => {
-    try {
-      if (!user) {
-        console.error("No user found. Cannot submit swimmer.")
-        return
-      }
-      const id = await createSwimmer({ setMaappAckAt: true })
-      setSwimmerId(id)
-      setShowZelleStep(true)
-      alert("Registration submitted. Please complete payment!")
-      router.push(`/zelle-payment?id=${id}`)
-    } catch (e) {
-      console.error("Error adding swimmer: ", e)
-      alert("Something went wrong. Please try again.")
     }
   }
 
@@ -218,14 +220,17 @@ export default function RegisterPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="childDateOfBirth">Date of Birth *</Label>
+                  <Label htmlFor="childDateOfBirth">Swimmer Date of Birth *</Label>
                   <Input
                     id="childDateOfBirth"
                     type="date"
+                    aria-invalid={Boolean(formData.childDateOfBirth && birthDateError)}
+                    aria-describedby={formData.childDateOfBirth && birthDateError ? "birth-date-error" : undefined}
                     value={formData.childDateOfBirth}
                     onChange={(e) => handleInputChange("childDateOfBirth", e.target.value)}
                     required
                   />
+                  {formData.childDateOfBirth && birthDateError && <p id="birth-date-error" className="text-sm text-red-600">{birthDateError}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Gender *</Label>
@@ -268,11 +273,8 @@ export default function RegisterPage() {
                   id="usaSwimmingId"
                   value={formData.usaSwimmingId}
                   onChange={(e) => handleInputChange("usaSwimmingId", e.target.value)}
-                  placeholder="Required later to Attend a meet"
+                  placeholder="Enter USA Swimming ID"
                 />
-                <p className="text-xs text-slate-500">
-                  You can add this later from Dashboard or Meets. Without an ID the swimmer cannot Attend a published meet.
-                </p>
               </div>
             </CardContent>
           </Card>
@@ -339,9 +341,10 @@ export default function RegisterPage() {
                   <Input
                     id="parentPhone"
                     type="tel"
+                    inputMode="tel"
                     value={formData.parentPhone}
-                    onChange={(e) => handleInputChange("parentPhone", e.target.value)}
-                    placeholder="(555) 123-4567"
+                    onChange={(e) => handleInputChange("parentPhone", formatUSPhone(e.target.value))}
+                    placeholder="206-555-0123"
                     required
                   />
                 </div>
@@ -375,14 +378,11 @@ export default function RegisterPage() {
                     value={formData.parentState}
                     onValueChange={(value) => handleInputChange("parentState", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="parentState">
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="WA">Washington</SelectItem>
-                      <SelectItem value="CA">California</SelectItem>
-                      <SelectItem value="OR">Oregon</SelectItem>
-                      <SelectItem value="ID">Idaho</SelectItem>
+                      {usStates.map(([code, name]) => <SelectItem key={code} value={code}>{name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -402,54 +402,6 @@ export default function RegisterPage() {
         )
 
       case 3:
-        return (
-          <Card className="border-0 shadow-xl bg-white">
-            <CardHeader className="text-center pb-6">
-              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <GraduationCap className="w-8 h-8 text-white" />
-              </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">School & Grade</CardTitle>
-              <CardDescription className="text-slate-600">Current school and grade information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="schoolName">School Name</Label>
-                <Input
-                  id="schoolName"
-                  value={formData.schoolName}
-                  onChange={(e) => handleInputChange("schoolName", e.target.value)}
-                  placeholder="Enter school name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="grade">Current Grade *</Label>
-                <Select value={formData.grade} onValueChange={(value) => handleInputChange("grade", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="K">Kindergarten</SelectItem>
-                    <SelectItem value="1">1st Grade</SelectItem>
-                    <SelectItem value="2">2nd Grade</SelectItem>
-                    <SelectItem value="3">3rd Grade</SelectItem>
-                    <SelectItem value="4">4th Grade</SelectItem>
-                    <SelectItem value="5">5th Grade</SelectItem>
-                    <SelectItem value="6">6th Grade</SelectItem>
-                    <SelectItem value="7">7th Grade</SelectItem>
-                    <SelectItem value="8">8th Grade</SelectItem>
-                    <SelectItem value="9">9th Grade</SelectItem>
-                    <SelectItem value="10">10th Grade</SelectItem>
-                    <SelectItem value="11">11th Grade</SelectItem>
-                    <SelectItem value="12">12th Grade</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 4:
         return (
           <Card className="border-0 shadow-xl bg-white">
             <CardHeader className="text-center pb-6">
@@ -476,9 +428,10 @@ export default function RegisterPage() {
                   <Input
                     id="physicianPhone"
                     type="tel"
+                    inputMode="tel"
                     value={formData.physicianPhone}
-                    onChange={(e) => handleInputChange("physicianPhone", e.target.value)}
-                    placeholder="(555) 123-4567"
+                    onChange={(e) => handleInputChange("physicianPhone", formatUSPhone(e.target.value))}
+                    placeholder="206-555-0123"
                     required
                   />
                 </div>
@@ -510,7 +463,7 @@ export default function RegisterPage() {
           </Card>
         )
 
-      case 5:
+      case 4:
         return (
           <Card className="border-0 shadow-xl bg-white">
             <CardHeader className="text-center pb-6">
@@ -535,14 +488,15 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContactRelation">Relationship *</Label>
-                  <Input
-                    id="emergencyContactRelation"
-                    value={formData.emergencyContactRelation}
-                    onChange={(e) => handleInputChange("emergencyContactRelation", e.target.value)}
-                    placeholder="Grandparent, Uncle, etc."
-                    required
-                  />
+                  <Label htmlFor="emergencyContactRelation">Relationship to the Swimmer *</Label>
+                  <Select value={formData.emergencyContactRelation} onValueChange={(value) => handleInputChange("emergencyContactRelation", value)} required>
+                    <SelectTrigger id="emergencyContactRelation">
+                      <SelectValue placeholder="Select relationship" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emergencyRelationships.map((relationship) => <SelectItem key={relationship} value={relationship}>{relationship}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -552,9 +506,10 @@ export default function RegisterPage() {
                   <Input
                     id="emergencyContactPhone"
                     type="tel"
+                    inputMode="tel"
                     value={formData.emergencyContactPhone}
-                    onChange={(e) => handleInputChange("emergencyContactPhone", e.target.value)}
-                    placeholder="(555) 123-4567"
+                    onChange={(e) => handleInputChange("emergencyContactPhone", formatUSPhone(e.target.value))}
+                    placeholder="206-555-0123"
                     required
                   />
                 </div>
@@ -573,16 +528,16 @@ export default function RegisterPage() {
           </Card>
         )
 
-      case 6:
+      case 5:
         return (
           <Card className="border-0 shadow-xl bg-white">
             <CardHeader className="text-center pb-6">
               <div className="w-16 h-16 bg-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Health History & Allergies</CardTitle>
+              <CardTitle className="text-2xl font-bold text-slate-800">Swimmer Health History & Allergies</CardTitle>
               <CardDescription className="text-slate-600">
-                Please provide detailed health information and any special considerations
+                Share the swimmer’s health history, allergies, medications, and any accommodations they need.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -633,7 +588,7 @@ export default function RegisterPage() {
           </Card>
         )
 
-      case 7:
+      case 6:
         return (
           <Card className="border-0 shadow-xl bg-white">
             <CardHeader className="text-center pb-6">
@@ -897,12 +852,12 @@ export default function RegisterPage() {
                 onClick={async () => {
                   if (!user || !isWaiversChecked) return
                   try {
-                      const id = await createSwimmer({ setMaappAckAt: true })
-                      setSwimmerId(id)
-                    setCurrentStep(8)
+                    const id = await createSwimmer({ setMaappAckAt: true })
+                    setSwimmerId(id)
+                    setCurrentStep(totalSteps)
                   } catch (err) {
                     console.error("Error creating swimmer document:", err)
-                    alert("There was an error submitting the registration. Please try again.")
+                    alert(err instanceof Error ? err.message : "There was an error submitting the registration. Please try again.")
                   }
                 }}
               >
@@ -912,7 +867,7 @@ export default function RegisterPage() {
           </Card>
         )
 
-      case 8:
+      case 7:
         if (!swimmerId) {
           return <p className="text-center text-red-600">Missing swimmer ID. Please retry registration.</p>
         }
@@ -929,33 +884,31 @@ export default function RegisterPage() {
   const isStepComplete = () => {
     switch (currentStep) {
       case 1:
-        return Boolean(formData.childFirstName && formData.childLastName && formData.childDateOfBirth && formData.childGender)
+        return Boolean(formData.childFirstName && formData.childLastName && !birthDateError && formData.childGender)
       case 2:
         return Boolean(
           formData.parentFirstName &&
           formData.parentLastName &&
           formData.parentEmail &&
           isValidEmail(formData.parentEmail) &&
-          formData.parentPhone &&
+          formData.parentPhone.length === 12 &&
           formData.parentAddress &&
           formData.parentCity &&
           formData.parentState &&
           formData.parentZip
         )
       case 3:
-        return Boolean(formData.grade)
-      case 4:
         return Boolean(
           formData.physicianName &&
-          formData.physicianPhone &&
+          formData.physicianPhone.length === 12 &&
           formData.insuranceProvider &&
           formData.insurancePolicyNumber
         )
+      case 4:
+        return Boolean(formData.emergencyContactName && formData.emergencyContactRelation && formData.emergencyContactPhone.length === 12)
       case 5:
-        return Boolean(formData.emergencyContactName && formData.emergencyContactRelation && formData.emergencyContactPhone)
-      case 6:
         return true // Optional fields
-      case 7:
+      case 6:
         // Require all five: liability, medical, athlete code, parent code, MAAPP
         return Boolean(
           formData.liabilityWaiver &&
@@ -964,7 +917,7 @@ export default function RegisterPage() {
           formData.parentCodeOfConduct &&
           formData.maappAck
         )
-      case 8:
+      case 7:
         return true
       default:
         return false
@@ -1022,7 +975,7 @@ export default function RegisterPage() {
         <div className="max-w-4xl mx-auto">
           {renderStepContent()}
 
-          {/* Navigation Buttons - Hide when showing Zelle Payment Step (step 8) */}
+          {/* Navigation Buttons */}
           {currentStep !== totalSteps && (
             <div className="flex justify-between mt-8">
               <Button
@@ -1034,21 +987,13 @@ export default function RegisterPage() {
                 Previous
               </Button>
 
-              {currentStep < totalSteps ? (
+              {currentStep < totalSteps - 1 && (
                 <Button
                   onClick={nextStep}
-                  disabled={!isStepComplete() || currentStep === 7}
+                  disabled={!isStepComplete()}
                   className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-6"
                 >
                   Next Step
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!isStepComplete()}
-                  className="bg-green-600 hover:bg-green-700 text-white rounded-full px-6"
-                >
-                  Submit Registration
                 </Button>
               )}
             </div>

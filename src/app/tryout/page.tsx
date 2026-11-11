@@ -16,7 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
-import { emptyTryoutForm, formatTryoutPhone, swimmingDurations, tryoutWaiverVersion, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
+import { emptyTryoutForm, swimmingDurations, tryoutWaiverVersion, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
+
+import { maxSwimmerAge, minSwimmerAge } from "@/lib/swimmer-age";
+import { formatUSPhone } from "@/lib/us-phone";
 
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
@@ -81,8 +84,9 @@ export default function TryoutPage() {
   };
 
   const age = Number(formData.age);
-  const validAge = Number.isInteger(age) && age >= 4 && age <= 20;
+  const validAge = Number.isInteger(age) && age >= minSwimmerAge && age <= maxSwimmerAge;
   const isMinor = age < 18;
+  const ageError = formData.age && !validAge ? `Enter a swimmer age from ${minSwimmerAge} to ${maxSwimmerAge}.` : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -248,7 +252,7 @@ export default function TryoutPage() {
                         inputMode="tel"
                         placeholder="206-555-0123"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", formatTryoutPhone(e.target.value))}
+                        onChange={(e) => handleInputChange("phone", formatUSPhone(e.target.value))}
                         className="border-slate-300 focus:border-slate-500"
                         required
                       />
@@ -262,14 +266,17 @@ export default function TryoutPage() {
                       </Label>
                       <Input
                         id="age"
+                        aria-invalid={Boolean(ageError)}
+                        aria-describedby={ageError ? "tryout-age-error" : undefined}
                         type="number"
-                        min="4"
-                        max="20"
+                        min={minSwimmerAge}
+                        max={maxSwimmerAge}
                         value={formData.age}
                         onChange={(e) => handleInputChange("age", e.target.value)}
                         className="border-slate-300 focus:border-slate-500"
                         required
                       />
+                      {ageError && <p id="tryout-age-error" className="text-sm text-red-600">{ageError}</p>}
                     </div>
 
                     <div className="space-y-2">
