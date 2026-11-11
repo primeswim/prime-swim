@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import HeroWater from "@/components/hero-water";
 import styles from "./tryout.module.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ import { formatUSPhone } from "@/lib/us-phone";
 
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
+  const [formReady, setFormReady] = useState(false);
+
+  useEffect(() => setFormReady(true), []);
 
   const [formData, setFormData] = useState<TryoutFormData>({ ...emptyTryoutForm });
 
@@ -235,7 +238,7 @@ export default function TryoutPage() {
                     </div>
                   </div>
 
-                  <fieldset className="space-y-2" aria-describedby={ageError ? "tryout-birth-date-error" : undefined}>
+                  <fieldset disabled={!formReady} className="space-y-2" aria-describedby={ageError ? "tryout-birth-date-error" : undefined}>
                     <legend className="text-slate-700 font-medium">Swimmer Date of Birth *</legend>
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
                       {birthDateFields.map(({ label, value, options }, index) => (
