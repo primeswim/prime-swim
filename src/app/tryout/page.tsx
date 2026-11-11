@@ -18,7 +18,7 @@ import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
 import { emptyTryoutForm, swimmingDurations, tryoutWaiverVersion, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
 
-import { checkSwimmerBirthDate } from "@/lib/swimmer-age";
+import { checkSwimmerBirthDate, maxSwimmerAge } from "@/lib/swimmer-age";
 import { formatUSPhone } from "@/lib/us-phone";
 
 export default function TryoutPage() {
@@ -36,12 +36,6 @@ export default function TryoutPage() {
       if (field === "birthDate") {
         next.signerName = "";
         next.signerRole = "";
-        const previousAge = checkSwimmerBirthDate(prev.birthDate).age;
-        const nextAge = checkSwimmerBirthDate(next.birthDate).age;
-        if (nextAge === null || (previousAge !== null && (previousAge < 18) !== (nextAge < 18))) {
-          next.email = "";
-          next.phone = "";
-        }
       }
       if (["birthDate", "firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
         next.liabilityAccepted = false;
@@ -92,7 +86,16 @@ export default function TryoutPage() {
   const { age, error: birthDateError } = checkSwimmerBirthDate(formData.birthDate);
   const validAge = age !== null;
   const isMinor = validAge && age < 18;
-  const ageError = formData.birthDate ? birthDateError : null;
+  const [birthYear = "", birthMonth = "", birthDay = ""] = formData.birthDate.split("-");
+  const ageError = birthYear && birthMonth && birthDay ? birthDateError : null;
+  const currentYear = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles", year: "numeric",
+  }).format());
+  const birthDateFields = [
+    { label: "Month", value: birthMonth, options: Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")) },
+    { label: "Day", value: birthDay, options: Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")) },
+    { label: "Year", value: birthYear, options: Array.from({ length: maxSwimmerAge + 2 }, (_, i) => String(currentYear - i)) },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -232,30 +235,33 @@ export default function TryoutPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="birthDate" className="text-slate-700 font-medium">
-                      Swimmer Date of Birth *
-                    </Label>
-                    <Input
-                      id="birthDate"
-                      type="date"
-                      autoComplete="off"
-                      aria-invalid={Boolean(ageError)}
-                      aria-describedby={ageError ? "tryout-birth-date-error" : undefined}
-                      value={formData.birthDate}
-                      onInput={(e) => handleInputChange("birthDate", e.currentTarget.value)}
-                      onBlur={(e) => {
-                        if (e.currentTarget.value !== formData.birthDate) {
-                          handleInputChange("birthDate", e.currentTarget.value);
-                        }
-                      }}
-                      className="border-slate-300 focus:border-slate-500"
-                      required
-                    />
+                  <fieldset className="space-y-2" aria-describedby={ageError ? "tryout-birth-date-error" : undefined}>
+                    <legend className="text-slate-700 font-medium">Swimmer Date of Birth *</legend>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                      {birthDateFields.map(({ label, value, options }, index) => (
+                        <select
+                          key={label}
+                          aria-label={`Birth ${label.toLowerCase()}`}
+                          aria-invalid={Boolean(ageError)}
+                          value={value}
+                          onChange={(event) => {
+                            const parts = [birthMonth, birthDay, birthYear];
+                            parts[index] = event.target.value;
+                            const [month, day, year] = parts;
+                            handleInputChange("birthDate", `${year}-${month}-${day}`);
+                          }}
+                          className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"
+                          required
+                        >
+                          <option value="">{label}</option>
+                          {options.map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      ))}
+                    </div>
                     {ageError && <p id="tryout-birth-date-error" className="text-sm text-red-600">{ageError}</p>}
-                  </div>
+                  </fieldset>
 
-                  <fieldset disabled={!validAge} className="grid md:grid-cols-2 gap-6">
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-slate-700 font-medium">
                         {validAge ? (isMinor ? "Parent or Guardian Email" : "Swimmer Email") : "Contact Email"} *
@@ -286,7 +292,7 @@ export default function TryoutPage() {
                         required
                       />
                     </div>
-                  </fieldset>
+                  </div>
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
