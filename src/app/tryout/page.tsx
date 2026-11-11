@@ -430,44 +430,47 @@ export default function TryoutPage() {
                         <p className="mt-2">If I am signing for a minor swimmer, I agree to review these rules with them before the tryout.</p>
                       </div>
                     </div>
-                    {validAge ? (
-                      <div className="space-y-4 text-sm text-amber-900">
-                        <p>{isMinor ? "As the swimmer’s parent or legal guardian, enter your name and sign below." : "The swimmer must sign this section. A parent may help fill out the registration details."}</p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="signerName">Signer Full Name *</Label>
-                            <Input id="signerName" value={formData.signerName} onChange={(e) => handleInputChange("signerName", e.target.value)} className="bg-white" required />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="signerRole">Signing As *</Label>
-                            <select id="signerRole" value={formData.signerRole} onChange={(e) => handleInputChange("signerRole", e.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3" required>
-                              <option value="">Select signing role</option>
-                              {isMinor ? (
-                                <>
-                                  <option value="parent">Parent</option>
-                                  <option value="legal-guardian">Legal guardian</option>
-                                </>
-                              ) : (
-                                <option value="swimmer">Swimmer (18 or older)</option>
-                              )}
-                            </select>
-                          </div>
+                    <div className="space-y-4 text-sm text-amber-900">
+                      <h5 className="font-bold">Electronic Signature</h5>
+                      <p>
+                        {!validAge
+                          ? "Complete the swimmer’s date of birth above to choose who is signing."
+                          : isMinor
+                            ? "A parent or legal guardian must sign for the swimmer."
+                            : "The swimmer must sign. A parent may help fill out the registration details."}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="signerName">Signer Full Name *</Label>
+                          <Input id="signerName" value={formData.signerName} onChange={(e) => handleInputChange("signerName", e.target.value)} className="bg-white" required />
                         </div>
-                        <label className="flex items-start gap-2 font-medium">
-                          <input
-                            type="checkbox"
-                            checked={formData.liabilityAccepted}
-                            onChange={(e) => handleInputChange("liabilityAccepted", e.target.checked)}
-                            className="mt-1"
-                            required
-                          />
-                          <span>I have read and understand these terms and electronically sign them using the name and role entered above.</span>
-                        </label>
-                        <p>Terms version: {tryoutWaiverVersion}</p>
+                        <div className="space-y-2">
+                          <Label htmlFor="signerRole">Signing As *</Label>
+                          <select id="signerRole" value={formData.signerRole} disabled={!validAge} onChange={(e) => handleInputChange("signerRole", e.target.value)} className="h-9 w-full rounded-md border border-input bg-white px-3" required>
+                            <option value="">Select signing role</option>
+                            {validAge && (isMinor ? (
+                              <>
+                                <option value="parent">Parent</option>
+                                <option value="legal-guardian">Legal guardian</option>
+                              </>
+                            ) : (
+                              <option value="swimmer">Swimmer (18 or older)</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                    ) : (
-                      <p className="text-sm text-amber-900">Enter the swimmer’s date of birth to see who must sign.</p>
-                    )}
+                      <label className="flex items-start gap-2 font-medium">
+                        <input
+                          type="checkbox"
+                          checked={formData.liabilityAccepted}
+                          onChange={(e) => handleInputChange("liabilityAccepted", e.target.checked)}
+                          className="mt-1"
+                          required
+                        />
+                        <span>I have read and understand these terms and electronically sign them using the name and role entered above.</span>
+                      </label>
+                      <p>Terms version: {tryoutWaiverVersion}</p>
+                    </div>
                   </div>
 
                   <p className="text-sm text-slate-500">Complete all required fields (*) and signatures to submit. Our team will contact you to arrange your tryout.</p>
