@@ -31,6 +31,8 @@ async function main() {
     assert.match(receipt.html, /Swimsuit/);
     assert.match(receipt.html, /Swim goggles/);
     assert.match(receipt.html, /Swim cap, if you have one/);
+    assert.match(receipt.html, /sms:\+14014020052/);
+    assert.doesNotMatch(receipt.html, /reply to this email/i);
     assert.doesNotMatch(receipt.html, /towel|water bottle|confirmation email shortly/i);
     assert.match(receipt.html, /&lt;Test&gt;/);
     assert.doesNotMatch(receipt.html, /Health Issues|Notes:/);
@@ -39,7 +41,12 @@ async function main() {
     assert.equal(writes[0].signerRole, "swimmer");
     assert.equal(writes[0].waiverVersion, tryoutWaiverVersion);
     assert.ok(writes[0].submittedAt);
-    assert.equal((await POST(request({ ...data, birthDate: birthDateForAge(17), age: 26, signerName: " Guardian Name ", signerRole: "legal-guardian", swimmerRiskAcknowledged: true }))).status, 200);
+    assert.equal((await POST(request({ ...data, birthDate: birthDateForAge(17), age: 26, signerName: " Guardian Name ", signerRole: "legal-guardian", experience: "1-2-years", teamExperience: "yes", teamName: "Team <Example>", swimmerRiskAcknowledged: true }))).status, 200);
+    const adminEmail = emails[6].html;
+    assert.match(adminEmail, /Parent or Guardian Contact/);
+    assert.match(adminEmail, /Previous swim team/);
+    assert.match(adminEmail, /Team &lt;Example&gt;/);
+    assert.match(adminEmail, /Open Tryout Manager/);
     assert.equal(writes[3].signerName, "Guardian Name");
     assert.equal(writes[3].signerRole, "legal-guardian");
     assert.equal(writes[3].age, "17");

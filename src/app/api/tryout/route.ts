@@ -1,16 +1,12 @@
 export const runtime = "nodejs";
 
-import { buildTryoutReceipt, tryoutEmailSubject } from "@/lib/tryout-email";
+import { adminTryoutEmailSubject, buildAdminTryoutEmail, buildTryoutReceipt, tryoutEmailSubject } from "@/lib/tryout-email";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { checkSwimmerBirthDate } from "@/lib/swimmer-age";
 import { Timestamp } from "firebase-admin/firestore";
-import { describeTryoutExperience, normalizeTryout, tryoutWaiverVersion, validateTryout } from "@/lib/tryout-form";
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
-}
+import { normalizeTryout, tryoutWaiverVersion, validateTryout } from "@/lib/tryout-form";
 
 export async function POST(request: Request) {
   let input: unknown;
@@ -41,20 +37,15 @@ export async function POST(request: Request) {
   }
 
   // Send independently: an admin notification failure must not block the family receipt.
-  const fields = {
-    "First Name": data.firstName, "Last Name": data.lastName,
-    Email: data.email, Phone: data.phone, Age: age, Program: data.program,
-    Experience: describeTryoutExperience(data), "Health Issues": data.healthIssues, Notes: data.notes,
-  };
   const sendEmail = async (recipient: "admin" | "family") => {
     try {
       const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
         from: "Prime Swim Academy <noreply@primeswimacademy.com>",
         to: recipient === "admin" ? "prime.swim.us@gmail.com" : data.email,
-        replyTo: recipient === "admin" ? data.email : "prime.swim.us@gmail.com",
-        subject: recipient === "admin" ? "*** New Tryout Submission ***" : tryoutEmailSubject,
+        ...(recipient === "admin" ? { replyTo: data.email } : {}),
+        subject: recipient === "admin" ? adminTryoutEmailSubject : tryoutEmailSubject,
         html: recipient === "admin"
-          ? `<h2>New Tryout Submission</h2><p>Please contact the family to arrange their tryout.</p>${Object.entries(fields).map(([label, value]) => `<p><strong>${label}:</strong> ${escapeHtml(value)}</p>`).join("")}`
+          ? buildAdminTryoutEmail(data, age)
           : buildTryoutReceipt(data.firstName, data.lastName),
       });
       if (result.error) { console.error(`Tryout ${recipient} notification failed:`, result.error.name); return false; }

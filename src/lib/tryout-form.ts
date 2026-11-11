@@ -71,8 +71,15 @@ export function normalizeTryout(input: Record<string, unknown>): TryoutFormData 
   return data;
 }
 
+export function getTryoutExperienceDetails(data: Partial<Pick<TryoutFormData, "experience" | "teamExperience" | "teamName" | "lessonNotes">>) {
+  const experience = data.experience ?? "";
+  const duration = swimmingDurations[experience as keyof typeof swimmingDurations] ?? experience;
+  const team = experience === "none" || data.teamExperience === "no" ? "" : data.teamName?.trim() ?? "";
+  const lessons = experience === "none" || data.teamExperience === "yes" || team ? "" : data.lessonNotes?.trim() ?? "";
+  return { duration, team, lessons };
+}
+
 export function describeTryoutExperience(data: Pick<TryoutFormData, "experience" | "teamExperience" | "teamName" | "lessonNotes">): string {
-  const duration = swimmingDurations[data.experience as keyof typeof swimmingDurations] ?? data.experience;
-  if (data.experience === "none") return duration;
-  return [duration, data.teamExperience === "yes" ? `Swim team: ${data.teamName}` : data.lessonNotes].filter(Boolean).join(" — ");
+  const { duration, team, lessons } = getTryoutExperienceDetails(data);
+  return [duration, team ? `Swim team: ${team}` : lessons].filter(Boolean).join(" — ");
 }

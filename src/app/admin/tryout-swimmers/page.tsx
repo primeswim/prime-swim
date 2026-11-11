@@ -1,6 +1,6 @@
 "use client";
 
-import { describeTryoutExperience } from "@/lib/tryout-form";
+import { getTryoutExperienceDetails } from "@/lib/tryout-form";
 import { Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -160,7 +160,8 @@ export default function TryoutSwimmersPage() {
                   <th className="p-3 border-b">Email</th>
                   <th className="p-3 border-b">Phone</th>
                   <th className="p-3 border-b">Program</th>
-                  <th className="p-3 border-b">Experience</th>
+                  <th className="p-3 border-b">Swimming Experience</th>
+                  <th className="p-3 border-b">Swim Team / Lessons</th>
                   <th className="p-3 border-b">Date</th>
                   <th className="p-3 border-b">Location</th>
                   <th className="p-3 border-b">Health</th>
@@ -172,7 +173,9 @@ export default function TryoutSwimmersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((s) => (
+                {filtered.map((s) => {
+                  const { duration, team, lessons } = getTryoutExperienceDetails(s);
+                  return (
                   <tr key={s.id} className="border-b hover:bg-slate-50 align-top">
                     <td className="p-3 font-medium whitespace-nowrap">
                       {s.firstName} {s.lastName}
@@ -181,7 +184,12 @@ export default function TryoutSwimmersPage() {
                     <td className="p-3">{s.email}</td>
                     <td className="p-3">{s.phone}</td>
                     <td className="p-3">{s.program || "-"}</td>
-                    <td className="p-3">{describeTryoutExperience({ experience: s.experience || "", teamExperience: s.teamExperience || "", teamName: s.teamName || "", lessonNotes: s.lessonNotes || "" }) || "-"}</td>
+                    <td className="p-3">{duration || "—"}</td>
+                    <td className="p-3 min-w-40">
+                      {team ? <><span className="block text-xs text-slate-500">Swim team</span><strong>{team}</strong></>
+                        : lessons ? <><span className="block text-xs text-slate-500">Previous lessons</span>{lessons}</>
+                        : "—"}
+                    </td>
                     <td className="p-3">{s.preferredDate || "-"}</td>
                     <td className="p-3">{s.location || "-"}</td>
                     <td className="p-3">{s.healthIssues || "-"}</td>
@@ -228,7 +236,8 @@ export default function TryoutSwimmersPage() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
