@@ -278,11 +278,15 @@ export default function RegisterPage() {
                 />
                 <p id="usa-swimming-id-help" className="text-sm text-slate-600">
                   If the swimmer already has a USA Swimming athlete membership, enter their existing ID.
+                  {" "}<a href="https://hub.usaswimming.org/" target="_blank" rel="noreferrer" className="font-medium text-blue-700 underline underline-offset-2">
+                    Sign in to USA Swimming (SWIMS)
+                  </a>{" "}
+                  and look for the swimmer’s Member ID under My Family. If you’re the swimmer, check My Account → General Info.{" "}
                   If they’re joining from another club,{" "}
                   <a href="https://swimssupport.usaswimming.org/support/solutions/articles/48001280368-how-to-request-a-transfer-to-a-different-club" target="_blank" rel="noreferrer" className="font-medium text-blue-700 underline underline-offset-2">
                     request a club transfer
                   </a>{" "}
-                  to Prime Swim Academy as soon as possible.
+                  to Prime Swim Academy as soon as possible to avoid delays with meet entries.
                 </p>
               </div>
             </CardContent>
