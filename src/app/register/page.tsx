@@ -273,7 +273,7 @@ export default function RegisterPage() {
                   id="usaSwimmingId"
                   value={formData.usaSwimmingId}
                   onChange={(e) => handleInputChange("usaSwimmingId", e.target.value)}
-                  placeholder="Enter USA Swimming ID"
+                  placeholder="Required to attend a meet"
                 />
               </div>
             </CardContent>

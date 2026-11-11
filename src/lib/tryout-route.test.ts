@@ -18,7 +18,9 @@ async function main() {
   };
   const { POST } = await import("../app/api/tryout/route");
   const request = (data: unknown) => new Request("http://localhost/api/tryout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-  const data = { ...emptyTryoutForm, firstName: "<Test>", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", signerName: "Test Swimmer", signerRole: "swimmer", liabilityAccepted: true, waiverVersion: tryoutWaiverVersion };
+  const year = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "numeric" }).format());
+  const birthDateForAge = (age: number) => `${year - age}-01-01`;
+  const data = { ...emptyTryoutForm, firstName: "<Test>", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", birthDate: birthDateForAge(20), program: "bronze", experience: "none", signerName: "Test Swimmer", signerRole: "swimmer", liabilityAccepted: true, waiverVersion: tryoutWaiverVersion };
   try {
     for (let i = 0; i < 3; i++) assert.equal((await POST(request(data))).status, 200);
     assert.equal(writes.length, 3, "Identical program requests must all be accepted");
@@ -37,12 +39,14 @@ async function main() {
     assert.equal(writes[0].signerRole, "swimmer");
     assert.equal(writes[0].waiverVersion, tryoutWaiverVersion);
     assert.ok(writes[0].submittedAt);
-    assert.equal((await POST(request({ ...data, age: 17, signerName: " Guardian Name ", signerRole: "legal-guardian", swimmerRiskAcknowledged: true }))).status, 200);
+    assert.equal((await POST(request({ ...data, birthDate: birthDateForAge(17), age: 26, signerName: " Guardian Name ", signerRole: "legal-guardian", swimmerRiskAcknowledged: true }))).status, 200);
     assert.equal(writes[3].signerName, "Guardian Name");
     assert.equal(writes[3].signerRole, "legal-guardian");
+    assert.equal(writes[3].age, "17");
+    assert.equal(writes[3].birthDate, birthDateForAge(17));
     assert.equal("swimmerRiskAcknowledged" in writes[3], false);
     const before = writes.length;
-    for (const invalid of [{ ...data, age: 27 }, { ...data, age: 4, signerRole: "parent" }, { ...data, age: 17, swimmerRiskAcknowledged: true }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
+    for (const invalid of [{ ...data, birthDate: birthDateForAge(27) }, { ...data, birthDate: birthDateForAge(4), signerRole: "parent" }, { ...data, birthDate: birthDateForAge(17), age: 20, swimmerRiskAcknowledged: true }, { ...data, liabilityAccepted: false }, { ...data, experience: "1-2-years" }, { ...data, experience: "1-2-years", teamExperience: "no" }, null, []]) {
       assert.equal((await POST(request(invalid))).status, 400);
     }
     assert.equal((await POST(request({ ...data, waiverVersion: "old" }))).status, 409);

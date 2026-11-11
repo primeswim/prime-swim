@@ -1,20 +1,21 @@
 import assert from "node:assert/strict";
 import { getSwimmerBirthDateError } from "./swimmer-age";
 import { formatUSPhone } from "./us-phone";
-import { describeTryoutExperience, emptyTryoutForm, normalizeTryout, validateTryout } from "./tryout-form";
+import { describeTryoutExperience, emptyTryoutForm, normalizeTryout, validateTryout as validateTryoutOnDate, type TryoutFormData } from "./tryout-form";
 
-const valid = { ...emptyTryoutForm, firstName: "Test", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", age: "20", program: "bronze", experience: "none", signerName: "Test Swimmer", signerRole: "swimmer", liabilityAccepted: true };
+const today = new Date("2026-11-11T20:00:00Z");
+const validateTryout = (data: TryoutFormData) => validateTryoutOnDate(data, today);
+const valid = { ...emptyTryoutForm, firstName: "Test", lastName: "Swimmer", email: "test@example.com", phone: "555-0100", birthDate: "2006-11-11", program: "bronze", experience: "none", signerName: "Test Swimmer", signerRole: "swimmer", liabilityAccepted: true };
 assert.equal(validateTryout(valid), null);
-for (const age of ["27", "99", "4", "", "5.5", "NaN"]) assert.ok(validateTryout({ ...valid, age }), age);
-assert.equal(validateTryout({ ...valid, age: "18" }), null);
-assert.equal(validateTryout({ ...valid, age: "26" }), null);
-assert.equal(validateTryout({ ...valid, age: "5", signerRole: "parent" }), null);
-assert.equal(validateTryout({ ...valid, age: "17", signerRole: "legal-guardian" }), null);
-for (const age of ["12", "13", "17"]) {
-  assert.equal(validateTryout({ ...valid, age, signerRole: "parent" }), null);
-  assert.ok(validateTryout({ ...valid, age, signerRole: "swimmer" }));
+for (const birthDate of ["1999-11-11", "2021-11-12", "", "2020-02-30", "2026-11-12"]) {
+  assert.ok(validateTryout({ ...valid, birthDate }), birthDate);
 }
-assert.ok(validateTryout({ ...valid, age: "18", signerRole: "parent" }));
+assert.equal(validateTryout({ ...valid, birthDate: "2008-11-11" }), null);
+assert.equal(validateTryout({ ...valid, birthDate: "1999-11-12" }), null);
+assert.equal(validateTryout({ ...valid, birthDate: "2021-11-11", signerRole: "parent" }), null);
+assert.equal(validateTryout({ ...valid, birthDate: "2008-11-12", signerRole: "legal-guardian" }), null);
+assert.ok(validateTryout({ ...valid, birthDate: "2008-11-12", signerRole: "swimmer" }));
+assert.ok(validateTryout({ ...valid, birthDate: "2008-11-11", signerRole: "parent" }));
 assert.ok(validateTryout({ ...valid, signerName: " " }));
 for (const field of ["firstName", "lastName", "email", "phone", "program", "experience"] as const) assert.ok(validateTryout({ ...valid, [field]: " " }), field);
 assert.ok(validateTryout({ ...valid, email: "not-an-email" }));
@@ -29,7 +30,8 @@ assert.ok(validateTryout({ ...valid, experience: "made-up" }));
 const never = normalizeTryout({ ...valid, teamExperience: "yes", teamName: "Old team", lessonNotes: "Stale", preferredDate: "2026-11-07", location: "Old location", preferredTime: "evening" });
 assert.equal(never.teamName, ""); assert.equal(never.teamExperience, ""); assert.equal(never.lessonNotes, "");
 assert.equal("preferredDate" in never, false); assert.equal("location" in never, false); assert.equal("preferredTime" in never, false);
-assert.equal(normalizeTryout({ ...valid, age: 20 }).age, "20");
+assert.equal(normalizeTryout({ ...valid, birthDate: " 2006-11-11 ", age: 12 }).birthDate, "2006-11-11");
+assert.equal("age" in normalizeTryout({ ...valid, age: 12 }), false);
 assert.ok(validateTryout(normalizeTryout({ ...valid, liabilityAccepted: "true" })));
 assert.equal(normalizeTryout({ ...experienced, teamExperience: "yes", teamName: " Example ", lessonNotes: "stale" }).lessonNotes, "");
 assert.equal(normalizeTryout({ ...experienced, teamExperience: "no", teamName: "stale", lessonNotes: " Private lessons " }).teamName, "");

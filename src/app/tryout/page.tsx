@@ -18,7 +18,7 @@ import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
 import { emptyTryoutForm, swimmingDurations, tryoutWaiverVersion, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
 
-import { maxSwimmerAge, minSwimmerAge } from "@/lib/swimmer-age";
+import { checkSwimmerBirthDate } from "@/lib/swimmer-age";
 import { formatUSPhone } from "@/lib/us-phone";
 
 export default function TryoutPage() {
@@ -33,11 +33,17 @@ export default function TryoutPage() {
   ) => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
-      if (field === "age") {
+      if (field === "birthDate") {
         next.signerName = "";
         next.signerRole = "";
+        const previousAge = checkSwimmerBirthDate(prev.birthDate).age;
+        const nextAge = checkSwimmerBirthDate(next.birthDate).age;
+        if (nextAge === null || (previousAge !== null && (previousAge < 18) !== (nextAge < 18))) {
+          next.email = "";
+          next.phone = "";
+        }
       }
-      if (["age", "firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
+      if (["birthDate", "firstName", "lastName", "signerName", "signerRole", "healthIssues"].includes(field)) {
         next.liabilityAccepted = false;
       }
       return next;
@@ -83,10 +89,10 @@ export default function TryoutPage() {
     }
   };
 
-  const age = Number(formData.age);
-  const validAge = Number.isInteger(age) && age >= minSwimmerAge && age <= maxSwimmerAge;
-  const isMinor = age < 18;
-  const ageError = formData.age && !validAge ? `Enter a swimmer age from ${minSwimmerAge} to ${maxSwimmerAge}.` : "";
+  const { age, error: birthDateError } = checkSwimmerBirthDate(formData.birthDate);
+  const validAge = age !== null;
+  const isMinor = validAge && age < 18;
+  const ageError = formData.birthDate ? birthDateError : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -196,9 +202,8 @@ export default function TryoutPage() {
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <p className="text-sm text-slate-600">
-                    A parent or legal guardian must fill out the form for a swimmer under 13. Swimmers ages 13–17 may
-                    fill out the registration details, then hand this form to a parent or legal guardian to sign.
-                    For swimmers 18 or older, a parent may help fill out the details and the swimmer signs for themselves.
+                    A parent or legal guardian must complete and sign this form for swimmers under 18.
+                    Swimmers 18 or older may register and sign for themselves.
                   </p>
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
@@ -227,58 +232,60 @@ export default function TryoutPage() {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-slate-700 font-medium">
-                        Email Address *
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
-                        className="border-slate-300 focus:border-slate-500"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-slate-700 font-medium">
-                        Phone Number *
-                      </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        autoComplete="tel"
-                        inputMode="tel"
-                        placeholder="206-555-0123"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", formatUSPhone(e.target.value))}
-                        className="border-slate-300 focus:border-slate-500"
-                        required
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birthDate" className="text-slate-700 font-medium">
+                      Swimmer Date of Birth *
+                    </Label>
+                    <Input
+                      id="birthDate"
+                      type="date"
+                      autoComplete="off"
+                      aria-invalid={Boolean(ageError)}
+                      aria-describedby={ageError ? "tryout-birth-date-error" : undefined}
+                      value={formData.birthDate}
+                      onChange={(e) => handleInputChange("birthDate", e.target.value)}
+                      className="border-slate-300 focus:border-slate-500"
+                      required
+                    />
+                    {ageError && <p id="tryout-birth-date-error" className="text-sm text-red-600">{ageError}</p>}
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="age" className="text-slate-700 font-medium">
-                        Swimmer Age *
-                      </Label>
-                      <Input
-                        id="age"
-                        aria-invalid={Boolean(ageError)}
-                        aria-describedby={ageError ? "tryout-age-error" : undefined}
-                        type="number"
-                        min={minSwimmerAge}
-                        max={maxSwimmerAge}
-                        value={formData.age}
-                        onChange={(e) => handleInputChange("age", e.target.value)}
-                        className="border-slate-300 focus:border-slate-500"
-                        required
-                      />
-                      {ageError && <p id="tryout-age-error" className="text-sm text-red-600">{ageError}</p>}
+                  {validAge && (
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-slate-700 font-medium">
+                          {isMinor ? "Parent or Guardian Email" : "Swimmer Email"} *
+                        </Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          value={formData.email}
+                          onChange={(e) => handleInputChange("email", e.target.value)}
+                          className="border-slate-300 focus:border-slate-500"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-slate-700 font-medium">
+                          {isMinor ? "Parent or Guardian Phone" : "Swimmer Phone"} *
+                        </Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          autoComplete="tel"
+                          inputMode="tel"
+                          placeholder="206-555-0123"
+                          value={formData.phone}
+                          onChange={(e) => handleInputChange("phone", formatUSPhone(e.target.value))}
+                          className="border-slate-300 focus:border-slate-500"
+                          required
+                        />
+                      </div>
                     </div>
+                  )}
 
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="program" className="text-slate-700 font-medium">
                         Interested Program *
@@ -413,7 +420,7 @@ export default function TryoutPage() {
                     </div>
                     {validAge ? (
                       <div className="space-y-4 text-sm text-amber-900">
-                        <p>{isMinor ? "A parent or legal guardian must sign this section for a swimmer under 18." : "The swimmer must sign this section. A parent may help fill out the registration details."}</p>
+                        <p>{isMinor ? "As the swimmer’s parent or legal guardian, enter your name and sign below." : "The swimmer must sign this section. A parent may help fill out the registration details."}</p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="signerName">Signer Full Name *</Label>
@@ -447,7 +454,7 @@ export default function TryoutPage() {
                         <p>Terms version: {tryoutWaiverVersion}</p>
                       </div>
                     ) : (
-                      <p className="text-sm text-amber-900">Enter the swimmer’s age to see who must sign.</p>
+                      <p className="text-sm text-amber-900">Enter the swimmer’s date of birth to see who must sign.</p>
                     )}
                   </div>
 

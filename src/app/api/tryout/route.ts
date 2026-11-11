@@ -4,6 +4,7 @@ import { buildTryoutReceipt, tryoutEmailSubject } from "@/lib/tryout-email";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { checkSwimmerBirthDate } from "@/lib/swimmer-age";
 import { Timestamp } from "firebase-admin/firestore";
 import { describeTryoutExperience, normalizeTryout, tryoutWaiverVersion, validateTryout } from "@/lib/tryout-form";
 
@@ -23,14 +24,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "WAIVER_VERSION_MISMATCH", message: "Please reload the form and review the current tryout terms before submitting." }, { status: 409 });
   }
   const data = normalizeTryout(payload);
-  const message = validateTryout(data);
+  const today = new Date();
+  const message = validateTryout(data, today);
   if (message) return NextResponse.json({ error: "INVALID_FORM", message }, { status: 400 });
+
+  const age = String(checkSwimmerBirthDate(data.birthDate, today).age);
 
   // Scheduling is arranged manually. Every valid request gets its own record;
   // do not query availability or acquire the former program/date capacity lock.
   try {
     const submittedAt = Timestamp.now();
-    await adminDb.collection("tryouts").add({ ...data, waiverVersion: tryoutWaiverVersion, submittedAt });
+    await adminDb.collection("tryouts").add({ ...data, age, waiverVersion: tryoutWaiverVersion, submittedAt });
   } catch (error) {
     console.error("Error saving tryout:", error);
     return NextResponse.json({ error: "FAILED_SAVE", message: "Failed to save tryout form." }, { status: 500 });
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
   // Send independently: an admin notification failure must not block the family receipt.
   const fields = {
     "First Name": data.firstName, "Last Name": data.lastName,
-    Email: data.email, Phone: data.phone, Age: data.age, Program: data.program,
+    Email: data.email, Phone: data.phone, Age: age, Program: data.program,
     Experience: describeTryoutExperience(data), "Health Issues": data.healthIssues, Notes: data.notes,
   };
   const sendEmail = async (recipient: "admin" | "family") => {

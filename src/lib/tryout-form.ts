@@ -1,4 +1,4 @@
-import { maxSwimmerAge, minSwimmerAge } from "./swimmer-age";
+import { checkSwimmerBirthDate } from "./swimmer-age";
 
 export const swimmingDurations = {
   none: "No previous swimming lessons",
@@ -15,7 +15,7 @@ export interface TryoutFormData {
   lastName: string;
   email: string;
   phone: string;
-  age: string;
+  birthDate: string;
   program: string;
   experience: string;
   teamExperience: string;
@@ -29,20 +29,18 @@ export interface TryoutFormData {
 }
 
 export const emptyTryoutForm: TryoutFormData = {
-  firstName: "", lastName: "", email: "", phone: "", age: "", program: "",
+  firstName: "", lastName: "", email: "", phone: "", birthDate: "", program: "",
   experience: "", teamExperience: "", teamName: "", lessonNotes: "",
   healthIssues: "", notes: "", signerName: "", signerRole: "",
   liabilityAccepted: false,
 };
 
-export function validateTryout(data: TryoutFormData): string | null {
+export function validateTryout(data: TryoutFormData, today?: Date): string | null {
   if (!data.firstName.trim() || !data.lastName.trim()) return "Please enter the swimmer’s first and last name.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) return "Please enter a valid email address.";
   if (!data.phone.trim()) return "Please enter your phone number.";
-  const age = Number(data.age);
-  if (!data.age.trim() || !Number.isInteger(age) || age < minSwimmerAge || age > maxSwimmerAge) {
-    return `Swimmer age must be a whole number from ${minSwimmerAge} to ${maxSwimmerAge}.`;
-  }
+  const { age, error } = checkSwimmerBirthDate(data.birthDate, today);
+  if (age === null) return error;
   if (!["bronze", "silver", "gold", "platinum", "olympic", "unsure"].includes(data.program)) return "Please select a program.";
   if (!Object.hasOwn(swimmingDurations, data.experience)) return "Please select how long you have been learning to swim.";
   if (data.experience !== "none") {
@@ -64,7 +62,7 @@ export function normalizeTryout(input: Record<string, unknown>): TryoutFormData 
   const data = { ...emptyTryoutForm };
   for (const key of Object.keys(emptyTryoutForm) as (keyof TryoutFormData)[]) {
     if (key === "liabilityAccepted") data[key] = input[key] === true;
-    else data[key] = typeof input[key] === "string" ? input[key].trim() : key === "age" && typeof input[key] === "number" ? String(input[key]) : "";
+    else data[key] = typeof input[key] === "string" ? input[key].trim() : "";
   }
   if (data.experience === "none") {
     data.teamExperience = ""; data.teamName = ""; data.lessonNotes = "";

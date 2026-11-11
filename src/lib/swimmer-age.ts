@@ -8,14 +8,15 @@ const registrationDateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
 });
 
-export function getSwimmerBirthDateError(value: unknown, today = new Date()): string | null {
+export function checkSwimmerBirthDate(value: unknown, today = new Date()):
+  { age: number; error: null } | { age: null; error: string } {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return "Enter the swimmer’s date of birth.";
+    return { age: null, error: "Enter the swimmer’s date of birth." };
   }
 
   const birthDate = new Date(value + "T00:00:00Z");
   if (Number.isNaN(birthDate.getTime()) || birthDate.toISOString().slice(0, 10) !== value) {
-    return "Enter a valid date of birth.";
+    return { age: null, error: "Enter a valid date of birth." };
   }
 
   const parts = registrationDateFormatter.formatToParts(today);
@@ -23,11 +24,15 @@ export function getSwimmerBirthDateError(value: unknown, today = new Date()): st
   const month = parts.find((part) => part.type === "month")?.value;
   const day = parts.find((part) => part.type === "day")?.value;
   const todayDate = `${year}-${month}-${day}`;
-  if (value > todayDate) return "The swimmer’s date of birth cannot be in the future.";
+  if (value > todayDate) return { age: null, error: "The swimmer’s date of birth cannot be in the future." };
 
   const birthdayHasPassed = value.slice(5) <= todayDate.slice(5);
   const age = Number(year) - Number(value.slice(0, 4)) - (birthdayHasPassed ? 0 : 1);
-  if (age < minSwimmerAge) return `The swimmer must be at least ${minSwimmerAge} years old to register.`;
-  if (age > maxSwimmerAge) return `The swimmer must be ${maxSwimmerAge} years old or younger to register.`;
-  return null;
+  if (age < minSwimmerAge) return { age: null, error: `The swimmer must be at least ${minSwimmerAge} years old to register.` };
+  if (age > maxSwimmerAge) return { age: null, error: `The swimmer must be ${maxSwimmerAge} years old or younger to register.` };
+  return { age, error: null };
+}
+
+export function getSwimmerBirthDateError(value: unknown, today?: Date): string | null {
+  return checkSwimmerBirthDate(value, today).error;
 }
