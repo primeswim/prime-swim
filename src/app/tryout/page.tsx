@@ -13,13 +13,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy, Users, Waves, AlertCircle } from "lucide-react";
 
 import { emptyTryoutForm, swimmingDurations, tryoutWaiverVersion, validateTryout, type TryoutFormData } from "@/lib/tryout-form";
 
 import { checkSwimmerBirthDate, maxSwimmerAge } from "@/lib/swimmer-age";
 import { formatUSPhone } from "@/lib/us-phone";
+
+const tryoutSelectClass = "h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm";
 
 export default function TryoutPage() {
   const [submitting, setSubmitting] = useState(false);
@@ -263,7 +264,7 @@ export default function TryoutPage() {
                           aria-invalid={Boolean(ageError)}
                           value={value}
                           onChange={(event) => updateBirthDate(part, event.target.value)}
-                          className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"
+                          className={tryoutSelectClass}
                           required
                         >
                           <option value="">{label}</option>
@@ -312,44 +313,44 @@ export default function TryoutPage() {
                       <Label htmlFor="program" className="text-slate-700 font-medium">
                         Interested Program *
                       </Label>
-                      <Select
-                        required
-                        value={formData.program}
-                        onValueChange={(value) => handleInputChange("program", value)}
-                      >
-                        <SelectTrigger id="program" className="border-slate-300 focus:border-slate-500">
-                          <SelectValue placeholder="Select a program" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="bronze">Bronze (Beginner)</SelectItem>
-                          <SelectItem value="silver">Silver (Intermediate)</SelectItem>
-                          <SelectItem value="gold">Gold (Advanced)</SelectItem>
-                          <SelectItem value="platinum">Platinum (Pre-Elite)</SelectItem>
-                          <SelectItem value="olympic">Olympic (Elite)</SelectItem>
-                          <SelectItem value="unsure">Not Sure</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <select id="program" required value={formData.program}
+                        onChange={(event) => handleInputChange("program", event.target.value)} className={tryoutSelectClass}>
+                        <option value="">Select a program</option>
+                        <option value="bronze">Bronze (Beginner)</option>
+                        <option value="silver">Silver (Intermediate)</option>
+                        <option value="gold">Gold (Advanced)</option>
+                        <option value="platinum">Platinum (Pre-Elite)</option>
+                        <option value="olympic">Olympic (Elite)</option>
+                        <option value="unsure">Not Sure</option>
+                      </select>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="experience">How long has the swimmer been taking swimming lessons? *</Label>
-                    <Select required value={formData.experience} onValueChange={(experience) => setFormData(prev => ({ ...prev, experience, teamExperience: "", teamName: "", lessonNotes: "" }))}>
-                      <SelectTrigger id="experience"><SelectValue placeholder="Select swimming experience" /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(swimmingDurations).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <select id="experience" required value={formData.experience} className={tryoutSelectClass}
+                      onChange={(event) => {
+                        const experience = event.target.value;
+                        setFormData((prev) => ({ ...prev, experience, teamExperience: "", teamName: "", lessonNotes: "" }));
+                      }}>
+                      <option value="">Select swimming experience</option>
+                      {Object.entries(swimmingDurations).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
                   </div>
 
                   {formData.experience && formData.experience !== "none" && (
                     <div className="space-y-6">
                       <div className="space-y-2">
                         <Label htmlFor="teamExperience">Has the swimmer trained with a swim team? *</Label>
-                        <Select required value={formData.teamExperience} onValueChange={(teamExperience) => setFormData(prev => ({ ...prev, teamExperience, teamName: "", lessonNotes: "" }))}>
-                          <SelectTrigger id="teamExperience"><SelectValue placeholder="Select an answer" /></SelectTrigger>
-                          <SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent>
-                        </Select>
+                        <select id="teamExperience" required value={formData.teamExperience} className={tryoutSelectClass}
+                          onChange={(event) => {
+                            const teamExperience = event.target.value;
+                            setFormData((prev) => ({ ...prev, teamExperience, teamName: "", lessonNotes: "" }));
+                          }}>
+                          <option value="">Select an answer</option>
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </select>
                       </div>
                       {formData.teamExperience === "yes" && (
                         <div className="space-y-2">
