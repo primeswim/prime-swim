@@ -271,10 +271,19 @@ export default function RegisterPage() {
                 <Label htmlFor="usaSwimmingId">USA Swimming ID (optional)</Label>
                 <Input
                   id="usaSwimmingId"
+                  aria-describedby="usa-swimming-id-help"
                   value={formData.usaSwimmingId}
                   onChange={(e) => handleInputChange("usaSwimmingId", e.target.value)}
                   placeholder="Required to attend a meet"
                 />
+                <p id="usa-swimming-id-help" className="text-sm text-slate-600">
+                  If the swimmer already has a USA Swimming athlete membership, enter their existing ID.
+                  If they’re joining from another club,{" "}
+                  <a href="https://swimssupport.usaswimming.org/support/solutions/articles/48001280368-how-to-request-a-transfer-to-a-different-club" target="_blank" rel="noreferrer" className="font-medium text-blue-700 underline underline-offset-2">
+                    request a club transfer
+                  </a>{" "}
+                  to Prime Swim Academy as soon as possible.
+                </p>
               </div>
             </CardContent>
           </Card>

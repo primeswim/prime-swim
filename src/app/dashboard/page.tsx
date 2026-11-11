@@ -541,13 +541,16 @@ export default function DashboardPage() {
                       ) : (
                         <div className="mt-2 space-y-2">
                           <p className="text-xs text-slate-500">
-                            Required to Attend a meet. Register Premium / year-round with the club link, then save the ID.
+                            A USA Swimming ID is required to attend a meet.
+                            {omrUrl && (
+                              <>
+                                {" "}<a href={omrUrl} target="_blank" rel="noreferrer" className="font-medium text-blue-700 underline underline-offset-2">
+                                  Register for Premium (year-round) membership
+                                </a>, then save the ID here.
+                              </>
+                            )}
                           </p>
-                          {omrUrl ? (
-                            <a href={omrUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-700 underline">
-                              Open club USA Swimming registration
-                            </a>
-                          ) : (
+                          {!omrUrl && (
                             <p className="text-xs text-amber-700">Club registration link is not set yet. Ask Prime admin.</p>
                           )}
                           <div className="flex gap-2">
