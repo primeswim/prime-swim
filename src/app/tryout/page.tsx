@@ -446,8 +446,8 @@ export default function TryoutPage() {
                         {!validAge
                           ? "A parent or legal guardian signs for swimmers under 18. Swimmers 18 or older sign for themselves."
                           : isMinor
-                            ? "A parent or legal guardian must sign for the swimmer."
-                            : "The swimmer must sign. A parent may help fill out the registration details."}
+                            ? "For swimmers under 18, a parent or legal guardian must complete and sign this form."
+                            : "Swimmers 18 or older must complete and sign this form themselves."}
                       </p>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
