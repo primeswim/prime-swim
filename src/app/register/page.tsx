@@ -187,9 +187,9 @@ export default function RegisterPage() {
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <User className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Child Information</CardTitle>
+              <CardTitle className="text-2xl font-bold text-slate-800">Swimmer Information</CardTitle>
               <CardDescription className="text-slate-600">
-                Please provide your child&rsquo;s basic information
+                Enter the swimmer’s basic information.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -285,8 +285,8 @@ export default function RegisterPage() {
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-2xl font-bold text-slate-800">Parent Information</CardTitle>
-              <CardDescription className="text-slate-600">Primary parent/guardian contact information</CardDescription>
+              <CardTitle className="text-2xl font-bold text-slate-800">Primary Contact Information</CardTitle>
+              <CardDescription className="text-slate-600">Enter the primary contact details for this registration.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
@@ -519,7 +519,7 @@ export default function RegisterPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Emergency Contact</CardTitle>
               <CardDescription className="text-slate-600">
-                Emergency contact information (other than parent/guardian)
+                Enter an emergency contact who is different from the primary contact.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

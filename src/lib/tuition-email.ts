@@ -139,7 +139,7 @@ function closingParagraph(data: TuitionEmailPayload, safe: Record<string, string
   const variant = data.variant ?? "invoice";
   if (variant === "past_due") {
     return `<p style="font-size:16px;margin:25px 0;color:#475569;">
-        Please pay as soon as you can to keep your swimmer's spot. Once paid, a quick reply with confirmation (screenshot is great) helps us update our records.
+        Please pay as soon as you can to keep the swimmer’s spot. Once paid, a quick reply with confirmation (screenshot is great) helps us update our records.
       </p>`;
   }
   return `<p style="font-size:16px;margin:25px 0;color:#475569;">

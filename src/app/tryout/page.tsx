@@ -79,7 +79,7 @@ export default function TryoutPage() {
         <div className={styles.hero}>
           <div className={styles.heroCopy}>
             <h1 id="tryout-title">Schedule Your Tryout</h1>
-            <p>Our coaches will get to know your swimmer and help find the right training level for their next step.</p>
+            <p>Our coaches will get to know each swimmer and help find the right training level for their next step.</p>
             <a className={styles.heroLink} href="#tryout-registration">Schedule a Tryout <span aria-hidden="true">→</span></a>
           </div>
           <div className={styles.heroPhoto}>

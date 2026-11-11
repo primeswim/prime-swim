@@ -420,7 +420,7 @@ function ClinicSurveyPageContent() {
                   {config.title} — Survey
                 </CardTitle>
                 <CardDescription className="text-center text-slate-600">
-                  Parent email, phone, swimmer info, location & time preferences
+                  Contact email, phone, swimmer info, location & time preferences
                 </CardDescription>
               </CardHeader>
 
@@ -471,7 +471,7 @@ function ClinicSurveyPageContent() {
 
                     <div className="grid md:grid-cols-3 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="parentEmail">Parent Email *</Label>
+                        <Label htmlFor="parentEmail">Contact Email *</Label>
                         <Input
                           id="parentEmail"
                           type="email"
@@ -484,7 +484,7 @@ function ClinicSurveyPageContent() {
 
                       {/* ✅ 新增「家长电话」 */}
                       <div className="space-y-2">
-                        <Label htmlFor="parentPhone">Parent Phone *</Label>
+                        <Label htmlFor="parentPhone">Contact Phone *</Label>
                         <div className="relative">
                           <Input
                             id="parentPhone"
@@ -558,7 +558,7 @@ function ClinicSurveyPageContent() {
                     </div>
 
                     <p className="text-slate-600">
-                      <strong>The more time slots you select, the better we can plan and help your swimmer improve.</strong>{" "}
+                      <strong>The more time slots you select, the better we can plan and help swimmers improve.</strong>{" "}
                       Please select <em>all</em> dates that work for you (use &quot;Select all&quot; per location for convenience).
                     </p>
 
@@ -661,7 +661,7 @@ function ClinicSurveyPageContent() {
                     <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
                     <div>
                       You&apos;ve selected <strong>{totalSelected}</strong> time slot{totalSelected !== 1 ? "s" : ""}. 
-                      <strong> The more selections you provide, the better we can plan lanes, assign coaches, and help your swimmer improve.</strong>{" "}
+                      <strong> The more selections you provide, the better we can plan lanes, assign coaches, and help swimmers improve.</strong>{" "}
                       We encourage selecting all dates that work for your schedule.
                     </div>
                   </div>

@@ -346,8 +346,8 @@ export default function RenewPage() {
                     <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                       <User className="w-8 h-8 text-white" />
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-800">Parent Information</h2>
-                    <p className="text-slate-600 mt-2">Primary parent/guardian contact information</p>
+                    <h2 className="text-2xl font-bold text-slate-800">Primary Contact Information</h2>
+                    <p className="text-slate-600 mt-2">Review the primary contact details for this renewal.</p>
                   </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">

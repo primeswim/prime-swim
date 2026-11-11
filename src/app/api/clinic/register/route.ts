@@ -179,7 +179,7 @@ export async function POST(request: Request) {
     }
 
     if (!parentFirstName || !parentLastName || !parentEmail || !parentPhoneRaw) {
-      return NextResponse.json({ error: "Missing required parent information" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required primary contact information" }, { status: 400 });
     }
 
     if (!EMAIL_RE.test(parentEmail)) {

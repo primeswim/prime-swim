@@ -26,7 +26,7 @@ const policies = [
     title: "Registration & Insurance Requirement",
     icon: Shield,
     content: [
-      "Before any group lesson practice begins, each family must: (1) create a parent account, (2) add the child as a swimmer, and (3) finish registration (including required forms/waivers, emergency contacts, etc).",
+      "Before any group lesson practice begins, complete three steps: (1) create an account, (2) add a swimmer profile, and (3) finish registration (including required forms/waivers, emergency contacts, etc).",
       "Completion of registration activates insurance coverage for practices and program activities. For safety and liability reasons, swimmers who have not finished registration may not participate in group practices.",
       "Returning families — families who stay with Prime Swim Academy from season to season and did not leave for another team — must keep all information up to date (medical/emergency contacts, waivers, and payment details) and complete renewals as required by the club/LSC.",
       "Returned swimmers who previously trained here, later joined another team, and then come back are not a simple returning-family renewal. They follow the Returned Swimmer Re-Enrollment policy below.",

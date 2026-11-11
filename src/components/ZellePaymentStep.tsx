@@ -196,7 +196,7 @@ export default function ZellePaymentStep({
               </div>
               <CardTitle className="text-2xl font-bold text-slate-800">Registration / Renewal Fee</CardTitle>
               <CardDescription className="text-slate-600">
-                Complete your swimmer registration or renewal with a Zelle payment
+                Complete registration or renewal with a Zelle payment
               </CardDescription>
             </CardHeader>
 
@@ -248,7 +248,7 @@ export default function ZellePaymentStep({
                     </div>
                     <div className="flex items-center">
                       <FileText className="w-4 h-4 mr-2 text-blue-600" />
-                      <span>Memo: Include your child&apos;s full name</span>
+                      <span>Memo: Include the swimmer’s full name</span>
                     </div>
                   </div>
                 </div>
@@ -401,7 +401,7 @@ export default function ZellePaymentStep({
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <div className="space-y-2 text-slate-300">
                 <Link href="/dashboard" className="block text-sm hover:text-white transition-colors">
-                  Parent Dashboard
+                  Member
                 </Link>
                 <Link href="/register" className="block text-sm hover:text-white transition-colors">
                   Register Swimmer

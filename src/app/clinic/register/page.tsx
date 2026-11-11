@@ -72,7 +72,7 @@ function ClinicRegisterPageContent() {
     }
 
     if (!parentFirstName || !parentLastName || !parentEmail || !parentPhone) {
-      setError("Please fill in all required parent information fields.");
+      setError("Please fill in all required primary contact fields.");
       return;
     }
 
@@ -160,7 +160,7 @@ function ClinicRegisterPageContent() {
             Clinic Registration
           </h1>
           <p className="text-slate-600">
-            Register your swimmer for our Clinic program. Please provide detailed information to help us determine the appropriate level.
+            Register for our Clinic program. Tell us about the swimmer so we can determine the appropriate level.
           </p>
         </div>
 
@@ -209,7 +209,7 @@ function ClinicRegisterPageContent() {
                 <User className="w-5 h-5" />
                 Basic Information
               </CardTitle>
-              <CardDescription>Child and parent contact information</CardDescription>
+              <CardDescription>Swimmer details and primary contact information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
@@ -260,10 +260,10 @@ function ClinicRegisterPageContent() {
               </div>
 
               <div className="border-t pt-4">
-                <h3 className="font-semibold mb-4">Parent/Guardian Information</h3>
+                <h3 className="font-semibold mb-4">Primary Contact Information</h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="parentFirstName">Parent First Name *</Label>
+                    <Label htmlFor="parentFirstName">First Name *</Label>
                     <Input
                       id="parentFirstName"
                       value={parentFirstName}
@@ -272,7 +272,7 @@ function ClinicRegisterPageContent() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="parentLastName">Parent Last Name *</Label>
+                    <Label htmlFor="parentLastName">Last Name *</Label>
                     <Input
                       id="parentLastName"
                       value={parentLastName}
@@ -283,7 +283,7 @@ function ClinicRegisterPageContent() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4 mt-4">
                   <div>
-                    <Label htmlFor="parentEmail">Parent Email *</Label>
+                    <Label htmlFor="parentEmail">Email *</Label>
                     <Input
                       id="parentEmail"
                       type="email"
@@ -293,7 +293,7 @@ function ClinicRegisterPageContent() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="parentPhone">Parent Phone *</Label>
+                    <Label htmlFor="parentPhone">Phone *</Label>
                     <Input
                       id="parentPhone"
                       type="tel"
@@ -315,7 +315,7 @@ function ClinicRegisterPageContent() {
                 <Clock className="w-5 h-5" />
                 Swimming Background
               </CardTitle>
-              <CardDescription>Help us understand your child's swimming experience</CardDescription>
+              <CardDescription>Tell us about the swimmer’s experience.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>

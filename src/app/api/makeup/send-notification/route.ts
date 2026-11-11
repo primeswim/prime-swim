@@ -130,10 +130,10 @@ function buildMakeupNotificationEmailHtml(params: {
         ${eventText ? `<div class="event-detail" style="margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0;"><strong>Additional Information:</strong><br/>${eventText}</div>` : ""}
       </div>
       <p style="font-size:16px;margin:25px 0;color:#475569;line-height:1.7;">
-        Please log in to your Parent Portal to RSVP for this make-up class.
+        Please sign in to your Prime Swim account to RSVP for this make-up class.
       </p>
       <div class="cta-section">
-        <a href="https://www.primeswimacademy.com/login" class="cta-button">Go to Parent Portal</a>
+        <a href="https://www.primeswimacademy.com/login" class="cta-button">Open Member Area</a>
       </div>
       <p style="font-size:16px;margin-top:25px;color:#64748b;">
         Thank you for your attention. We look forward to seeing ${swimmerName} in the pool! 🌊

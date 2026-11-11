@@ -342,7 +342,7 @@ function ParentMeetDetailInner() {
             <CardHeader>
               <CardTitle>Attend / Decline</CardTitle>
               <p className="text-sm text-slate-500 mt-1">
-                Anyone can read this meet. Sign in to your Prime parent account to Attend or Decline for your swimmer.
+                Meet details are public. Sign in to your Prime Swim account to RSVP.
               </p>
             </CardHeader>
             <CardContent>

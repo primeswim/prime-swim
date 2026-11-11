@@ -184,13 +184,13 @@ export default function TrainingSurvey() {
                       <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center text-white font-bold text-sm">
                         1
                       </div>
-                      <h3 className="text-xl font-bold text-slate-800">Swimmer & Parent Information</h3>
+                      <h3 className="text-xl font-bold text-slate-800">Swimmer & Contact Information</h3>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="parentEmail" className="text-slate-700 font-medium">
-                          Parent Email *
+                          Contact Email *
                         </Label>
                         <Input
                           id="parentEmail"

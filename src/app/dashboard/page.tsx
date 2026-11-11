@@ -304,6 +304,8 @@ export default function DashboardPage() {
     )
   }
 
+  const lastName = swimmers.map((swimmer) => swimmer.childLastName?.trim()).find(Boolean)
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       {/* Header */}
@@ -314,8 +316,8 @@ export default function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back!</h1>
-            <p className="text-slate-600">Manage your swimmers and stay updated with their progress.</p>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">{lastName ? `Welcome, ${lastName}` : "Welcome"}</h1>
+            <p className="text-slate-600">Everything you need to manage your swimming journey, all in one place.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-w-0 items-center gap-2 text-sm text-slate-600">

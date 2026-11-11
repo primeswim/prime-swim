@@ -193,7 +193,7 @@ export default function LoginPage() {
                 </div>
                 <CardTitle className="text-2xl font-bold text-slate-800">Welcome Back</CardTitle>
                 <CardDescription className="text-slate-600">
-                  Sign in to the parent account to manage your swimmer&lsquo;s information
+                  Sign in to manage swimmer profiles and registrations.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -307,7 +307,7 @@ export default function LoginPage() {
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-slate-800 mb-2">New to Prime Swim Academy?</h4>
                   <p className="text-sm text-slate-600 mb-3">
-                    You must log in to your parent account before registering your swimmer.
+                    Sign in before registering a swimmer.
                   </p>
                   <p className="text-sm text-slate-600 mb-3">
                     New to Prime Swim Academy?{" "}
@@ -334,7 +334,7 @@ export default function LoginPage() {
                 </div>
                 <CardTitle className="text-2xl font-bold text-slate-800">Create Account</CardTitle>
                 <CardDescription className="text-slate-600">
-                  Create the parent account - you&lsquo;ll use this account to register and manage your swimmer(s)
+                  Create an account to register and manage swimmer profiles.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">

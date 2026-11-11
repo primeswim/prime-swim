@@ -87,10 +87,10 @@ function buildReminderEmailHtml(params: {
         <div class="event-text">${eventText}</div>
       </div>
       <p style="font-size:16px;margin:25px 0;color:#475569;line-height:1.7;">
-        Please log in to your Parent Portal to let us know if <strong>${swimmerName}</strong> will be attending this make-up class.
+        Please sign in to your Prime Swim account to let us know if <strong>${swimmerName}</strong> will be attending this make-up class.
       </p>
       <div class="cta-section">
-        <a href="https://www.primeswimacademy.com/login" class="cta-button">Go to Parent Portal</a>
+        <a href="https://www.primeswimacademy.com/login" class="cta-button">Open Member Area</a>
       </div>
       <p style="font-size:16px;margin-top:25px;color:#64748b;">
         Thank you for your attention. We look forward to seeing ${swimmerName} in the pool! 🌊

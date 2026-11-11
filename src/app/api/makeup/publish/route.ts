@@ -265,7 +265,7 @@ ${body.location ? `<p style="margin:8px 0;color:#475569;"><strong>Location:</str
 ${makeupText.trim() ? `<p style="margin:16px 0 8px;padding-top:16px;border-top:1px solid #e2e8f0;color:#475569;"><strong>Additional Information:</strong><br/>${makeupText.trim()}</p>` : ""}
 </div>
 <div style="text-align:center;margin:30px 0;">
-<a href="https://www.primeswimacademy.com/login" style="display:inline-block;background:linear-gradient(135deg,#1e293b 0%,#334155 100%);color:#fff;text-decoration:none;padding:14px 28px;border-radius:50px;font-weight:600;font-size:16px;">Go to Parent Portal</a>
+<a href="https://www.primeswimacademy.com/login" style="display:inline-block;background:linear-gradient(135deg,#1e293b 0%,#334155 100%);color:#fff;text-decoration:none;padding:14px 28px;border-radius:50px;font-weight:600;font-size:16px;">Open Member Area</a>
 </div>
 <p style="font-size:16px;color:#64748b;margin-top:20px;">Thank you for your attention. We look forward to seeing ${swimmerName} in the pool! 🌊</p>
 <p style="font-size:16px;margin-top:20px;"><strong>Warm regards,</strong><br/>The Prime Swim Academy Team</p>

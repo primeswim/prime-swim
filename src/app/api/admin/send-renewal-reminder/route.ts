@@ -79,22 +79,22 @@ function buildEmailHtml(params: {
   const guarantee =
     kind === "inactive"
       ? `Please note that since the membership is inactive, previous time slots / group placement may no longer be guaranteed.`
-      : `Please note that <strong>we cannot guarantee your swimmer’s spot after the due date</strong>. Renewing on time helps us hold your slot and plan staffing.`;
+      : `Please note that <strong>we cannot guarantee the swimmer’s spot after the due date</strong>. Renewing on time helps us hold your slot and plan staffing.`;
 
   // 操作步骤（根据状态：Renew vs Rejoin）
   const isRejoin = kind === "inactive";
-  const ctaText  = isRejoin ? "Rejoin via Parent Portal" : "Renew via Parent Portal";
+  const ctaText  = isRejoin ? "Rejoin Swim Program" : "Renew Membership";
   const stepsTitle = isRejoin ? "How to Rejoin" : "How to Renew";
   const steps = isRejoin
     ? [
-        "Log in to the Parent Portal",
+        "Select Member on the Prime Swim website and sign in",
         "Go to your Swimmer list and find the swimmer you want to rejoin",
         "Click the <strong>Rejoin</strong> button",
         "Review and re-check the required policies (Liability, MAAPP, Codes of Conduct)",
         "Complete the membership payment"
       ]
     : [
-        "Log in to the Parent Portal",
+        "Select Member on the Prime Swim website and sign in",
         "Go to your Swimmer list and find the swimmer you want to renew",
         "Click the <strong>Renew</strong> button",
         "Re-confirm required policies (Liability, MAAPP, Codes of Conduct)",
@@ -186,7 +186,7 @@ function buildEmailHtml(params: {
           <span class="info-value">${swimmerName}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Parent Email:</span>
+          <span class="info-label">Account Email:</span>
           <span class="info-value">${parentEmail}</span>
         </div>
         ${dueLine}

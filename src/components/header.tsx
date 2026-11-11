@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -13,25 +12,17 @@ import {
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useIsAdminFromDB } from "@/hooks/useIsAdminFromDB";
 import { AdminNavMenu } from "@/components/admin-nav-menu";
-import { signOutToLogin } from "@/lib/auth-session";
-import { auth } from "@/lib/firebase";
 import TryoutLink from "./tryout-link";
 import styles from "./header-brand.module.css";
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [user] = useAuthState(auth);
   const isAdmin = useIsAdminFromDB();
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  function handleLogout() {
-    setMobileOpen(false);
-    void signOutToLogin();
-  }
 
   return (
     <header className={styles.header}>
@@ -147,11 +138,7 @@ export default function Header() {
               <Link href="/news" className={styles.navItem}>
                 News
               </Link>
-              {user ? (
-                <button type="button" className={styles.navItem} onClick={handleLogout}>Logout</button>
-              ) : (
-                <Link href="/dashboard" className={styles.navItem}>Login</Link>
-              )}
+              <Link href="/dashboard" className={styles.navItem}>Member</Link>
               {isAdmin === true && (
                 mounted ? (
                   <DropdownMenu>
@@ -223,11 +210,7 @@ export default function Header() {
             <Link href="/safesport" className="block">Safe Sport</Link>
             <Link href="/events" className="block">Events</Link>
             <Link href="/news" className="block">News</Link>
-            {user ? (
-              <button type="button" className={styles.mobileLogout} onClick={handleLogout}>Logout</button>
-            ) : (
-              <Link href="/dashboard" className="block">Login</Link>
-            )}
+            <Link href="/dashboard" className="block">Member</Link>
             {isAdmin === true && (
               <div className="space-y-1 border-t pt-2 mt-2">
                 <p className="font-semibold">Admin</p>

@@ -207,7 +207,7 @@ export default function ManageAccountPage() {
           <TabsContent value="profile">
             <Card className="shadow-lg border border-slate-200 bg-white mt-6">
               <CardHeader>
-                <CardTitle>Parent Information</CardTitle>
+                <CardTitle>Account Information</CardTitle>
                 <CardDescription>Update your contact information</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

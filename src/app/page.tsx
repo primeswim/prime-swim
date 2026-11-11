@@ -280,7 +280,7 @@ export default function Home() {
           </div>
           <div className={styles.coachCopy}>
             <h2 id="coaches-title"><a href="/coaches#top">Our Coaches</a></h2>
-            <p>Olympic experience. Personal guidance. Get to know the people behind your swimmer’s progress.</p>
+            <p>Olympic experience. Personal guidance. Meet the coaches who help swimmers progress.</p>
           </div>
           <a href="/coaches#top" className={styles.coachCta}>
             Meet Lara &amp; Mo <ArrowRight aria-hidden="true" />
